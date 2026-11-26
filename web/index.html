@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f4e79">
+  <meta name="robots" content="noindex">
+  <title>Fábrica · Gestão</title>
+  <!-- Evita o "flash" de tema errado antes do React montar. -->
+  <script>
+    try {
+      var t = localStorage.getItem('fab_theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+  <!-- Configuração de execução (sem rebuild). Veja public/config.js -->
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
