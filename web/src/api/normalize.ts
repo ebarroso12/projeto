@@ -3,6 +3,7 @@
  * então campos podem faltar ou vir com outro tipo. Nenhum componente recebe `undefined`.
  */
 import type {
+  AcessosDados, SessaoAcesso, StatusAcesso,
   Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
@@ -177,4 +178,29 @@ const dreMes = (r: R): DreMes => ({
 export const parseDre = (v: unknown): DreDados => {
   const r = rec(v);
   return { hoje: str(r.hoje), categorias: list(r.categorias, dreCategoria), meses: list(r.meses, dreMes) };
+};
+
+// ---------------------------------------------------------------- acessos e auditoria
+const STATUS = ['aprovada', 'pendente', 'negada', 'encerrada', 'nenhuma'] as const;
+export const parseStatusAcesso = (v: unknown): StatusAcesso => {
+  const s = str(v) as StatusAcesso;
+  return (STATUS as readonly string[]).includes(s) ? s : 'nenhuma';
+};
+const sessao = (r: R): SessaoAcesso => ({
+  id: str(r.id), nome: str(r.nome), login: str(r.login), setor: str(r.setor), perfil: str(r.perfil),
+  aparelho: str(r.aparelho), ip: str(r.ip), status: parseStatusAcesso(r.status), tela: str(r.tela), ativoSeg: num(r.ativoSeg),
+  inicio: str(r.inicio), ultimo: str(r.ultimo), decididoPor: str(r.decididoPor), confiavel: bool(r.confiavel),
+});
+export const parseSessoes = (v: unknown): SessaoAcesso[] => list(v, sessao);
+export const parseAcessos = (v: unknown): AcessosDados => {
+  const r = rec(v);
+  return {
+    exigir: bool(r.exigir, true), pendentes: parseSessoes(r.pendentes), online: parseSessoes(r.online), sessoes: parseSessoes(r.sessoes),
+    eventos: list(r.eventos, e => ({ id: num(e.id), quem: str(e.quem), tipo: str(e.tipo), alvo: str(e.alvo), detalhe: rec(e.detalhe), em: str(e.em) })),
+    aparelhos: list(r.aparelhos, a => ({ login: str(a.login), nome: str(a.nome), aparelho: str(a.aparelho), descricao: str(a.descricao), desde: str(a.desde), por: str(a.por) })),
+    metricas: list(r.metricas, m => ({
+      nome: str(m.nome), login: str(m.login), perfil: str(m.perfil), ativo: bool(m.ativo, true),
+      entradas: num(m.entradas), negados: num(m.negados), tempoSeg: num(m.tempoSeg), criou: num(m.criou), alterou: num(m.alterou), apagou: num(m.apagou), ultimo: str(m.ultimo),
+    })),
+  };
 };

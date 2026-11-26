@@ -35,10 +35,10 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (114 verificações)
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (144 verificações)
 cd web && npm install && npm run typecheck && npm test      # app: 45 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 40 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
+node web/e2e/smoke.cjs                         # 45 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)
@@ -69,6 +69,14 @@ node web/e2e/smoke.cjs                         # 40 verificações no navegador 
 2. Mande ao cliente os dados mostrados (botão **Copiar dados**). O administrador dele cria a própria equipe em **Cadastros**.
 3. Cliente em atraso: **Bloquear** (todos perdem o acesso na hora; os dados ficam guardados). **Liberar** devolve o acesso.
 - Isolamento garantido no banco: toda tabela tem `empresa_id` e toda função usa a empresa de quem está logado (`fab.eu()`).
+
+## Controle de acesso e auditoria (tela **Acessos**, só administrador)
+- **Liberação a cada entrada** (ligada por padrão): o funcionário faz login e fica em "Aguardando liberação" até um
+  administrador liberar. O pedido aparece no topo de qualquer tela do administrador (Liberar / Liberar e confiar / Negar)
+  e a tela do funcionário abre sozinha. Administradores entram direto. "Confiar" faz aquele aparelho entrar direto nas próximas vezes.
+- Conferido no servidor: `fab.eu()` exige a sessão (o `session_id` do token) liberada. Negar ou **Derrubar** tira a pessoa na hora.
+- **Online agora** (tela atual e tempo ativo, por sinal enviado a cada minuto), **Entradas** (aparelho, IP, duração, quem liberou),
+  **Atividade** (gatilho de auditoria em todas as tabelas: quem criou, alterou ou apagou o quê, com antes → depois) e **Métricas** por pessoa.
 
 ## Proteção dos dados
 - **Cadastros → Cópia de segurança**: o administrador baixa um arquivo com todos os dados da empresa (sem senhas).

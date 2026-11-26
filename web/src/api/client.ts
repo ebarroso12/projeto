@@ -1,5 +1,6 @@
 import { getIp } from '../lib/network';
 import {
+  parseAcessos, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -26,6 +27,17 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     loginChave: async (chave: string) => str(await call('loginChave', chave)),
     sair: async () => { await call('sair', tok()); },
     trocarSenha: async (atual: string, nova: string) => { await call('trocarSenha', tok(), atual, nova); },
+
+    // ----- controle de acesso e auditoria -----
+    pedirAcesso: async (aparelho: string, descricao: string) => parseStatusAcesso(await call('pedirAcesso', tok(), aparelho, descricao)),
+    statusAcesso: async () => parseStatusAcesso(await call('statusAcesso', tok())),
+    presenca: async (tela: string) => { await call('presenca', tok(), tela); },
+    acessosPendentes: async () => parseSessoes(await call('acessosPendentes', tok())),
+    decidirAcesso: async (id: string, liberar: boolean, confiar: boolean) => { await call('decidirAcesso', tok(), id, liberar, confiar); },
+    encerrarSessao: async (id: string) => { await call('encerrarSessao', tok(), id); },
+    revogarAparelho: async (login: string, aparelho: string) => { await call('revogarAparelho', tok(), login, aparelho); },
+    configAcesso: async (exigir: boolean) => { await call('configAcesso', tok(), exigir); },
+    acessos: async (ini: string, fim: string) => parseAcessos(await call('acessos', tok(), ini, fim)),
 
     boot: async () => parseBoot(await call('dadosIniciais', tok(), await getIp())),
     painel: async () => parsePainel(await call('painel', tok())),

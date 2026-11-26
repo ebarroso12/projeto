@@ -162,3 +162,24 @@ export interface DreItemInput { categoriaId: string; marca: DreMarca; valor: num
 export interface DreCategoriaInput {
   id?: string; grupo?: DreGrupo; nome: string; tipo?: 'plus' | 'minus'; variabilidade: 'variable' | 'fixed'; nota?: string; ativa?: boolean;
 }
+
+// =====================================================================
+// Controle de acesso e auditoria
+// =====================================================================
+export type StatusAcesso = 'aprovada' | 'pendente' | 'negada' | 'encerrada' | 'nenhuma';
+
+export interface SessaoAcesso {
+  id: string; nome: string; login: string; setor: string; perfil: string;
+  aparelho: string; ip: string; status: StatusAcesso; tela: string; ativoSeg: number;
+  inicio: string; ultimo: string; decididoPor: string; confiavel: boolean;
+}
+export interface EventoAcesso { id: number; quem: string; tipo: string; alvo: string; detalhe: Record<string, unknown>; em: string }
+export interface AparelhoConfiavel { login: string; nome: string; aparelho: string; descricao: string; desde: string; por: string }
+export interface MetricaPessoa {
+  nome: string; login: string; perfil: string; ativo: boolean;
+  entradas: number; negados: number; tempoSeg: number; criou: number; alterou: number; apagou: number; ultimo: string;
+}
+export interface AcessosDados {
+  exigir: boolean; pendentes: SessaoAcesso[]; online: SessaoAcesso[]; sessoes: SessaoAcesso[];
+  eventos: EventoAcesso[]; aparelhos: AparelhoConfiavel[]; metricas: MetricaPessoa[];
+}

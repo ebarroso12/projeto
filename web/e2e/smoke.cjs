@@ -133,6 +133,21 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   const [bk] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar cópia de segurança' }).click()]);
   ok(/^backup-.*\.json$/.test(bk.suggestedFilename()), 'baixa a cópia de segurança (' + bk.suggestedFilename() + ')');
 
+  // Acessos: pedido pendente aparece no topo e é liberado dali
+  ok(await page.locator('.pendentes-banner').getByText('Bruno Lima').isVisible(), 'admin vê pedido de acesso no topo');
+  await page.locator('.pendentes-banner').getByRole('button', { name: 'Liberar', exact: true }).click();
+  await page.getByText('Acesso liberado.').waitFor();
+  ok(await until(async () => (await page.locator('.pendentes-banner').count()) === 0), 'liberado: faixa some');
+  await page.locator('.sidebar').getByRole('link', { name: 'Acessos' }).click();
+  await page.getByText('Liberação de acesso').waitFor();
+  for (const t of ['Online', 'Entradas', 'Atividade', 'Métricas', 'Aparelhos']) {
+    await page.getByRole('tablist', { name: 'Seções' }).getByRole('tab', { name: new RegExp('^' + t) }).click();
+    await page.waitForTimeout(150);
+  }
+  await page.getByRole('tablist', { name: 'Seções' }).getByRole('tab', { name: 'Atividade' }).click();
+  ok(await page.getByText('qtd: 30 → 35').first().isVisible(), 'atividade mostra o antes e depois de uma edição');
+  await shot(page, '11c-acessos');
+
   // Dashboard mensal (gráficos)
   await page.locator('.sidebar').getByRole('link', { name: 'Dashboard' }).click();
   await page.getByText('Síntese gerencial').waitFor();

@@ -13,10 +13,14 @@ interface AuthValue {
   booting: boolean;
   notice: string | null;
   wifiBlocked: boolean;
+  /** true quando a sessão aguarda o administrador liberar o acesso. */
+  pendente: boolean;
   demo: boolean;
   signIn: (login: string, senha: string, empresa?: string) => Promise<void>;
-  signOut: () => void;
+  /** Sai; com `aviso`, mostra a mensagem na tela de entrada. */
+  signOut: (aviso?: string) => void;
   retryWifi: () => void;
+  acessoLiberado: () => void;
 }
 
 const AuthCtx = createContext<AuthValue | null>(null);
@@ -41,6 +45,7 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
   const [booting, setBooting] = useState(Boolean(keyRef.current));
   const [notice, setNotice] = useState<string | null>(null);
   const [wifiBlocked, setWifiBlocked] = useState(false);
+  const [pendente, setPendente] = useState(false);
   const clientRef = useRef<QueryClient | null>(null);
 
   const setToken = useCallback((t: string | null) => {
@@ -59,8 +64,10 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
       setToken(null);
       clientRef.current?.clear();
       setNotice(err.message || 'Sua sessão expirou. Entre de novo, por favor.');
+      setPendente(false);
     }
     if (err.code === 'WIFI') setWifiBlocked(true);
+    if (err.code === 'PENDENTE') setPendente(true);
   }, [setToken]);
 
   const queryClient = useMemo(() => {
@@ -95,10 +102,11 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
     queryClient.clear();
     setNotice(null);
     setWifiBlocked(false);
+    setPendente(false);
     setToken(t);
   }, [api, queryClient, setToken]);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback((aviso?: string) => {
     void api.sair().catch(() => {});
     if (keyRef.current) { // sem isso, recarregar a página entraria de novo pelo link
       keyRef.current = null;
@@ -106,7 +114,8 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
     }
     setToken(null);
     queryClient.clear();
-    setNotice(null);
+    setNotice(typeof aviso === 'string' ? aviso : null);
+    setPendente(false);
   }, [api, queryClient, setToken]);
 
   const retryWifi = useCallback(() => {
@@ -114,9 +123,14 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
     void queryClient.invalidateQueries();
   }, [queryClient]);
 
+  const acessoLiberado = useCallback(() => {
+    setPendente(false);
+    void queryClient.invalidateQueries();
+  }, [queryClient]);
+
   const value = useMemo<AuthValue>(
-    () => ({ api, token, booting, notice, wifiBlocked, demo, signIn, signOut, retryWifi }),
-    [api, token, booting, notice, wifiBlocked, demo, signIn, signOut, retryWifi],
+    () => ({ api, token, booting, notice, wifiBlocked, pendente, demo, signIn, signOut, retryWifi, acessoLiberado }),
+    [api, token, booting, notice, wifiBlocked, pendente, demo, signIn, signOut, retryWifi, acessoLiberado],
   );
 
   return (

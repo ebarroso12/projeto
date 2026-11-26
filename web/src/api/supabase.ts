@@ -10,8 +10,10 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MIN_SENHA } from '../lib/rules';
+import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
+  parseAcessos, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -71,6 +73,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
         throw new ApiError('SERVIDOR', error.message);
       }
       chave = null;
+      // registra a sessão: administrador entra direto; os demais aguardam liberação (ou aparelho confiável)
+      try { await rpc('fab_pedir_acesso', { p_aparelho: aparelhoId(), p_descricao: descreverAparelho() }); } catch { /* o boot mostra o motivo */ }
       return 'sb'; // marcador: a sessão real fica com o supabase-js
     },
     loginChave: async k => {
@@ -78,7 +82,11 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       chave = k;
       return 'key';
     },
-    sair: async () => { chave = null; await sb.auth.signOut(); },
+    sair: async () => {
+      if (!chave) await rpc('fab_sair_sessao').catch(() => {});
+      chave = null;
+      await sb.auth.signOut();
+    },
     trocarSenha: async (atual, nova) => {
       if (nova.length < MIN_SENHA) throw new ApiError('SERVIDOR', `A nova senha precisa ter pelo menos ${MIN_SENHA} caracteres.`);
       const { data } = await sb.auth.getUser();
@@ -128,6 +136,16 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
     criarChave: async nome => str(await rpc('fab_criar_chave', { p_nome: nome })),
     revogarChaves: async () => num(await rpc('fab_revogar_chaves')),
+
+    pedirAcesso: async (aparelho, descricao) => parseStatusAcesso(await rpc('fab_pedir_acesso', { p_aparelho: aparelho, p_descricao: descricao })),
+    statusAcesso: async () => parseStatusAcesso(await rpc('fab_status_acesso')),
+    presenca: async tela => { if (!chave) await rpc('fab_presenca', { p_tela: tela }); },
+    acessosPendentes: async () => parseSessoes(await rpc('fab_acessos_pendentes')),
+    decidirAcesso: async (id, liberar, confiar) => { await rpc('fab_decidir_acesso', { p_id: id, p_liberar: liberar, p_confiar: confiar }); },
+    encerrarSessao: async id => { await rpc('fab_encerrar_sessao', { p_id: id }); },
+    revogarAparelho: async (login, aparelho) => { await rpc('fab_revogar_aparelho', { p_login: login, p_aparelho: aparelho }); },
+    configAcesso: async exigir => { await rpc('fab_config_acesso', { p_exigir: exigir }); },
+    acessos: async (ini, fim) => parseAcessos(await rpc('fab_acessos', { p_ini: ini, p_fim: fim })),
     exportar: async () => rpc('fab_exportar'),
 
     verWifi: async () => parseWifi(await rpc('fab_ver_wifi')),

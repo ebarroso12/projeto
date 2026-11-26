@@ -298,3 +298,17 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-logo { background: #fff; border-radius: 18px; padding: 10px 12px; margin: -8px -6px 4px; }
 .auth-logo img { display: block; width: 100%; height: auto; }
 [data-theme="dark"] .auth-logo { box-shadow: 0 0 0 1px var(--line); }
+
+/* ---------------- acessos ---------------- */
+.pendentes-banner { border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 10px; }
+.pb-head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.pb-head .icon { color: var(--accent); }
+.pb-head .link { margin-left: auto; font-size: 13.5px; }
+.pb-item { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--line); }
+.pb-quem { flex: 1; min-width: 180px; }
+.pb-quem b { display: block; font-size: 14px; }
+.pb-quem small { color: var(--muted); font-size: 12.5px; }
+.pb-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.online-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); flex: none; }
+.evento-det { font-size: 13px; color: var(--muted); display: inline-block; max-width: 520px; white-space: normal; }
+@media print { .pendentes-banner { display: none; } }

@@ -14,6 +14,7 @@ import { useApi, useAuth } from './auth';
 import { useBoot } from './boot';
 import { visibleFeatures, features } from './registry';
 import { useTheme } from './theme';
+import { PendentesBanner, usePendentes, usePresenca } from './acessoVivo';
 
 function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
@@ -62,7 +63,7 @@ function UserMenu({ onPassword }: { onPassword: () => void }) {
         <div className="menu-panel" role="menu">
           <div className="menu-head"><b>{eu.nome}</b><small className="muted">{eu.setor}{eu.admin ? ' · administrador' : ''}{eu.leitura ? ' · só ver' : ''}</small></div>
           {!eu.leitura && <button type="button" role="menuitem" className="menu-item" onClick={() => { setOpen(false); onPassword(); }}><Icon name="key" size={16} />Trocar senha</button>}
-          <button type="button" role="menuitem" className="menu-item" onClick={signOut}><Icon name="logout" size={16} />Sair</button>
+          <button type="button" role="menuitem" className="menu-item" onClick={() => signOut()}><Icon name="logout" size={16} />Sair</button>
         </div>
       )}
     </div>
@@ -78,6 +79,9 @@ export function AppShell() {
   const [mais, setMais] = useState(false);
   const items = visibleFeatures(boot.eu);
   const current = features.find(f => pathname.startsWith(f.path));
+  usePresenca(current?.label ?? '', !boot.eu.leitura);
+  const pendentes = usePendentes(boot.eu.admin && !boot.eu.leitura);
+  const contar = (f: (typeof items)[number]) => (f.id === 'acessos' ? pendentes.length : f.badge?.(boot) ?? 0);
 
   useEffect(() => { document.title = `${current?.title ?? 'Fábrica'} · Fábrica`; }, [current]);
 
@@ -93,7 +97,7 @@ export function AppShell() {
           {items.map(f => {
             const showGroup = f.group !== lastGroup;
             lastGroup = f.group;
-            const count = f.badge?.(boot) ?? 0;
+            const count = contar(f);
             return (
               <div key={f.id} style={{ display: 'contents' }}>
                 {showGroup && <div className="nav-label">{f.group}</div>}
@@ -122,13 +126,14 @@ export function AppShell() {
           </div>
         </header>
         <main className="page" id="conteudo">
+          <PendentesBanner pendentes={pendentes} />
           <PageArt.Provider value={current ? `marca/${current.id}.webp` : undefined}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
         </main>
       </div>
 
       <nav className="bottomnav" aria-label="Menu principal">
         {(items.length > 5 ? items.slice(0, 4) : items).map(f => {
-          const count = f.badge?.(boot) ?? 0;
+          const count = contar(f);
           return (
             <NavLink key={f.id} to={f.path}>
               <Icon name={f.icon} size={21} /><span>{f.label}</span>
@@ -140,13 +145,14 @@ export function AppShell() {
           <a href="#mais" className={items.slice(4).some(f => pathname.startsWith(f.path)) ? 'active' : undefined}
             onClick={e => { e.preventDefault(); setMais(true); }} aria-haspopup="dialog">
             <Icon name="more" size={21} /><span>Mais</span>
+            {items.slice(4).reduce((n, f) => n + contar(f), 0) > 0 && <span className="count">{items.slice(4).reduce((n, f) => n + contar(f), 0)}</span>}
           </a>
         )}
       </nav>
       <Dialog open={mais} onClose={() => setMais(false)} title="Mais opções" variant="drawer">
         <nav className="nav" aria-label="Mais opções">
           {items.slice(4).map(f => (
-            <NavLink key={f.id} to={f.path} onClick={() => setMais(false)}><Icon name={f.icon} />{f.label}</NavLink>
+            <NavLink key={f.id} to={f.path} onClick={() => setMais(false)}><Icon name={f.icon} />{f.label}{contar(f) > 0 && <span className="count">{contar(f)}</span>}</NavLink>
           ))}
         </nav>
       </Dialog>

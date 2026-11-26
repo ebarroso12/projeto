@@ -24,6 +24,8 @@ await db.exec(`
   create table auth.users (id uuid primary key default gen_random_uuid(), email text, last_sign_in_at timestamptz);
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  create function auth.jwt() returns jsonb language sql stable as
+    $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
   create role anon nologin; create role authenticated nologin; create role service_role nologin;
   grant usage on schema public to anon, authenticated, service_role;
   alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
@@ -36,9 +38,11 @@ const j = obj => `'${JSON.stringify(obj).replace(/'/g, "''")}'::jsonb`;
 const q = async (sql, params) => (await db.query(sql, params)).rows;
 
 /** Chama public.<expr> como um papel/usuário/IP. Devolve {ok,data} ou {ok:false,error}. */
-async function rpc(user, expr, { role = 'authenticated', ip, headers } = {}) {
+async function rpc(user, expr, { role = 'authenticated', ip, headers, sessao } = {}) {
   const h = { ...(ip ? { 'cf-connecting-ip': ip } : {}), ...(headers ?? {}) };
   await db.query(`select set_config('request.jwt.claim.sub', $1, false)`, [user ?? '']);
+  // cada usuário tem uma sessão padrão "s-<id>"; os testes de liberação usam outras
+  await db.query(`select set_config('request.jwt.claims', $1, false)`, [JSON.stringify(user ? { sub: user, session_id: sessao ?? `s-${user}` } : {})]);
   await db.query(`select set_config('request.headers', $1, false)`, [JSON.stringify(h)]);
   await db.exec(`set role ${role}`);
   try {
@@ -69,6 +73,8 @@ const ghost = await mkUser(empA, 'ghost', 'Inativo', 'Costureira', 'funcionario'
 const adminB = await mkUser(empB, 'admin', 'Beatriz', 'Administração', 'admin', true);   // mesmo login, outra empresa
 const joaoB = await mkUser(empB, 'joao', 'João', 'Cortador');
 await q(`insert into fab.donos (user_id) values ($1)`, [admin]);
+// a liberação de acesso tem testes próprios (seção 16); nas demais seções ela fica desligada
+await q(`update fab.configuracao set exigir_liberacao = false`);
 
 for (const emp of [empA, empB]) {
   await q(`insert into fab.itens_lista (empresa_id, tipo, nome, ordem) values
@@ -322,6 +328,52 @@ ok(!('chaves_acesso' in tabs), 'backup não leva as chaves de acesso');
 ok(fails_with(await rpc(ana, 'fab_exportar()'), 'Apenas o administrador'), 'funcionário não exporta');
 ok(fails_with(await rpc(null, 'fab_exportar()', { role: 'anon' }), 'permission denied'), 'anônimo não exporta');
 ok((await rpc(adminB, 'fab_exportar()')).data.tabelas.perfis.every(x => x.empresa_id === empB), 'admin da B exporta só a B');
+
+// ============ 16. liberação de acesso e auditoria ============
+console.log('\n--- liberação de acesso e auditoria ---');
+await q(`update fab.configuracao set exigir_liberacao = true where empresa_id = $1`, [empA]);
+const APARELHO = 'aparelho-da-ana-0001';
+ok(fails_with(await rpc(ana, 'fab_boot()', { sessao: 'ana-1' }), 'ACESSO_PENDENTE'), 'sem pedir acesso: bloqueado');
+eq((await rpc(ana, `fab_pedir_acesso('${APARELHO}','Chrome · Android')`, { sessao: 'ana-1' })).data, 'pendente', 'funcionária pede acesso: fica pendente');
+ok(fails_with(await rpc(ana, 'fab_boot()', { sessao: 'ana-1' }), 'ACESSO_PENDENTE'), 'pendente não usa o sistema');
+eq((await rpc(ana, 'fab_status_acesso()', { sessao: 'ana-1' })).data, 'pendente', 'status pendente');
+eq((await rpc(admin, `fab_pedir_acesso('admin-pc-000000001','Edge · Windows')`, { sessao: 'adm-1' })).data, 'aprovada', 'administrador entra direto');
+r = await rpc(admin, 'fab_acessos_pendentes()', { sessao: 'adm-1' });
+ok(r.ok && r.data.length === 1 && r.data[0].login === 'ana' && r.data[0].aparelho === 'Chrome · Android', 'admin vê o pedido da Ana');
+ok(!(await rpc(bruno, 'fab_acessos_pendentes()')).ok, 'funcionário não vê pedidos');
+ok((await rpc(adminB, 'fab_acessos_pendentes()')).data.length === 0, 'admin da outra empresa não vê o pedido');
+ok(fails_with(await rpc(adminB, `fab_decidir_acesso('${r.data[0].id}', true, false)`), 'já foi respondido'), 'admin da outra empresa não libera');
+ok((await rpc(admin, `fab_decidir_acesso('${r.data[0].id}', true, true)`, { sessao: 'adm-1' })).ok, 'admin libera e confia no aparelho');
+ok((await rpc(ana, 'fab_boot()', { sessao: 'ana-1' })).ok, 'liberada: usa o sistema');
+ok((await rpc(ana, `fab_presenca('Lançar')`, { sessao: 'ana-1' })).ok, 'sinal de presença');
+eq((await rpc(ana, `fab_pedir_acesso('${APARELHO}','Chrome · Android')`, { sessao: 'ana-2' })).data, 'aprovada', 'aparelho confiável: próximo login entra direto');
+eq((await rpc(ana, `fab_pedir_acesso('outro-aparelho-0002','Safari · iPhone')`, { sessao: 'ana-3' })).data, 'pendente', 'outro aparelho: pendente de novo');
+const p3 = (await rpc(admin, 'fab_acessos_pendentes()', { sessao: 'adm-1' })).data[0];
+ok((await rpc(admin, `fab_decidir_acesso('${p3.id}', false, false)`, { sessao: 'adm-1' })).ok, 'admin nega');
+ok(fails_with(await rpc(ana, 'fab_boot()', { sessao: 'ana-3' }), 'ACESSO_NEGADO'), 'negada: bloqueada com aviso');
+const sAna2 = (await q(`select id from fab.sessoes where session_id = 'ana-2'`))[0].id;
+ok((await rpc(admin, `fab_encerrar_sessao('${sAna2}')`, { sessao: 'adm-1' })).ok, 'admin derruba uma sessão');
+ok(fails_with(await rpc(ana, 'fab_boot()', { sessao: 'ana-2' }), 'SESSAO'), 'sessão derrubada sai do sistema');
+ok((await rpc(ana, 'fab_sair_sessao()', { sessao: 'ana-1' })).ok && fails_with(await rpc(ana, 'fab_boot()', { sessao: 'ana-1' }), 'SESSAO'), 'sair encerra a sessão');
+ok((await rpc(adminB, 'fab_boot()')).ok && (await rpc(joaoB, 'fab_boot()')).ok, 'empresa B (sem exigir liberação) segue normal');
+// auditoria: tudo que é criado/alterado/apagado vira evento com o autor
+await q(`update fab.configuracao set exigir_liberacao = false where empresa_id = $1`, [empA]);
+await rpc(bruno, lanc('Corte', 7, 'G'));
+const lid = (await q(`select id from fab.lancamentos where empresa_id = $1 order by criado_em desc limit 1`, [empA]))[0].id;
+await rpc(bruno, `fab_editar_lancamento('${lid}', 9)`);
+const ac = (await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data;
+const ev = ac.eventos;
+ok(ev.some(e => e.tipo === 'criou' && e.alvo === 'lancamentos' && e.quem === 'Bruno Lima'), 'auditoria: lançamento criado pelo Bruno');
+ok(ev.some(e => e.tipo === 'alterou' && e.alvo === 'lancamentos' && e.detalhe.mudou?.qtd), 'auditoria: edição mostra antes e depois');
+ok(ev.some(e => e.tipo === 'acesso_liberado' && e.alvo === 'Ana Souza') && ev.some(e => e.tipo === 'acesso_negado'), 'auditoria: liberações e negações');
+ok(ev.some(e => e.tipo === 'saida' && e.quem === 'Ana Souza') && ev.some(e => e.tipo === 'entrada'), 'auditoria: entradas e saídas');
+ok(!JSON.stringify(ev).includes('chave_hash'), 'auditoria não grava hash de chave');
+const mAna = ac.metricas.find(m => m.login === 'ana');
+ok(mAna && mAna.entradas >= 2 && mAna.negados === 1, 'métricas: entradas e acessos negados da Ana');
+ok(ac.aparelhos.length === 1 && ac.aparelhos[0].login === 'ana', 'aparelho confiável listado');
+ok((await rpc(admin, `fab_revogar_aparelho('ana','${APARELHO}')`)).ok && (await rpc(admin, `fab_acessos(current_date, current_date)`)).data.aparelhos.length === 0, 'admin revoga o aparelho');
+ok(!(await rpc(adminB, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.quem === 'Bruno Lima'), 'eventos não vazam para outra empresa');
+ok(fails_with(await rpc(null, `fab_acessos(current_date, current_date)`, { role: 'anon' }), 'permission denied'), 'anônimo não vê acessos');
 
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {

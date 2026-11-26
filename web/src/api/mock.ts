@@ -558,3 +558,81 @@ export function createMockTransport(latencyMs = 120): Transport {
     return structuredClone(h(args));
   };
 }
+
+// ---------------------------------------------------------------- acessos e auditoria (demonstração)
+const agoraIso = (minAtras = 0) => { const d = new Date(Date.now() - minAtras * 60_000); return `${isoDay(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`; };
+const acessoDemo = {
+  exigir: true,
+  pendentes: [
+    { id: 'p1', nome: 'Bruno Lima', login: 'bruno', setor: 'Cortador', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.7', status: 'pendente', tela: '', ativoSeg: 0, inicio: agoraIso(1), ultimo: agoraIso(1), decididoPor: '', confiavel: false },
+  ] as Record<string, unknown>[],
+  sessoes: [
+    { id: 's1', nome: 'Ana Souza', login: 'ana', setor: 'Costureira', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.9', status: 'aprovada', tela: 'Lançar', ativoSeg: 5400, inicio: agoraIso(130), ultimo: agoraIso(0), decididoPor: 'Edson', confiavel: true },
+    { id: 's2', nome: 'Carla Dias', login: 'carla', setor: 'Conferente', perfil: 'funcionario', aparelho: 'Safari · iPhone', ip: '189.40.12.11', status: 'aprovada', tela: 'Em falta', ativoSeg: 2700, inicio: agoraIso(75), ultimo: agoraIso(1), decididoPor: 'Edson', confiavel: false },
+    { id: 's3', nome: 'Edson', login: 'admin', setor: 'Administração', perfil: 'admin', aparelho: 'Edge · Windows', ip: '189.40.12.2', status: 'aprovada', tela: 'Acessos', ativoSeg: 3900, inicio: agoraIso(95), ultimo: agoraIso(0), decididoPor: '', confiavel: false },
+    { id: 's4', nome: 'Dóris Prado', login: 'doris', setor: 'Costureira', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '177.20.3.4', status: 'negada', tela: '', ativoSeg: 0, inicio: agoraIso(300), ultimo: agoraIso(300), decididoPor: 'Edson', confiavel: false },
+    { id: 's5', nome: 'Bruno Lima', login: 'bruno', setor: 'Cortador', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.7', status: 'encerrada', tela: 'Ponto', ativoSeg: 9800, inicio: agoraIso(1500), ultimo: agoraIso(1300), decididoPor: 'Edson', confiavel: false },
+  ] as Record<string, unknown>[],
+  eventos: [] as Record<string, unknown>[],
+  aparelhos: [{ login: 'ana', nome: 'Ana Souza', aparelho: 'demo-aparelho-ana', descricao: 'Chrome · Android', desde: agoraIso(2000).slice(0, 16), por: 'Edson' }] as Record<string, unknown>[],
+};
+(function seedEventos() {
+  let id = 100;
+  const ev = (min: number, quem: string, tipo: string, alvo: string, detalhe: Record<string, unknown> = {}) => acessoDemo.eventos.push({ id: id++, quem, tipo, alvo, detalhe, em: agoraIso(min) });
+  ev(1500, 'Bruno Lima', 'acesso_pedido', '', { aparelho: 'Chrome · Android' });
+  ev(1499, 'Edson', 'acesso_liberado', 'Bruno Lima', { aparelho: 'Chrome · Android' });
+  ev(1450, 'Bruno Lima', 'criou', 'ponto', { dia: today(), entrada: '07:52' });
+  ev(1300, 'Bruno Lima', 'saida', '');
+  ev(300, 'Dóris Prado', 'acesso_pedido', '', { aparelho: 'Chrome · Android', ip: '177.20.3.4' });
+  ev(299, 'Edson', 'acesso_negado', 'Dóris Prado', { aparelho: 'Chrome · Android' });
+  ev(130, 'Ana Souza', 'entrada', '', { aparelho: 'Chrome · Android', automatico: true });
+  ev(120, 'Ana Souza', 'criou', 'lancamentos', { etapa: 'Costura', modelo: 'Camisa Polo', cor: 'Preto', tamanho: 'M', qtd: 30 });
+  ev(110, 'Ana Souza', 'alterou', 'lancamentos', { mudou: { qtd: [30, 35] }, item: { etapa: 'Costura', modelo: 'Camisa Polo', cor: 'Preto', tamanho: 'M' } });
+  ev(95, 'Edson', 'entrada', '', { aparelho: 'Edge · Windows' });
+  ev(80, 'Edson', 'criou', 'fin_lancamentos', { tipo: 'saida', descricao: 'Tecido malha 300 kg', valor: 4200 });
+  ev(75, 'Carla Dias', 'entrada', '', { aparelho: 'Safari · iPhone' });
+  ev(60, 'Carla Dias', 'criou', 'em_falta', { modelo: 'Bermuda Tactel', cor: 'Azul', tamanho: 'G', qtd: 30 });
+  ev(40, 'Edson', 'alterou', 'perfis', { mudou: { perfil: ['funcionario', 'admin'] }, item: { nome: 'Carla Dias', login: 'carla' } });
+  ev(20, 'Ana Souza', 'apagou', 'lancamentos', { mudou: { apagado: [false, true] }, item: { etapa: 'Costura', modelo: 'Calça Jeans', qtd: 12 } });
+  acessoDemo.eventos.reverse();
+})();
+const metricasDemo = () => state.users.filter(u => !u.leitura).map(u => {
+  const ss = acessoDemo.sessoes.filter(s => s.login === u.login);
+  const ev = acessoDemo.eventos.filter(e => e.quem === u.nome);
+  return {
+    nome: u.nome, login: u.login, perfil: u.perfil, ativo: u.ativo,
+    entradas: ss.filter(s => s.status === 'aprovada' || s.status === 'encerrada').length, negados: ss.filter(s => s.status === 'negada').length,
+    tempoSeg: ss.reduce((t, s) => t + Number(s.ativoSeg), 0),
+    criou: ev.filter(e => e.tipo === 'criou').length, alterou: ev.filter(e => e.tipo === 'alterou').length, apagou: ev.filter(e => e.tipo === 'apagou').length,
+    ultimo: String(ss[0]?.ultimo ?? '').slice(0, 16),
+  };
+});
+
+Object.assign(handlers, {
+  pedirAcesso: ([t]: unknown[]) => { userOf(String(t)); return 'aprovada'; },
+  statusAcesso: ([t]: unknown[]) => { userOf(String(t)); return 'aprovada'; },
+  presenca: ([t]: unknown[]) => { userOf(String(t)); return null; },
+  acessosPendentes: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return acessoDemo.pendentes; },
+  decidirAcesso: ([t, id, liberar]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const p = acessoDemo.pendentes.find(x => x.id === id);
+    if (!p) throw fromServerMessage('Esse pedido já foi respondido ou expirou.');
+    acessoDemo.pendentes = acessoDemo.pendentes.filter(x => x !== p);
+    acessoDemo.sessoes.unshift({ ...p, status: liberar ? 'aprovada' : 'negada', decididoPor: u.nome, ultimo: agoraIso(0) });
+    acessoDemo.eventos.unshift({ id: Date.now(), quem: u.nome, tipo: liberar ? 'acesso_liberado' : 'acesso_negado', alvo: p.nome, detalhe: { aparelho: p.aparelho }, em: agoraIso(0) });
+    return null;
+  },
+  encerrarSessao: ([t, id]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const s = acessoDemo.sessoes.find(x => x.id === id);
+    if (s) { s.status = 'encerrada'; acessoDemo.eventos.unshift({ id: Date.now(), quem: u.nome, tipo: 'sessao_encerrada', alvo: s.nome, detalhe: {}, em: agoraIso(0) }); }
+    return null;
+  },
+  revogarAparelho: ([t, login, ap]: unknown[]) => { requireAdmin(userOf(String(t))); acessoDemo.aparelhos = acessoDemo.aparelhos.filter(a => !(a.login === login && a.aparelho === ap)); return null; },
+  configAcesso: ([t, exigir]: unknown[]) => { requireAdmin(userOf(String(t))); acessoDemo.exigir = Boolean(exigir); return null; },
+  acessos: ([t]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const online = acessoDemo.sessoes.filter(s => s.status === 'aprovada' && String(s.ultimo) >= agoraIso(3));
+    return { exigir: acessoDemo.exigir, pendentes: acessoDemo.pendentes, online, sessoes: acessoDemo.sessoes, eventos: acessoDemo.eventos, aparelhos: acessoDemo.aparelhos, metricas: metricasDemo() };
+  },
+});

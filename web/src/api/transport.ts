@@ -1,4 +1,4 @@
-export type ErrorCode = 'WIFI' | 'SESSAO' | 'REDE' | 'TEMPO' | 'RESPOSTA' | 'SERVIDOR';
+export type ErrorCode = 'WIFI' | 'SESSAO' | 'PENDENTE' | 'REDE' | 'TEMPO' | 'RESPOSTA' | 'SERVIDOR';
 
 export class ApiError extends Error {
   readonly code: ErrorCode;
@@ -14,6 +14,8 @@ export type Transport = (fn: string, args: unknown[]) => Promise<unknown>;
 
 /** O Apps Script devolve só o texto do erro; "WIFI" e "SESSAO" são códigos do servidor. */
 export function fromServerMessage(raw: string): ApiError {
+  if (raw.includes('ACESSO_PENDENTE')) return new ApiError('PENDENTE', 'Aguardando o administrador liberar seu acesso.');
+  if (raw.includes('ACESSO_NEGADO')) return new ApiError('SESSAO', 'O administrador não liberou este acesso. Fale com ele e tente de novo.');
   if (raw.includes('WIFI')) return new ApiError('WIFI', 'Conecte-se ao Wi-Fi da fábrica.');
   if (raw.includes('EMPRESA_BLOQUEADA')) return new ApiError('SESSAO', 'O acesso desta empresa está suspenso. Fale com o responsável pelo sistema.');
   if (raw.includes('SESSAO')) return new ApiError('SESSAO', 'Sua sessão expirou. Entre de novo.');
