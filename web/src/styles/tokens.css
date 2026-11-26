@@ -1,5 +1,5 @@
 /* Tokens de design: toda cor, raio e sombra do app sai daqui.
-   Visual: neutro (zinco), um único acento azul, superfícies claras, bordas quase invisíveis. */
+   Identidade Fábrica: azul-marinho (marca, botões, menu) + laranja (destaques). */
 :root {
   color-scheme: light;
   --bg: #f7f7f8;
@@ -12,15 +12,21 @@
   --line: rgba(15, 15, 25, .07);
   --line-strong: rgba(15, 15, 25, .12);
 
-  --brand: #2f6bff;
-  --brand-hover: #1f58ea;
+  --brand: #0b2266;
+  --brand-hover: #12308a;
   --brand-ink: #ffffff;
-  --brand-soft: rgba(47, 107, 255, .09);
+  --brand-soft: rgba(11, 34, 102, .08);
+  --accent: #f26b0a;            /* laranja da marca: destaque, nunca texto pequeno sobre branco */
+  --accent-soft: rgba(242, 107, 10, .12);
+  --nav-bg: #071a4f;            /* menu lateral azul-marinho (como as artes) */
+  --nav-ink: rgba(255, 255, 255, .72);
+  --nav-ink-strong: #ffffff;
+  --nav-hover: rgba(255, 255, 255, .08);
 
   --ok: #0f9d58;      --ok-soft: rgba(15, 157, 88, .1);
   --warn: #c27803;    --warn-soft: rgba(234, 160, 20, .13);
   --danger: #e5484d;  --danger-soft: rgba(229, 72, 77, .1);
-  --info: #2f6bff;    --info-soft: rgba(47, 107, 255, .09);
+  --info: #1f4fd1;    --info-soft: rgba(31, 79, 209, .09);
 
   --radius-sm: 10px;
   --radius: 14px;
@@ -28,7 +34,7 @@
   --shadow-sm: 0 1px 2px rgba(15, 15, 25, .04);
   --shadow: 0 8px 24px -8px rgba(15, 15, 25, .12);
   --shadow-lg: 0 24px 64px -12px rgba(15, 15, 25, .28);
-  --focus: 0 0 0 4px rgba(47, 107, 255, .18);
+  --focus: 0 0 0 4px rgba(242, 107, 10, .25);
 
   --sidebar-w: 240px;
   --topbar-h: 60px;
@@ -38,28 +44,34 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #09090b;
-  --surface: #121215;
-  --surface-2: #19191d;
-  --surface-3: #232328;
+  --bg: #050b1c;
+  --surface: #0c1530;
+  --surface-2: #121d3d;
+  --surface-3: #1a2750;
   --text: #f4f4f6;
   --muted: #a0a0ab;
   --faint: #6c6c76;
   --line: rgba(255, 255, 255, .07);
   --line-strong: rgba(255, 255, 255, .12);
 
-  --brand: #5b8cff;
-  --brand-hover: #7aa2ff;
-  --brand-ink: #ffffff;
-  --brand-soft: rgba(91, 140, 255, .14);
+  --brand: #ff8a3d;
+  --brand-hover: #ff9d5c;
+  --brand-ink: #1a0b00;
+  --brand-soft: rgba(255, 138, 61, .14);
+  --accent: #ff8a3d;
+  --accent-soft: rgba(255, 138, 61, .14);
+  --nav-bg: #071233;
+  --nav-ink: rgba(255, 255, 255, .7);
+  --nav-ink-strong: #ffffff;
+  --nav-hover: rgba(255, 255, 255, .07);
 
   --ok: #3ecf8e;      --ok-soft: rgba(62, 207, 142, .12);
   --warn: #f5b544;    --warn-soft: rgba(245, 181, 68, .13);
   --danger: #ff6b6f;  --danger-soft: rgba(255, 107, 111, .12);
-  --info: #5b8cff;    --info-soft: rgba(91, 140, 255, .14);
+  --info: #7aa2ff;    --info-soft: rgba(122, 162, 255, .14);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
   --shadow: 0 8px 24px -8px rgba(0, 0, 0, .6);
   --shadow-lg: 0 24px 64px -12px rgba(0, 0, 0, .75);
-  --focus: 0 0 0 4px rgba(91, 140, 255, .25);
+  --focus: 0 0 0 4px rgba(255, 138, 61, .3);
 }

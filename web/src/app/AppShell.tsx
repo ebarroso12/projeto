@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { TextField } from '../ui/Field';
 import { Icon } from '../ui/Icon';
+import { PageArt } from '../ui/primitives';
 import { useToast } from '../ui/Toast';
 import { longDate } from '../lib/format';
 import { MIN_SENHA } from '../lib/rules';
@@ -85,7 +86,7 @@ export function AppShell() {
     <div className="shell">
       <aside className="sidebar" aria-label="Menu principal">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true">F</div>
+          <img className="brand-mark" src="marca/marca-96.webp" alt="" width={36} height={36} />
           <div className="brand-name">{boot.empresa.nome || 'Fábrica'}<small>{demo ? 'Demonstração' : 'Gestão da produção'}</small></div>
         </div>
         <nav className="nav">
@@ -110,7 +111,7 @@ export function AppShell() {
       <div className="main">
         <header className="topbar">
           <div className="topbar-left">
-            <span className="topbar-brand"><span className="brand-mark" style={{ width: 28, height: 28, fontSize: 14 }} aria-hidden="true">F</span>{current?.label ?? 'Fábrica'}</span>
+            <span className="topbar-brand"><img className="brand-mark" src="marca/marca-96.webp" alt="" width={28} height={28} style={{ width: 28, height: 28 }} />{current?.label ?? 'Fábrica'}</span>
             <span className="topbar-date">{longDate()}</span>
           </div>
           <div className="topbar-right">
@@ -121,7 +122,7 @@ export function AppShell() {
           </div>
         </header>
         <main className="page" id="conteudo">
-          <ErrorBoundary key={pathname}><Outlet /></ErrorBoundary>
+          <PageArt.Provider value={current ? `marca/${current.id}.webp` : undefined}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
         </main>
       </div>
 

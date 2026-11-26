@@ -1,12 +1,19 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 
+/** Arte do módulo atual (fornecida pela casca do app) mostrada ao lado do título da página. */
+export const PageArt = createContext<string | undefined>(undefined);
+
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+  const art = useContext(PageArt);
   return (
     <div className="page-head">
-      <div>
+      <div className="page-title">
+        {art && <img className="page-art" src={art} alt="" width={56} height={56} decoding="async" />}
+        <div>
         <h1>{title}</h1>
         {subtitle && <p className="muted">{subtitle}</p>}
+        </div>
       </div>
       {actions && <div className="page-actions">{actions}</div>}
     </div>

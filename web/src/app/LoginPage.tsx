@@ -37,10 +37,7 @@ export function LoginPage() {
     <div className="center-screen">
       <form className="card auth-card" onSubmit={submit} noValidate>
         <div className="card-body">
-          <div className="auth-brand">
-            <div className="brand-mark" aria-hidden="true">F</div>
-            <div className="brand-name">Fábrica<small>Gestão da produção e financeiro</small></div>
-          </div>
+          <div className="auth-logo"><img src="marca/logo-horizontal.webp" alt="Fábrica · Gestão da produção e do financeiro" width={960} height={356} /></div>
           {notice && <Banner tone="warn">{notice}</Banner>}
           {demo && <Banner tone="info">Modo demonstração: dados fictícios. Teste com admin / admin.</Banner>}
           {precisaEmpresa && (
