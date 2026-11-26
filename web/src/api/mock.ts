@@ -139,7 +139,8 @@ function bootFor(u: MUser) {
   const meusHoje = state.lancs.filter(l => l.login === u.login && l.data === today()).map(l => ({ ...l }));
   const p = state.pontos.find(x => x.login === u.login && x.data === today());
   return {
-    eu: { nome: u.nome, setor: u.setor, admin: u.perfil === 'admin', leitura: !!u.leitura, podeFalta: u.podeFalta, demo: false },
+    eu: { nome: u.nome, setor: u.setor, admin: u.perfil === 'admin', leitura: !!u.leitura, podeFalta: u.podeFalta, demo: false, financeiro: u.perfil === 'admin', dono: u.login === 'admin' },
+    empresa: { codigo: 'demo', nome: 'Confecção Demonstração' },
     hoje: today(), ponto: p ?? { entrada: '', saida: '', extra: '' }, horaFim: HORA_FIM, exigirWifi: state.exigirWifi,
     etapas: ETAPAS, modelos: state.modelos, cores: state.cores, tamanhos: state.tamanhos,
     disponivel: saldoRows(), meusHoje, emFalta: state.faltas.map(faltaOut),
@@ -322,6 +323,218 @@ const handlers: Record<string, (a: unknown[]) => unknown> = {
     return { exigir: state.exigirWifi, ips: state.redes };
   },
 };
+
+
+// =====================================================================
+// Demonstração: empresas, financeiro e resultado (DRE)
+// =====================================================================
+let uidN = 1;
+const uid = () => `x${Date.now().toString(36)}${(uidN++).toString(36)}`;
+const mesAtual = () => today().slice(0, 7);
+const mesMenos = (n: number) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - n); return isoDay(d).slice(0, 7); };
+
+function vencFatura(data: string, fech: number, venc: number): string {
+  const [y, m, d] = data.split('-').map(Number) as [number, number, number];
+  const last = (yy: number, mm0: number) => new Date(yy, mm0 + 1, 0).getDate();
+  const cm = new Date(y, m - 1 + (d > fech ? 1 : 0), 1);
+  const cl = last(cm.getFullYear(), cm.getMonth());
+  const closeDate = new Date(cm.getFullYear(), cm.getMonth(), Math.min(fech, cl));
+  const sameDue = new Date(cm.getFullYear(), cm.getMonth(), Math.min(venc, cl));
+  const dm = sameDue > closeDate ? cm : new Date(cm.getFullYear(), cm.getMonth() + 1, 1);
+  return isoDay(new Date(dm.getFullYear(), dm.getMonth(), Math.min(venc, last(dm.getFullYear(), dm.getMonth()))));
+}
+
+const empresasDemo = [
+  { id: 'e1', codigo: 'demo', nome: 'Confecção Demonstração', ativa: true, motivo: '', criadaEm: '2026-09-01', usuarios: 6, admins: 1, ultimoAcesso: `${today()}T08:10` },
+  { id: 'e2', codigo: 'malharia-sul', nome: 'Malharia Sul', ativa: true, motivo: '', criadaEm: '2026-10-12', usuarios: 14, admins: 2, ultimoAcesso: `${today()}T07:55` },
+  { id: 'e3', codigo: 'jeans-norte', nome: 'Jeans Norte', ativa: false, motivo: 'Mensalidade em atraso', criadaEm: '2026-08-03', usuarios: 9, admins: 1, ultimoAcesso: '2026-11-02T17:20' },
+];
+
+const fin = {
+  dataInicio: `${new Date().getFullYear()}-01-01`,
+  listas: {
+    categorias: ['Matéria-prima', 'Folha de pagamento', 'Aluguel', 'Energia e água', 'Impostos', 'Frete e transporte', 'Manutenção', 'Marketing', 'Vendas', 'Outros'],
+    responsaveis: ['Edson', 'Financeiro'], centros: ['Produção', 'Administrativo', 'Comercial'],
+    formas: ['PIX', 'Boleto', 'Débito automático', 'Cartão de débito', 'Transferência', 'Dinheiro'],
+  } as Record<string, string[]>,
+  contas: [{ id: 'cc', nome: 'Conta corrente', saldoInicial: 18000, ativa: true }, { id: 'cx', nome: 'Caixa', saldoInicial: 1500, ativa: true }],
+  cartoes: [{ id: 'visa', nome: 'Visa Empresa', diaFechamento: 25, diaVencimento: 5, ativo: true }],
+  lancamentos: [] as Record<string, unknown>[],
+  pagamentosFatura: [] as Record<string, unknown>[],
+  metas: [{ id: 'm1', nome: 'Reserva de emergência', valorMeta: 30000, dataAlvo: null as string | null, ativa: true }, { id: 'm2', nome: 'Máquina nova', valorMeta: 12000, dataAlvo: `${new Date().getFullYear() + 1}-03-31`, ativa: true }],
+  movimentosMeta: [] as Record<string, unknown>[],
+  expectativas: [] as { mes: string; entradas: number; saidas: Record<string, number> }[],
+};
+(function seedFin() {
+  const m = mesAtual(), p = mesMenos(1);
+  const L = (o: Record<string, unknown>) => fin.lancamentos.push({ id: uid(), forma: '', categoria: '', responsavel: 'Edson', centro: 'Produção', parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: null, obs: '', contaId: null, cartaoId: null, ...o });
+  L({ tipo: 'entrada', data: `${p}-08`, descricao: 'Venda lote 118 · Loja Centro', valor: 14800, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial' });
+  L({ tipo: 'saida', data: `${p}-10`, descricao: 'Tecido malha 300 kg', valor: 6200, contaId: 'cc', categoria: 'Matéria-prima', forma: 'Boleto' });
+  L({ tipo: 'saida', data: `${p}-05`, descricao: 'Folha de pagamento', valor: 9200, contaId: 'cc', categoria: 'Folha de pagamento', centro: 'Administrativo', forma: 'Transferência' });
+  L({ tipo: 'entrada', data: `${m}-06`, descricao: 'Venda lote 121 · Atacado', valor: 21400, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'PIX' });
+  L({ tipo: 'saida', data: `${m}-05`, descricao: 'Folha de pagamento', valor: 9350, contaId: 'cc', categoria: 'Folha de pagamento', centro: 'Administrativo', forma: 'Transferência' });
+  L({ tipo: 'saida', data: `${m}-10`, descricao: 'Aluguel do galpão', valor: 4800, contaId: 'cc', categoria: 'Aluguel', centro: 'Administrativo', forma: 'Boleto' });
+  L({ tipo: 'saida', data: `${m}-12`, descricao: 'Energia elétrica', valor: 1730, contaId: 'cc', categoria: 'Energia e água', forma: 'Débito automático' });
+  L({ tipo: 'saida', data: `${m}-14`, descricao: 'Linhas e aviamentos', valor: 860, cartaoId: 'visa', categoria: 'Matéria-prima', vencimentoFatura: vencFatura(`${m}-14`, 25, 5) });
+  L({ tipo: 'saida', data: `${m}-18`, descricao: 'Anúncios Instagram', valor: 450, cartaoId: 'visa', categoria: 'Marketing', centro: 'Comercial', vencimentoFatura: vencFatura(`${m}-18`, 25, 5) });
+  L({ tipo: 'programada', data: `${p}-20`, descricao: 'Máquina overloque', valor: 7200, contaId: 'cc', parcelas: 6, valorParcela: 1200, diaVencimento: 20, parcelasPagas: 1, categoria: 'Manutenção', forma: 'Boleto' });
+  L({ tipo: 'programada', data: `${m}-02`, descricao: 'Contador (mensal)', valor: 900, contaId: 'cc', parcelas: 12, valorParcela: 900, diaVencimento: 15, categoria: 'Outros', centro: 'Administrativo', forma: 'PIX' });
+  fin.movimentosMeta.push({ id: uid(), metaId: 'm1', tipo: 'deposito', valor: 3000, data: `${p}-28`, contaId: 'cc' });
+  fin.expectativas.push({ mes: m, entradas: 32000, saidas: { 'Folha de pagamento': 9500, Aluguel: 4800, 'Matéria-prima': 8000, 'Energia e água': 1600, Marketing: 600 } });
+})();
+const finSnapshot = () => structuredClone({ hoje: today(), ...fin, lancamentos: fin.lancamentos.filter(l => !l.apagado) });
+const conta = (id: unknown) => { if (!fin.contas.some(c => c.id === id)) throw fromServerMessage('Conta inválida.'); };
+
+const dreCats = [
+  ['gross', 'sales', 'Faturamento bruto', 'plus', 'variable', true], ['returns', 'sales', 'Devoluções e descontos', 'minus', 'variable', true],
+  ['tax', 'sales', 'Impostos sobre vendas', 'minus', 'variable', true], ['cmv', 'direct', 'CMV / custo dos produtos vendidos', 'minus', 'variable', true],
+  ['labor', 'direct', 'Mão de obra direta (se fora do CMV)', 'minus', 'fixed', false], ['marketplace', 'selling', 'Taxas de marketplace', 'minus', 'variable', false],
+  ['ads', 'selling', 'Anúncios e publicidade', 'minus', 'fixed', false], ['packing', 'selling', 'Embalagens de envio', 'minus', 'variable', false],
+  ['shipping', 'selling', 'Fretes pagos pela empresa', 'minus', 'variable', false], ['commission', 'selling', 'Comissões de vendas', 'minus', 'variable', false],
+  ['rent', 'admin', 'Aluguel', 'minus', 'fixed', false], ['accountant', 'admin', 'Contador', 'minus', 'fixed', false],
+  ['electricity', 'admin', 'Energia e água administrativas', 'minus', 'fixed', false], ['internet', 'admin', 'Internet e telefone', 'minus', 'fixed', false],
+  ['prolabore', 'admin', 'Pró-labore', 'minus', 'fixed', false], ['cleaning', 'admin', 'Limpeza e escritório', 'minus', 'fixed', false],
+  ['interest', 'finance', 'Juros recebidos', 'plus', 'fixed', false], ['dividend', 'finance', 'Dividendos recebidos', 'plus', 'fixed', false],
+].map(([chave, grupo, nome, tipo, variabilidade, essencial], i) => ({ id: `d-${chave}`, chave, grupo, nome, tipo, variabilidade, essencial, nota: '', ativa: true, ordem: i + 1 })) as Record<string, unknown>[];
+const dreMeses: { mes: string; status: string; atualizadoEm: string; valores: Record<string, { marca: string; valor: number | null }> }[] = [];
+(function seedDre() {
+  const vals = (o: Record<string, number>) => Object.fromEntries(dreCats.map(c => [c.id as string, c.chave as string in o ? { marca: 'valor', valor: o[c.chave as string]! } : { marca: 'na', valor: null }]));
+  dreMeses.push({ mes: mesMenos(1), status: 'fechado', atualizadoEm: `${today()}T09:00`, valores: vals({ gross: 52000, returns: 1300, tax: 4700, cmv: 21500, ads: 900, shipping: 1600, commission: 1250, rent: 4800, accountant: 900, electricity: 650, prolabore: 6000, interest: 180 }) });
+  dreMeses.push({ mes: mesMenos(2), status: 'fechado', atualizadoEm: `${today()}T09:00`, valores: vals({ gross: 47500, returns: 900, tax: 4300, cmv: 20100, ads: 900, shipping: 1450, commission: 1100, rent: 4800, accountant: 900, electricity: 610, prolabore: 6000 }) });
+  dreMeses.push({ mes: mesMenos(3), status: 'fechado', atualizadoEm: `${today()}T09:00`, valores: vals({ gross: 39800, returns: 1500, tax: 3600, cmv: 19800, ads: 1400, shipping: 1300, commission: 900, rent: 4800, accountant: 900, electricity: 640, prolabore: 6000 }) });
+})();
+
+Object.assign(handlers, {
+  criarChave: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return 'demo-key'; },
+  revogarChaves: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return 0; },
+
+  empresas: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return empresasDemo; },
+  criarEmpresa: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = o as { codigo: string; nome: string; adminLogin: string; adminSenha: string };
+    if (!/^[a-z0-9-]{2,30}$/.test(r.codigo)) throw fromServerMessage('Código inválido: use 2 a 30 letras minúsculas, números ou hífen.');
+    if (empresasDemo.some(e => e.codigo === r.codigo)) throw fromServerMessage('Já existe uma empresa com esse código.');
+    if (!r.adminLogin || (r.adminSenha ?? '').length < MIN_SENHA) throw fromServerMessage(`Informe o login e uma senha de pelo menos ${MIN_SENHA} caracteres.`);
+    empresasDemo.push({ id: uid(), codigo: r.codigo, nome: r.nome, ativa: true, motivo: '', criadaEm: today(), usuarios: 1, admins: 1, ultimoAcesso: '' });
+    return null;
+  },
+  bloquearEmpresa: ([t, id, bloquear, motivo]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const e = empresasDemo.find(x => x.id === id);
+    if (!e) throw fromServerMessage('Empresa não encontrada.');
+    if (e.id === 'e1' && bloquear) throw fromServerMessage('Você não pode bloquear a sua própria empresa.');
+    e.ativa = !bloquear; e.motivo = bloquear ? String(motivo ?? '') : '';
+    return null;
+  },
+  renomearEmpresa: ([t, id, nome]: unknown[]) => { requireAdmin(userOf(String(t))); const e = empresasDemo.find(x => x.id === id); if (e) e.nome = String(nome); return null; },
+
+  finDados: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return finSnapshot(); },
+  finSalvarLancamento: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = o as Record<string, unknown>;
+    if (!r.descricao || !(Number(r.valor) > 0)) throw fromServerMessage('Preencha a descrição e um valor maior que zero.');
+    const cartao = r.tipo !== 'entrada' && r.cartaoId ? fin.cartoes.find(c => c.id === r.cartaoId) : undefined;
+    if (!cartao) conta(r.contaId);
+    if (r.tipo === 'programada' && !cartao && !(Number(r.diaVencimento) >= 1)) throw fromServerMessage('Informe o dia do vencimento (1 a 31).');
+    const item = { forma: '', categoria: '', responsavel: '', centro: '', obs: '', parcelasPagas: 0, origemId: null, parcelas: null, valorParcela: null, diaVencimento: null, ...r,
+      contaId: cartao ? null : r.contaId, cartaoId: cartao ? cartao.id : null,
+      vencimentoFatura: cartao ? vencFatura(String(r.data), cartao.diaFechamento, cartao.diaVencimento) : null } as Record<string, unknown>;
+    const i = fin.lancamentos.findIndex(l => l.id === r.id);
+    if (i >= 0) { item.parcelasPagas = fin.lancamentos[i]!.parcelasPagas; fin.lancamentos[i] = item; } else { item.id = uid(); fin.lancamentos.push(item); }
+    return item.id;
+  },
+  finApagarLancamento: ([t, id]: unknown[]) => { requireAdmin(userOf(String(t))); const l = fin.lancamentos.find(x => x.id === id); if (!l) throw fromServerMessage('Lançamento não encontrado.'); l.apagado = true; return null; },
+  finPagarParcela: ([t, id, data, valor, contaId]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const l = fin.lancamentos.find(x => x.id === id && x.tipo === 'programada') as Record<string, unknown> | undefined;
+    if (!l) throw fromServerMessage('Conta programada não encontrada.');
+    if (Number(l.parcelasPagas) >= Number(l.parcelas)) throw fromServerMessage('Todas as parcelas já foram pagas.');
+    l.parcelasPagas = Number(l.parcelasPagas) + 1;
+    fin.lancamentos.push({ id: uid(), tipo: 'saida', data, descricao: `${l.descricao} · parcela ${l.parcelasPagas}/${l.parcelas}`, valor: Number(valor), contaId: contaId ?? l.contaId, cartaoId: null,
+      forma: l.forma, categoria: l.categoria, responsavel: l.responsavel, centro: l.centro, parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: l.id, obs: '' });
+    return null;
+  },
+  finPagarFatura: ([t, cartaoId, vencimento, valor, contaId, data]: unknown[]) => {
+    requireAdmin(userOf(String(t))); conta(contaId);
+    if (fin.pagamentosFatura.some(p => p.cartaoId === cartaoId && p.vencimento === vencimento)) throw fromServerMessage('Essa fatura já foi paga.');
+    fin.pagamentosFatura.push({ id: uid(), cartaoId, vencimento, valor: Number(valor), contaId, data });
+    return null;
+  },
+  finSalvarConta: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t))); const r = o as { id?: string; nome: string; saldoInicial: number; ativa?: boolean };
+    if (!r.nome?.trim()) throw fromServerMessage('Informe o nome da conta.');
+    const c = fin.contas.find(x => x.id === r.id);
+    if (c) Object.assign(c, { nome: r.nome.trim(), saldoInicial: Number(r.saldoInicial) || 0, ativa: r.ativa ?? true }); else fin.contas.push({ id: uid(), nome: r.nome.trim(), saldoInicial: Number(r.saldoInicial) || 0, ativa: true });
+    return r.id ?? 'ok';
+  },
+  finSalvarCartao: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t))); const r = o as { id?: string; nome: string; diaFechamento: number; diaVencimento: number; ativo?: boolean };
+    if (!r.nome?.trim()) throw fromServerMessage('Informe o nome do cartão.');
+    const c = fin.cartoes.find(x => x.id === r.id);
+    if (c) Object.assign(c, { nome: r.nome.trim(), diaFechamento: r.diaFechamento, diaVencimento: r.diaVencimento, ativo: r.ativo ?? true }); else fin.cartoes.push({ id: uid(), nome: r.nome.trim(), diaFechamento: r.diaFechamento, diaVencimento: r.diaVencimento, ativo: true });
+    return 'ok';
+  },
+  finSalvarMeta: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t))); const r = o as { id?: string; nome: string; valorMeta: number; dataAlvo?: string | null; ativa?: boolean };
+    if (!r.nome?.trim()) throw fromServerMessage('Informe o nome da meta.');
+    const m = fin.metas.find(x => x.id === r.id);
+    if (m) Object.assign(m, { nome: r.nome.trim(), valorMeta: Number(r.valorMeta) || 0, dataAlvo: r.dataAlvo || null, ativa: r.ativa ?? true }); else fin.metas.push({ id: uid(), nome: r.nome.trim(), valorMeta: Number(r.valorMeta) || 0, dataAlvo: r.dataAlvo || null, ativa: true });
+    return 'ok';
+  },
+  finMovimentarMeta: ([t, metaId, tipo, valor, data, contaId]: unknown[]) => {
+    requireAdmin(userOf(String(t))); conta(contaId);
+    const saldo = fin.movimentosMeta.filter(m => m.metaId === metaId).reduce((s, m) => s + (m.tipo === 'deposito' ? Number(m.valor) : -Number(m.valor)), 0);
+    if (tipo === 'retirada' && Number(valor) > saldo) throw fromServerMessage(`A meta só tem ${saldo.toFixed(2)} guardado.`);
+    fin.movimentosMeta.push({ id: uid(), metaId, tipo, valor: Number(valor), data, contaId });
+    return null;
+  },
+  finSalvarExpectativa: ([t, mes, entradas, saidas]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const limpo = Object.fromEntries(Object.entries(saidas as Record<string, number>).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)]));
+    const i = fin.expectativas.findIndex(e => e.mes === mes);
+    const reg = { mes: String(mes), entradas: Number(entradas) || 0, saidas: limpo };
+    if (i >= 0) fin.expectativas[i] = reg; else fin.expectativas.push(reg);
+    return null;
+  },
+  finSalvarConfig: ([t, data]: unknown[]) => { requireAdmin(userOf(String(t))); fin.dataInicio = String(data); return null; },
+  finSalvarLista: ([t, tipo, valores]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const k = ({ categoria: 'categorias', responsavel: 'responsaveis', centro: 'centros', forma: 'formas' } as Record<string, string>)[String(tipo)];
+    if (!k) throw fromServerMessage('Lista inválida.');
+    fin.listas[k] = [...new Set((valores as string[]).map(v => v.trim()).filter(Boolean))];
+    return null;
+  },
+
+  dreDados: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return structuredClone({ hoje: today(), categorias: dreCats, meses: [...dreMeses].sort((a, b) => b.mes.localeCompare(a.mes)) }); },
+  dreSalvarMes: ([t, mes, itens]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const valores: Record<string, { marca: string; valor: number | null }> = {};
+    for (const it of itens as { categoriaId: string; marca: string; valor: number | null }[]) {
+      if (it.marca === 'valor' && (it.valor === null || it.valor < 0)) throw fromServerMessage('Valores não podem ser negativos.');
+      valores[it.categoriaId] = { marca: it.marca, valor: it.marca === 'valor' ? it.valor : null };
+    }
+    const status = dreCats.some(c => c.ativa && !['valor', 'na'].includes(valores[c.id as string]?.marca ?? '')) ? 'pendente' : 'fechado';
+    const i = dreMeses.findIndex(m => m.mes === mes);
+    const reg = { mes: String(mes), status, atualizadoEm: `${today()}T${hhmm()}`, valores };
+    if (i >= 0) dreMeses[i] = reg; else dreMeses.push(reg);
+    return status;
+  },
+  dreApagarMes: ([t, mes]: unknown[]) => { requireAdmin(userOf(String(t))); const i = dreMeses.findIndex(m => m.mes === mes); if (i >= 0) dreMeses.splice(i, 1); return null; },
+  dreSalvarCategoria: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t))); const r = o as Record<string, unknown>;
+    const c = dreCats.find(x => x.id === r.id);
+    if (c) {
+      if (c.essencial && r.ativa === false) throw fromServerMessage('Esta categoria é essencial e não pode ser desativada.');
+      Object.assign(c, { nome: r.nome, variabilidade: r.variabilidade ?? c.variabilidade, nota: r.nota ?? c.nota, ativa: r.ativa ?? c.ativa });
+      return c.id;
+    }
+    const grupo = String(r.grupo);
+    const id = `d-${uid()}`;
+    dreCats.push({ id, chave: id, grupo, nome: r.nome, tipo: grupo === 'finance' ? 'plus' : grupo === 'sales' && r.tipo === 'plus' ? 'plus' : 'minus', variabilidade: r.variabilidade ?? 'fixed', essencial: false, nota: r.nota ?? '', ativa: true, ordem: dreCats.length + 1 });
+    return id;
+  },
+  dreRestaurarCategorias: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); dreCats.forEach(c => { c.ativa = true; }); return null; },
+});
 
 export function createMockTransport(latencyMs = 120): Transport {
   return async (fn, args) => {

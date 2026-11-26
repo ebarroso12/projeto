@@ -1,20 +1,24 @@
 /**
- * Servidor "Supabase": implementa a mesma interface `Api` do Apps Script, chamando as funções
- * fab_* do banco (supabase/migrations). As regras vivem no banco; aqui só há tradução.
+ * Servidor "Supabase" (multiempresa): implementa a mesma interface `Api`, chamando as funções
+ * fab_* / fin_* / dre_* do banco. As regras vivem no banco; aqui só há tradução.
  *
  * Particularidades:
- *  - login por nome de usuário: o Supabase Auth usa e-mail, então "ana" vira "ana@fabrica.local";
- *  - o IP para a regra do Wi-Fi é o que o SERVIDOR enxerga (o navegador não envia IP);
+ *  - login = código da empresa + usuário: o Supabase Auth usa e-mail, então "alfa" + "ana" vira
+ *    "alfa.ana@fabrica.local" (o mesmo login pode existir em empresas diferentes);
+ *  - o IP para a regra do Wi-Fi é o que a BORDA do Supabase enxerga (o navegador não envia IP);
  *  - o link "só ver" (?k=) usa as funções *_chave, que não exigem login.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MIN_SENHA } from '../lib/rules';
 import type { Api } from './client';
-import { parseBoot, parseFaltas, parsePainel, parseRelatorio, parseUsuarios, parseWifi, rec, str, strings, num } from './normalize';
+import {
+  parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  rec, str, strings, num,
+} from './normalize';
 import { ApiError, fromServerMessage } from './transport';
 import type { FaltaInput, LancamentoInput, LancamentoResultado, UsuarioInput } from './types';
 
-const emailDe = (login: string) => `${login.trim().toLowerCase()}@fabrica.local`;
+export const emailDe = (empresa: string, login: string) => `${empresa.trim().toLowerCase()}.${login.trim().toLowerCase()}@fabrica.local`;
 
 interface PgError { message: string; code?: string; status?: number }
 
@@ -56,9 +60,16 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
   };
 
   return {
-    login: async (login, senha) => {
-      const { error } = await sb.auth.signInWithPassword({ email: emailDe(login), password: senha });
-      if (error) throw new ApiError('SERVIDOR', 'Login ou senha incorretos.');
+    precisaEmpresa: true,
+
+    login: async (login, senha, empresa) => {
+      if (!empresa?.trim()) throw new ApiError('SERVIDOR', 'Informe o código da empresa.');
+      const { error } = await sb.auth.signInWithPassword({ email: emailDe(empresa, login), password: senha });
+      if (error) {
+        if (error.status === 400 || /invalid/i.test(error.message)) throw new ApiError('SERVIDOR', 'Empresa, login ou senha incorretos.');
+        if (!error.status || /fetch|network/i.test(error.message)) throw new ApiError('REDE', 'Não foi possível falar com o servidor. Confira a internet.');
+        throw new ApiError('SERVIDOR', error.message);
+      }
       chave = null;
       return 'sb'; // marcador: a sessão real fica com o supabase-js
     },
@@ -121,5 +132,36 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     verWifi: async () => parseWifi(await rpc('fab_ver_wifi')),
     salvarWifi: async (exigir, ips) => parseWifi(await rpc('fab_salvar_wifi', { p_exigir: exigir, p_manter: ips.map(i => i.ip) })),
     cadastrarRedeAtual: async nome => parseWifi(await rpc('fab_cadastrar_rede_atual', { p_nome: nome })),
+
+    // ----- dono do sistema -----
+    empresas: async () => parseEmpresas(await rpc('fab_empresas')),
+    criarEmpresa: async o => { await edge({ action: 'criar_empresa', ...o }); },
+    bloquearEmpresa: async (id, bloquear, motivo) => { await rpc('fab_bloquear_empresa', { p_id: id, p_bloquear: bloquear, p_motivo: motivo }); },
+    renomearEmpresa: async (id, nome) => { await rpc('fab_renomear_empresa', { p_id: id, p_nome: nome }); },
+
+    // ----- financeiro -----
+    finDados: async () => parseFin(await rpc('fin_dados')),
+    finSalvarLancamento: async o => str(await rpc('fin_salvar_lancamento', { p: o })),
+    finApagarLancamento: async id => { await rpc('fin_apagar_lancamento', { p_id: id }); },
+    finPagarParcela: async (id, data, valor, contaId) => { await rpc('fin_pagar_parcela', { p_id: id, p_data: data, p_valor: valor, p_conta: contaId }); },
+    finPagarFatura: async (cartaoId, vencimento, valor, contaId, data) => {
+      await rpc('fin_pagar_fatura', { p_cartao: cartaoId, p_vencimento: vencimento, p_valor: valor, p_conta: contaId, p_data: data });
+    },
+    finSalvarConta: async o => str(await rpc('fin_salvar_conta', { p: o })),
+    finSalvarCartao: async o => str(await rpc('fin_salvar_cartao', { p: o })),
+    finSalvarMeta: async o => str(await rpc('fin_salvar_meta', { p: o })),
+    finMovimentarMeta: async (metaId, tipo, valor, data, contaId) => {
+      await rpc('fin_movimentar_meta', { p_meta: metaId, p_tipo: tipo, p_valor: valor, p_data: data, p_conta: contaId });
+    },
+    finSalvarExpectativa: async (mes, entradas, saidas) => { await rpc('fin_salvar_expectativa', { p_mes: mes, p_entradas: entradas, p_saidas: saidas }); },
+    finSalvarConfig: async dataInicio => { await rpc('fin_salvar_config', { p_data_inicio: dataInicio }); },
+    finSalvarLista: async (tipo, valores) => { await rpc('fin_salvar_lista', { p_tipo: tipo, p_valores: valores }); },
+
+    // ----- resultado (DRE) -----
+    dreDados: async () => parseDre(await rpc('dre_dados')),
+    dreSalvarMes: async (mes, itens) => ((await rpc('dre_salvar_mes', { p_mes: mes, p_itens: itens })) === 'fechado' ? 'fechado' : 'pendente'),
+    dreApagarMes: async mes => { await rpc('dre_apagar_mes', { p_mes: mes }); },
+    dreSalvarCategoria: async o => str(await rpc('dre_salvar_categoria', { p: o })),
+    dreRestaurarCategorias: async () => { await rpc('dre_restaurar_categorias'); },
   };
 }

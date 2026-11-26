@@ -52,3 +52,28 @@ export function loginFromName(nome: string): string {
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase().replace(/[^a-z0-9]/g, '');
 }
+
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+/** R$ 1.234,56 (negativos com sinal). */
+export const formatBRL = (n: number): string => brl.format(Number.isFinite(n) ? n : 0);
+
+/** "2026-11" -> "novembro de 2026" com maiúscula. */
+export function nomeDoMes(mes: string): string {
+  const [y, m] = mes.split('-').map(Number);
+  const s = new Date(y!, (m ?? 1) - 1, 15).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Soma meses a "AAAA-MM". */
+export function somarMes(mes: string, n: number): string {
+  const [y, m] = mes.split('-').map(Number);
+  const d = new Date(y!, (m ?? 1) - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** "26/11/2026" a partir de "2026-11-26". */
+export function dataCompleta(d?: string | null): string {
+  if (!d) return '';
+  const p = d.slice(0, 10).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+}

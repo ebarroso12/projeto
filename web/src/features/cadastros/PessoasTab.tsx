@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Usuario, UsuarioInput } from '../../api/types';
 import { useApi } from '../../app/auth';
 import { useAction } from '../../app/useAction';
+import { useBoot } from '../../app/boot';
 import { loginFromName } from '../../lib/format';
 import { MIN_SENHA } from '../../lib/rules';
 import { Button } from '../../ui/Button';
@@ -69,10 +70,16 @@ export function PessoasTab() {
   const [shown, setShown] = useState<Set<string>>(new Set());
 
   const toggle = (login: string) => setShown(s => { const n = new Set(s); if (n.has(login)) n.delete(login); else n.add(login); return n; });
+  const boot = useBoot();
+  // Apps Script devolve um link pessoal; no Supabase o link é o endereço de entrada com a empresa já preenchida.
+  const linkDe = (u: Usuario) => u.link || (api.precisaEmpresa && boot.empresa.codigo
+    ? `${window.location.origin}${window.location.pathname}?e=${encodeURIComponent(boot.empresa.codigo)}` : '');
   const copyLink = async (u: Usuario) => {
-    if (!u.link) { toast.info('Essa pessoa ainda não tem link de acesso.'); return; }
-    try { await navigator.clipboard.writeText(u.link); toast.success(`Link de ${u.nome} copiado. Mande no WhatsApp.`); }
-    catch { toast.info(`Link de ${u.nome}: ${u.link}`); }
+    const link = linkDe(u);
+    if (!link) { toast.info('Essa pessoa ainda não tem link de acesso.'); return; }
+    const msg = u.link ? link : `${link}  (login: ${u.login})`;
+    try { await navigator.clipboard.writeText(msg); toast.success(`Link de ${u.nome} copiado. Mande no WhatsApp.`); }
+    catch { toast.info(`Link de ${u.nome}: ${msg}`); }
   };
 
   const cols: Column<Usuario>[] = [
@@ -94,7 +101,7 @@ export function PessoasTab() {
       id: 'acoes', header: '',
       cell: r => (
         <span className="row" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
-          <Button size="sm" icon={<Icon name="copy" size={14} />} onClick={() => void copyLink(r)}>Link</Button>
+          {linkDe(r) && <Button size="sm" icon={<Icon name="copy" size={14} />} onClick={() => void copyLink(r)}>Link</Button>}
           <Button size="sm" icon={<Icon name="pencil" size={14} />} onClick={() => setEditing(r)}>Editar</Button>
         </span>
       ),

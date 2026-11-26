@@ -13,7 +13,7 @@ export interface Feature {
   path: string;
   label: string;
   title: string;
-  group: 'Acompanhar' | 'Operação' | 'Administração';
+  group: 'Acompanhar' | 'Operação' | 'Gestão' | 'Administração';
   icon: IconName;
   allowed: (eu: Eu) => boolean;
   badge?: (boot: Boot) => number;
@@ -28,11 +28,14 @@ export const features: Feature[] = [
   { id: 'falta', path: '/falta', label: 'Em falta', title: 'Em falta no estoque', group: 'Acompanhar', icon: 'alert', allowed: () => true, badge: b => b.emFalta.length, Page: lazyPage(() => import('../features/falta/FaltaPage')) },
   { id: 'lancar', path: '/lancar', label: 'Lançar', title: 'Lançar produção', group: 'Operação', icon: 'edit', allowed: eu => !eu.leitura, Page: lazyPage(() => import('../features/lancar/LancarPage')) },
   { id: 'ponto', path: '/ponto', label: 'Ponto', title: 'Ponto', group: 'Operação', icon: 'clock', allowed: eu => !eu.leitura, Page: lazyPage(() => import('../features/ponto/PontoPage')) },
+  { id: 'financeiro', path: '/financeiro', label: 'Financeiro', title: 'Financeiro', group: 'Gestão', icon: 'wallet', allowed: eu => eu.financeiro, Page: lazyPage(() => import('../features/financeiro/FinanceiroPage')) },
+  { id: 'resultado', path: '/resultado', label: 'Resultado', title: 'Resultado da empresa', group: 'Gestão', icon: 'trend', allowed: eu => eu.financeiro, Page: lazyPage(() => import('../features/dre/DrePage')) },
   { id: 'cadastros', path: '/cadastros', label: 'Cadastros', title: 'Cadastros', group: 'Administração', icon: 'users', allowed: eu => eu.admin, Page: lazyPage(() => import('../features/cadastros/CadastrosPage')) },
+  { id: 'empresas', path: '/empresas', label: 'Empresas', title: 'Empresas clientes', group: 'Administração', icon: 'building', allowed: eu => eu.dono, Page: lazyPage(() => import('../features/empresas/EmpresasPage')) },
 ];
 
-const ORDER_GESTAO = ['painel', 'relatorio', 'falta', 'lancar', 'ponto', 'cadastros'];
-const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'painel', 'relatorio', 'cadastros'];
+const ORDER_GESTAO = ['painel', 'relatorio', 'falta', 'financeiro', 'resultado', 'lancar', 'ponto', 'cadastros', 'empresas'];
+const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'painel', 'relatorio', 'financeiro', 'resultado', 'cadastros', 'empresas'];
 
 /** Módulos que o usuário pode ver, já na ordem do menu. */
 export function visibleFeatures(eu: Eu): Feature[] {

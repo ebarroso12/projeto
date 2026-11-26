@@ -132,6 +132,61 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByRole('tab', { name: 'Wi-Fi da fábrica' }).click();
   await page.getByText('Redes cadastradas').waitFor();
   await shot(page, '10-wifi');
+
+  // Financeiro
+  await page.locator('.sidebar').getByRole('link', { name: 'Financeiro' }).click();
+  await page.getByText('Saldo em contas').waitFor();
+  ok(true, 'financeiro abre com saldo');
+  await shot(page, '12-financeiro');
+  await page.locator('.page-head').getByRole('button', { name: 'Lançar', exact: true }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel('Valor (R$)', { exact: true }).fill('150,00');
+  await dlg.getByLabel('Descrição').fill('Linha de costura e2e');
+  await dlg.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Lançamento salvo.').waitFor();
+  await page.getByRole('tab', { name: 'Lançamentos' }).click();
+  ok(await until(() => page.getByText('Linha de costura e2e').first().isVisible()), 'lançamento financeiro aparece na lista');
+  await shot(page, '13-financeiro-lancamentos');
+  await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: 'A pagar' }).click();
+  await page.getByRole('heading', { name: 'Contas a pagar' }).waitFor();
+  const pagar = page.getByRole('button', { name: 'Pagar', exact: true });
+  if (await pagar.count()) {
+    await pagar.first().click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Confirmar pagamento' }).click();
+    await page.getByText('Pagamento registrado.').waitFor();
+    ok(true, 'paga parcela/fatura');
+  }
+  await shot(page, '14-financeiro-apagar');
+  for (const t of ['Contas e cartões', 'Metas', 'Planejamento', 'Ajustes']) {
+    await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: t }).click();
+    await page.waitForTimeout(150);
+  }
+  ok(errors.length === 0, 'abas do financeiro sem erro');
+
+  // Resultado (DRE)
+  await page.locator('.sidebar').getByRole('link', { name: 'Resultado' }).click();
+  await page.getByRole('tab', { name: 'Preencher mês' }).click();
+  await page.locator('.dre-linha input').first().fill('10000');
+  await page.getByRole('button', { name: /^Salvar / }).click();
+  await page.getByText(/Mês fechado|Ainda há itens/).waitFor();
+  ok(await until(() => page.getByText('Receita líquida').first().isVisible()), 'preenche o mês e volta à visão geral');
+  await shot(page, '15-resultado');
+  await page.getByRole('tab', { name: 'DRE detalhada' }).click();
+  ok(await page.getByText('= Resultado final').isVisible(), 'DRE detalhada mostra resultado final');
+  await shot(page, '16-dre-detalhada');
+
+  // Empresas (dono do sistema)
+  await page.locator('.sidebar').getByRole('link', { name: 'Empresas' }).click();
+  await page.getByRole('button', { name: 'Nova empresa' }).click();
+  await page.locator('dialog[open]').getByLabel('Nome da empresa').fill('Malharia Teste');
+  ok(await page.locator('dialog[open]').getByLabel('Código de acesso').inputValue() === 'malharia-teste', 'código da empresa sugerido');
+  await page.locator('dialog[open]').getByLabel('Nome', { exact: true }).fill('Joana Lima');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Criar empresa' }).click();
+  await page.getByText('Empresa criada').waitFor();
+  await shot(page, '17-empresa-criada');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Concluir' }).click();
+  ok(await until(() => page.getByText('Malharia Teste').first().isVisible()), 'empresa criada aparece na lista');
+  await shot(page, '18-empresas');
   await page.context().close();
 
   // 4) Funcionária: Ponto

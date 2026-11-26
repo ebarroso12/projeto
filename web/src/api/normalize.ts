@@ -3,8 +3,8 @@
  * então campos podem faltar ou vir com outro tipo. Nenhum componente recebe `undefined`.
  */
 import type {
-  Boot, Disponivel, Editado, Eu, Falta, Lancamento, LinhaModelo, Painel, Pessoa,
-  PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
+  LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
 type R = Record<string, unknown>;
@@ -29,7 +29,7 @@ const numbersExcept = (r: R, skip: string[]): Record<string, number> =>
 
 const eu = (r: R): Eu => ({
   nome: str(r.nome, 'Usuário'), setor: str(r.setor), admin: bool(r.admin), leitura: bool(r.leitura),
-  podeFalta: bool(r.podeFalta), demo: bool(r.demo),
+  podeFalta: bool(r.podeFalta), demo: bool(r.demo), financeiro: bool(r.financeiro), dono: bool(r.dono),
 });
 
 export const parseFalta = (r: R): Falta => ({
@@ -54,6 +54,7 @@ export function parseBoot(v: unknown): Boot {
   const p = rec(r.ponto);
   return {
     eu: eu(rec(r.eu)),
+    empresa: { codigo: str(rec(r.empresa).codigo), nome: str(rec(r.empresa).nome, 'Fábrica') },
     hoje: str(r.hoje),
     ponto: { entrada: str(p.entrada), saida: str(p.saida), extra: str(p.extra) },
     horaFim: str(r.horaFim, '17:30'),
@@ -120,4 +121,60 @@ export const parseUsuarios = (v: unknown): Usuario[] =>
 export const parseWifi = (v: unknown): Wifi => {
   const r = rec(v);
   return { exigir: bool(r.exigir), ips: list(r.ips, x => ({ nome: str(x.nome), ip: str(x.ip), em: str(x.em) })) };
+};
+
+// =====================================================================
+// Multiempresa, Financeiro e Resultado
+// =====================================================================
+const strOrNull = (v: unknown): string | null => (v === null || v === undefined || v === '' ? null : String(v));
+const numOrNull = (v: unknown): number | null => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+
+export const parseEmpresas = (v: unknown): Empresa[] =>
+  list(v, r => ({
+    id: str(r.id), codigo: str(r.codigo), nome: str(r.nome), ativa: bool(r.ativa, true), motivo: str(r.motivo),
+    criadaEm: str(r.criadaEm), usuarios: num(r.usuarios), admins: num(r.admins), ultimoAcesso: str(r.ultimoAcesso),
+  }));
+
+const finLancamento = (r: R): FinLancamento => ({
+  id: str(r.id), tipo: (['entrada', 'saida', 'programada'].includes(str(r.tipo)) ? str(r.tipo) : 'saida') as FinLancamento['tipo'],
+  data: str(r.data), descricao: str(r.descricao), valor: num(r.valor),
+  contaId: strOrNull(r.contaId), cartaoId: strOrNull(r.cartaoId),
+  forma: str(r.forma), categoria: str(r.categoria), responsavel: str(r.responsavel), centro: str(r.centro),
+  parcelas: numOrNull(r.parcelas), valorParcela: numOrNull(r.valorParcela), diaVencimento: numOrNull(r.diaVencimento),
+  parcelasPagas: num(r.parcelasPagas), vencimentoFatura: strOrNull(r.vencimentoFatura), origemId: strOrNull(r.origemId), obs: str(r.obs),
+});
+
+export function parseFin(v: unknown): FinDados {
+  const r = rec(v);
+  const l = rec(r.listas);
+  return {
+    hoje: str(r.hoje), dataInicio: str(r.dataInicio, '2000-01-01'),
+    listas: { categorias: strings(l.categorias), responsaveis: strings(l.responsaveis), centros: strings(l.centros), formas: strings(l.formas) },
+    contas: list(r.contas, x => ({ id: str(x.id), nome: str(x.nome), saldoInicial: num(x.saldoInicial), ativa: bool(x.ativa, true) })),
+    cartoes: list(r.cartoes, x => ({ id: str(x.id), nome: str(x.nome), diaFechamento: num(x.diaFechamento, 1), diaVencimento: num(x.diaVencimento, 10), ativo: bool(x.ativo, true) })),
+    lancamentos: list(r.lancamentos, finLancamento),
+    pagamentosFatura: list(r.pagamentosFatura, x => ({ id: str(x.id), cartaoId: str(x.cartaoId), vencimento: str(x.vencimento), valor: num(x.valor), contaId: str(x.contaId), data: str(x.data) })),
+    metas: list(r.metas, x => ({ id: str(x.id), nome: str(x.nome), valorMeta: num(x.valorMeta), dataAlvo: strOrNull(x.dataAlvo), ativa: bool(x.ativa, true) })),
+    movimentosMeta: list(r.movimentosMeta, x => ({ id: str(x.id), metaId: str(x.metaId), tipo: str(x.tipo) === 'retirada' ? 'retirada' : 'deposito', valor: num(x.valor), data: str(x.data), contaId: str(x.contaId) })),
+    expectativas: list(r.expectativas, x => ({ mes: str(x.mes), entradas: num(x.entradas), saidas: numbers(x.saidas) })),
+  };
+}
+
+const GRUPOS = ['sales', 'direct', 'selling', 'admin', 'finance'];
+const dreCategoria = (r: R): DreCategoria => ({
+  id: str(r.id), chave: str(r.chave), grupo: (GRUPOS.includes(str(r.grupo)) ? str(r.grupo) : 'admin') as DreCategoria['grupo'],
+  nome: str(r.nome), tipo: str(r.tipo) === 'plus' ? 'plus' : 'minus', variabilidade: str(r.variabilidade) === 'variable' ? 'variable' : 'fixed',
+  essencial: bool(r.essencial), nota: str(r.nota), ativa: bool(r.ativa, true), ordem: num(r.ordem),
+});
+const dreMes = (r: R): DreMes => ({
+  mes: str(r.mes), status: str(r.status) === 'fechado' ? 'fechado' : 'pendente', atualizadoEm: str(r.atualizadoEm),
+  valores: Object.fromEntries(Object.entries(rec(r.valores)).map(([k, x]) => {
+    const o = rec(x);
+    const marca = ['valor', 'na', 'depois'].includes(str(o.marca)) ? (str(o.marca) as 'valor' | 'na' | 'depois') : 'depois';
+    return [k, { marca, valor: numOrNull(o.valor) }];
+  })),
+});
+export const parseDre = (v: unknown): DreDados => {
+  const r = rec(v);
+  return { hoje: str(r.hoje), categorias: list(r.categorias, dreCategoria), meses: list(r.meses, dreMes) };
 };

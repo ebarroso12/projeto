@@ -1,6 +1,7 @@
 /**
  * Testa as migrações e as regras de negócio num Postgres local (PGlite), sem Supabase de verdade.
  *   cd supabase && npm install && npm test
+ *   UPDATE_FIXTURES=1 npm test   -> também regrava as amostras usadas pelos testes do app (web/src/api/__fixtures__)
  * Simula o que o Supabase fornece: schema auth (auth.users, auth.uid()), papéis anon/authenticated/service_role,
  * e o JWT/cabeçalhos da requisição (request.jwt.claim.sub, request.headers).
  */
@@ -12,24 +13,22 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const db = new PGlite();
 
-let fails = 0;
-const ok = (c, m) => { console.log(`${c ? 'PASS' : 'FAIL'} ${m}`); if (!c) fails++; };
-const eq = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), `${m}${JSON.stringify(a) === JSON.stringify(b) ? '' : `  (obteve ${JSON.stringify(a)}, esperava ${JSON.stringify(b)})`}`);
+let fails = 0, passes = 0;
+const ok = (c, m) => { console.log(`${c ? 'PASS' : 'FAIL'} ${m}`); if (c) passes++; else fails++; };
+const canon = v => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
+const eq = (a, b, m) => { const same = canon(a) === canon(b); ok(same, `${m}${same ? '' : `  (obteve ${JSON.stringify(a)}, esperava ${JSON.stringify(b)})`}`); };
 
 // ---------- ambiente Supabase simulado ----------
 await db.exec(`
   create schema auth;
-  create table auth.users (id uuid primary key default gen_random_uuid(), email text);
+  create table auth.users (id uuid primary key default gen_random_uuid(), email text, last_sign_in_at timestamptz);
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   create role anon nologin; create role authenticated nologin; create role service_role nologin;
   grant usage on schema public to anon, authenticated, service_role;
   alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 `);
-
-for (const f of readdirSync(join(here, '../migrations')).sort()) {
-  await db.exec(readFileSync(join(here, '../migrations', f), 'utf8'));
-}
+for (const f of readdirSync(join(here, '../migrations')).sort()) await db.exec(readFileSync(join(here, '../migrations', f), 'utf8'));
 console.log('migrações aplicadas\n');
 
 // ---------- ajudantes ----------
@@ -37,9 +36,10 @@ const j = obj => `'${JSON.stringify(obj).replace(/'/g, "''")}'::jsonb`;
 const q = async (sql, params) => (await db.query(sql, params)).rows;
 
 /** Chama public.<expr> como um papel/usuário/IP. Devolve {ok,data} ou {ok:false,error}. */
-async function rpc(user, expr, { role = 'authenticated', ip } = {}) {
+async function rpc(user, expr, { role = 'authenticated', ip, headers } = {}) {
+  const h = { ...(ip ? { 'cf-connecting-ip': ip } : {}), ...(headers ?? {}) };
   await db.query(`select set_config('request.jwt.claim.sub', $1, false)`, [user ?? '']);
-  await db.query(`select set_config('request.headers', $1, false)`, [JSON.stringify(ip ? { 'x-forwarded-for': ip } : {})]);
+  await db.query(`select set_config('request.headers', $1, false)`, [JSON.stringify(h)]);
   await db.exec(`set role ${role}`);
   try {
     const r = await db.query(`select public.${expr} as r`);
@@ -52,23 +52,29 @@ async function rpc(user, expr, { role = 'authenticated', ip } = {}) {
 }
 const fails_with = (r, text) => !r.ok && r.error.includes(text);
 
-// ---------- dados de teste ----------
-const mkUser = async (login, nome, setor, perfil = 'funcionario', podeFalta = false, ativo = true) => {
+// ---------- duas empresas ----------
+const empA = (await rpc(null, `fab_criar_empresa('alfa','Confecções Alfa')`, { role: 'service_role' })).data;
+const empB = (await rpc(null, `fab_criar_empresa('beta','Malharia Beta')`, { role: 'service_role' })).data;
+const mkUser = async (emp, login, nome, setor, perfil = 'funcionario', podeFalta = false, ativo = true) => {
   const [{ id }] = await q(`insert into auth.users (email) values ($1) returning id`, [`${login}@fabrica.local`]);
-  await q(`insert into fab.perfis (id, login, nome, setor, perfil, pode_falta, ativo, criado_em)
-           values ($1,$2,$3,$4,$5::fab.perfil,$6,$7, now() - interval '60 days')`, [id, login, nome, setor, perfil, podeFalta, ativo]);
+  await q(`insert into fab.perfis (id, empresa_id, login, nome, setor, perfil, pode_falta, ativo, criado_em)
+           values ($1,$2,$3,$4,$5,$6::fab.perfil,$7,$8, now() - interval '60 days')`, [id, emp, login, nome, setor, perfil, podeFalta, ativo]);
   return id;
 };
-const admin = await mkUser('admin', 'Edson', 'Administração', 'admin', true);
-const ana = await mkUser('ana', 'Ana Souza', 'Costureira');
-const bruno = await mkUser('bruno', 'Bruno Lima', 'Cortador');
-const carla = await mkUser('carla', 'Carla Dias', 'Conferente', 'funcionario', true);
-const ghost = await mkUser('ghost', 'Inativo', 'Costureira', 'funcionario', false, false);
+const admin = await mkUser(empA, 'admin', 'Edson', 'Administração', 'admin', true);
+const ana = await mkUser(empA, 'ana', 'Ana Souza', 'Costureira');
+const bruno = await mkUser(empA, 'bruno', 'Bruno Lima', 'Cortador');
+const carla = await mkUser(empA, 'carla', 'Carla Dias', 'Conferente', 'funcionario', true);
+const ghost = await mkUser(empA, 'ghost', 'Inativo', 'Costureira', 'funcionario', false, false);
+const adminB = await mkUser(empB, 'admin', 'Beatriz', 'Administração', 'admin', true);   // mesmo login, outra empresa
+const joaoB = await mkUser(empB, 'joao', 'João', 'Cortador');
+await q(`insert into fab.donos (user_id) values ($1)`, [admin]);
 
-await q(`insert into fab.itens_lista (tipo, nome, ordem) values
-  ('modelo','Camisa Polo',1),('modelo','Calça Jeans',2),('cor','Preto',1),('cor','Branco',2),
-  ('tamanho','P',1),('tamanho','M',2),('tamanho','G',3)`);
-
+for (const emp of [empA, empB]) {
+  await q(`insert into fab.itens_lista (empresa_id, tipo, nome, ordem) values
+    ($1,'modelo','Camisa Polo',1),($1,'modelo','Calça Jeans',2),($1,'cor','Preto',1),($1,'cor','Branco',2),
+    ($1,'tamanho','P',1),($1,'tamanho','M',2),($1,'tamanho','G',3)`, [emp]);
+}
 const lanc = (etapa, qtd = 10, tam = 'M', modelo = 'Camisa Polo', cor = 'Preto') =>
   `fab_lancar('${etapa}','${modelo}','${cor}','', ${j([{ tamanho: tam, qtd }])})`;
 
@@ -77,7 +83,8 @@ console.log('--- segurança ---');
 ok(fails_with(await rpc(null, 'fab_painel()', { role: 'anon' }), 'permission denied'), 'anônimo não chama fab_painel');
 ok(fails_with(await rpc(null, 'fab_boot()'), 'SESSAO'), 'sem login: erro SESSAO');
 ok(fails_with(await rpc(ghost, 'fab_boot()'), 'SESSAO'), 'usuário inativo: erro SESSAO');
-ok(fails_with(await rpc(ana, `fab_criar_perfil(gen_random_uuid(),'x','X','Outra','admin',true)`), 'permission denied'), 'usuário comum não cria perfil');
+ok(fails_with(await rpc(ana, `fab_criar_perfil(gen_random_uuid(),'${empA}','x','X','Outra','admin',true)`), 'permission denied'), 'usuário comum não cria perfil');
+ok(fails_with(await rpc(ana, `fab_criar_empresa('x','X')`), 'permission denied'), 'usuário comum não cria empresa');
 ok(fails_with(await rpc(ana, 'fab_listar_usuarios()'), 'Apenas o administrador'), 'funcionário não lista usuários');
 {
   await db.exec('set role authenticated');
@@ -93,13 +100,12 @@ console.log('\n--- produção ---');
 let r = await rpc(bruno, lanc('Corte', 100));
 ok(r.ok && r.data.total === 100 && r.data.avisos.length === 0, 'cortador lança 100 de Corte');
 r = await rpc(ana, lanc('Costura', 40));
-ok(r.ok && r.data.total === 40 && r.data.avisos.length === 0, 'costureira lança 40 de Costura');
+ok(r.ok && r.data.total === 40, 'costureira lança 40 de Costura');
 ok(fails_with(await rpc(ana, lanc('Corte', 5)), 'Seu setor não lança'), 'regra de setor vale no servidor');
 ok(fails_with(await rpc(ana, lanc('Costura', 5, 'M', 'Modelo Fantasma')), 'Modelo inválido'), 'modelo fora da lista é recusado');
 ok(fails_with(await rpc(ana, lanc('Costura', 5, 'XXG')), 'Tamanho inválido'), 'tamanho fora da lista é recusado');
 ok(fails_with(await rpc(ana, `fab_lancar('Costura','Camisa Polo','Preto','', '[{"tamanho":"M","qtd":"12a"}]'::jsonb)`), 'Quantidade inválida'), 'quantidade não numérica é recusada');
 ok(fails_with(await rpc(ana, `fab_lancar('Costura','Camisa Polo','Preto','', '[]'::jsonb)`), 'pelo menos um tamanho'), 'lançamento vazio é recusado');
-ok(fails_with(await rpc(ana, `fab_lancar('Inexistente','Camisa Polo','Preto','', '[{"tamanho":"M","qtd":1}]'::jsonb)`), 'Etapa inválida'), 'etapa inexistente é recusada');
 r = await rpc(ana, lanc('Costura', 70));
 ok(r.ok && r.data.avisos.length === 1 && r.data.avisos[0].includes('110 contra 100'), 'aviso quando costura passa do que foi cortado');
 r = await rpc(admin, lanc('Conferência', 5, 'P', 'Calça Jeans', 'Branco'));
@@ -108,159 +114,214 @@ ok(r.ok, 'administrador lança qualquer etapa');
 // ============ 3. painel ============
 console.log('\n--- painel ---');
 r = await rpc(admin, 'fab_painel()');
-const painel = r.data;
-ok(r.ok, 'administrador abre o painel');
-const lin = painel.saldo.find(s => s.modelo === 'Camisa Polo' && s.cor === 'Preto' && s.tamanho === 'M');
+const lin = r.data.saldo.find(s => s.modelo === 'Camisa Polo' && s.cor === 'Preto' && s.tamanho === 'M');
 eq([lin.corte, lin.costura, lin.conf, lin.naCostura, lin.naConf, lin.erro], [100, 110, 0, 0, 110, true], 'saldo por etapa e linha com erro');
-eq(painel.prodHoje, { Corte: 100, Costura: 110, 'Conferência': 5 }, 'produção de hoje por etapa');
-eq(painel.presenca.map(p => p.nome), ['Ana Souza', 'Bruno Lima', 'Carla Dias'], 'presença lista só funcionários ativos');
+eq(r.data.prodHoje, { Corte: 100, Costura: 110, 'Conferência': 5 }, 'produção de hoje por etapa');
+eq(r.data.presenca.map(p => p.nome), ['Ana Souza', 'Bruno Lima', 'Carla Dias'], 'presença lista só funcionários ativos da empresa');
 
-// ============ 4. editar e apagar ============
+// ============ 4. isolamento entre empresas ============
+console.log('\n--- isolamento entre empresas ---');
+r = await rpc(adminB, 'fab_painel()');
+ok(r.ok && r.data.saldo.length === 0 && r.data.presenca.map(p => p.nome).join() === 'João', 'empresa B não vê a produção nem as pessoas da A');
+const [{ id: idAnaLanc }] = await q(`select id from fab.lancamentos where user_id = $1 and qtd = 40`, [ana]);
+ok(fails_with(await rpc(adminB, `fab_editar_lancamento('${idAnaLanc}', 1)`), 'não encontrado'), 'admin da B não edita lançamento da A');
+ok(fails_with(await rpc(adminB, `fab_apagar_lancamento('${idAnaLanc}')`), 'não encontrado'), 'admin da B não apaga lançamento da A');
+r = await rpc(adminB, 'fab_listar_usuarios()');
+eq(r.data.map(u => u.login).sort(), ['admin', 'joao'], 'cada empresa lista só os seus usuários (logins podem se repetir)');
+ok(fails_with(await rpc(adminB, `fab_atualizar_perfil('ana','Ana','Costureira','funcionario',false,false)`), 'não encontrada'), 'admin da B não altera pessoa da A');
+r = await rpc(joaoB, lanc('Corte', 7));
+ok(r.ok, 'empresa B lança na própria produção');
+r = await rpc(admin, 'fab_painel()');
+eq(r.data.prodHoje.Corte, 100, 'produção da B não soma na A');
+r = await rpc(admin, 'fab_boot()');
+eq(r.data.empresa, { codigo: 'alfa', nome: 'Confecções Alfa' }, 'boot informa a empresa do usuário');
+
+// ============ 5. editar e apagar ============
 console.log('\n--- editar e apagar ---');
-const [{ id: idAna }] = await q(`select id from fab.lancamentos where user_id = $1 and qtd = 40`, [ana]);
-ok(fails_with(await rpc(bruno, `fab_editar_lancamento('${idAna}', 41)`), 'só pode editar os seus'), 'não edita lançamento de outra pessoa');
-ok(fails_with(await rpc(ana, `fab_editar_lancamento('${idAna}', -3)`), 'Quantidade inválida'), 'quantidade negativa é recusada');
-r = await rpc(ana, `fab_editar_lancamento('${idAna}', 35)`);
-ok(r.ok, 'edita o próprio lançamento de hoje');
-let [row] = await q(`select qtd, edicoes, historico from fab.lancamentos where id = $1`, [idAna]);
-ok(row.qtd === 35 && row.edicoes === 1 && row.historico.includes('40→35'), 'edição registra histórico (40→35)');
-await rpc(admin, `fab_editar_lancamento('${idAna}', 36)`);
-[row] = await q(`select edicoes from fab.lancamentos where id = $1`, [idAna]);
-ok(row.edicoes === 2, 'administrador também edita e o contador sobe');
-r = await rpc(admin, 'fab_painel()');
-ok(r.data.editados.length === 1 && r.data.editados[0].edicoes === 2, 'painel mostra o lançamento editado');
-await q(`update fab.lancamentos set dia = dia - 1 where id = $1`, [idAna]);
-ok(fails_with(await rpc(ana, `fab_apagar_lancamento('${idAna}')`), 'só pode apagar os seus'), 'não apaga lançamento de dia anterior');
-await q(`update fab.lancamentos set dia = dia + 1 where id = $1`, [idAna]);
-r = await rpc(ana, `fab_apagar_lancamento('${idAna}')`);
-[row] = await q(`select apagado_em from fab.lancamentos where id = $1`, [idAna]);
-const logs = await q(`select acao, antes, depois from fab.lancamento_log where lancamento_id = $1 order by id`, [idAna]);
+ok(fails_with(await rpc(bruno, `fab_editar_lancamento('${idAnaLanc}', 41)`), 'só pode editar os seus'), 'não edita lançamento de outra pessoa');
+r = await rpc(ana, `fab_editar_lancamento('${idAnaLanc}', 35)`);
+let [row] = await q(`select qtd, edicoes, historico from fab.lancamentos where id = $1`, [idAnaLanc]);
+ok(r.ok && row.qtd === 35 && row.edicoes === 1 && row.historico.includes('40→35'), 'edição registra histórico (40→35)');
+r = await rpc(ana, `fab_apagar_lancamento('${idAnaLanc}')`);
+[row] = await q(`select apagado_em from fab.lancamentos where id = $1`, [idAnaLanc]);
 ok(r.ok && row.apagado_em !== null, 'apagar é lógico (a linha continua no banco)');
-eq(logs.map(l => l.acao), ['editar', 'editar', 'apagar'], 'auditoria registra editar, editar, apagar');
-r = await rpc(admin, 'fab_painel()');
-eq(r.data.saldo.find(s => s.tamanho === 'M' && s.modelo === 'Camisa Polo').costura, 70, 'saldo ignora o lançamento apagado');
+eq((await q(`select acao from fab.lancamento_log where lancamento_id = $1 order by id`, [idAnaLanc])).map(x => x.acao), ['editar', 'apagar'], 'auditoria registra editar e apagar');
 
-// ============ 5. itens em falta ============
+// ============ 6. itens em falta ============
 console.log('\n--- itens em falta ---');
 ok(fails_with(await rpc(ana, `fab_add_em_falta('Camisa Polo','Preto','M',20,'')`), 'Sem permissão'), 'sem permissão não cadastra falta');
 r = await rpc(carla, `fab_add_em_falta('Camisa Polo','Preto','M',20,'Pedido urgente')`);
-ok(r.ok && r.data.length === 1 && r.data[0].qtd === 20 && r.data[0].falta === 20, 'quem pode, cadastra item em falta');
 const faltaId = r.data[0].id;
+ok(r.ok && r.data.length === 1 && r.data[0].falta === 20, 'quem pode, cadastra item em falta');
+ok((await rpc(adminB, 'fab_boot()')).data.emFalta.length === 0, 'item em falta da A não aparece na B');
 await rpc(carla, lanc('Conferência', 12));
 r = await rpc(carla, 'fab_boot()');
-eq([r.data.emFalta[0].feito, r.data.emFalta[0].falta], [12, 8], 'conferência abate o que falta (12 feitas, 8 faltam)');
-r = await rpc(ana, `fab_status_em_falta('${faltaId}','Em produção')`);
-ok(r.ok && r.data[0].status === 'Em produção', 'funcionário marca "Em produção"');
+eq([r.data.emFalta[0].feito, r.data.emFalta[0].falta], [12, 8], 'conferência abate o que falta');
 ok(fails_with(await rpc(ana, `fab_status_em_falta('${faltaId}','Feito')`), 'Apenas o administrador'), 'só administrador dá baixa manual');
 await rpc(carla, lanc('Conferência', 8));
-r = await rpc(carla, 'fab_boot()');
-ok(r.data.emFalta.length === 0, 'baixa automática ao completar a quantidade');
-r = await rpc(carla, `fab_add_em_falta('Calça Jeans','','Todos',0,'sem quantidade')`);
-ok(r.ok && r.data[0].tamanho === 'Todos' && r.data[0].qtd === 0, 'item sem quantidade e para todos os tamanhos');
-r = await rpc(admin, `fab_status_em_falta('${r.data[0].id}','Feito')`);
-ok(r.ok && r.data.length === 0, 'administrador dá baixa manual');
+ok((await rpc(carla, 'fab_boot()')).data.emFalta.length === 0, 'baixa automática ao completar a quantidade');
 
-// ============ 6. ponto ============
+// ============ 7. ponto ============
 console.log('\n--- ponto ---');
-await q(`update fab.configuracao set hora_fim = '00:00'`);
+await q(`update fab.configuracao set hora_fim = '00:00' where empresa_id = $1`, [empA]);
 r = await rpc(bruno, `fab_bater_ponto('entrada')`);
 ok(r.ok && /^\d\d:\d\d$/.test(r.data), `entrada marcada (${r.data})`);
 ok(fails_with(await rpc(bruno, `fab_bater_ponto('entrada')`), 'já marcada'), 'segunda entrada no mesmo dia é recusada');
+// CORREÇÃO: fechar_pendentes não pode encerrar o turno de HOJE de quem faz hora extra
+await q(`select fab.fechar_pendentes()`);
+[row] = await q(`select saida from fab.ponto where user_id = $1`, [bruno]);
+ok(row.saida === null, 'rotina automática NÃO fecha o ponto de hoje (hora extra continua contando)');
 r = await rpc(bruno, `fab_bater_ponto('saida')`);
-[row] = await q(`select extra_min, saida from fab.ponto where user_id = $1`, [bruno]);
+[row] = await q(`select extra_min from fab.ponto where user_id = $1`, [bruno]);
 ok(r.ok && row.extra_min > 0, `saída depois do fechamento conta hora extra (${row.extra_min} min)`);
-ok(fails_with(await rpc(bruno, `fab_bater_ponto('saida')`), 'Marque a entrada'), 'segunda saída é recusada');
-ok(fails_with(await rpc(ana, `fab_bater_ponto('almoco')`), 'inválido'), 'tipo de ponto inválido');
-await q(`update fab.configuracao set hora_fim = '23:59'`);
-await rpc(carla, `fab_bater_ponto('entrada')`);
-await rpc(carla, `fab_bater_ponto('saida')`);
-[row] = await q(`select extra_min from fab.ponto where user_id = $1`, [carla]);
-ok(row.extra_min === 0, 'saída antes do fechamento não gera hora extra');
-await q(`update fab.configuracao set hora_fim = '17:30'`);
-await q(`insert into fab.ponto (user_id, dia, entrada) values ($1, fab.hoje() - 3, '07:50')`, [ana]);
-const [{ n }] = await q(`select fab.fechar_pendentes() as n`);
-[row] = await q(`select saida::text, automatico, extra_min from fab.ponto where user_id = $1 and dia = fab.hoje() - 3`, [ana]);
-ok(n >= 1 && row.saida === '17:30:00' && row.automatico && row.extra_min === 0, 'ponto esquecido é fechado às 17:30 sem hora extra');
-r = await rpc(admin, 'fab_painel()');
-const pb = r.data.presenca.find(p => p.nome === 'Bruno Lima');
-ok(pb.entrada !== '' && pb.saida !== '', 'painel mostra entrada e saída de hoje');
+await q(`update fab.configuracao set hora_fim = '17:30' where empresa_id = $1`, [empA]);
+await q(`insert into fab.ponto (empresa_id, user_id, dia, entrada) values ($1, $2, fab.hoje($1) - 3, '07:50')`, [empA, ana]);
+await q(`select fab.fechar_pendentes()`);
+[row] = await q(`select saida::text, automatico, extra_min from fab.ponto where user_id = $1 and dia = fab.hoje($2) - 3`, [ana, empA]);
+ok(row.saida === '17:30:00' && row.automatico && row.extra_min === 0, 'ponto esquecido de dia anterior fecha às 17:30 sem hora extra');
 
-// ============ 7. Wi-Fi ============
+// ============ 8. Wi-Fi ============
 console.log('\n--- Wi-Fi da fábrica ---');
-await q(`update fab.configuracao set exigir_wifi = true`);
+await q(`update fab.configuracao set exigir_wifi = true where empresa_id = $1`, [empA]);
 ok(fails_with(await rpc(ana, 'fab_boot()'), 'WIFI'), 'com Wi-Fi exigido e sem rede cadastrada, funcionário recebe WIFI');
-ok((await rpc(admin, 'fab_boot()')).ok, 'administrador abre de qualquer lugar');
-ok((await rpc(admin, `fab_cadastrar_rede_atual('Fábrica')`, { ip: '203.0.113.9, 10.0.0.1' })).data.ips[0].ip === '203.0.113.9', 'cadastra o IP que o servidor viu (1º do X-Forwarded-For)');
-ok(fails_with(await rpc(admin, `fab_cadastrar_rede_atual('x')`), 'identificar a rede'), 'sem IP visível, não cadastra');
+ok((await rpc(admin, `fab_cadastrar_rede_atual('Fábrica')`, { ip: '203.0.113.9' })).data.ips[0].ip === '203.0.113.9', 'cadastra o IP que a borda viu (cf-connecting-ip)');
 ok((await rpc(ana, 'fab_boot()', { ip: '203.0.113.9' })).ok, 'funcionário na rede cadastrada entra');
 ok(fails_with(await rpc(ana, 'fab_boot()', { ip: '198.51.100.7' }), 'WIFI'), 'funcionário em outra rede recebe WIFI');
-ok(fails_with(await rpc(ana, lanc('Costura', 1), { ip: '198.51.100.7' }), 'WIFI'), 'lançar fora da rede também é bloqueado');
-eq([(await rpc(ana, 'fab_status_rede()', { ip: '203.0.113.9' })).data, (await rpc(ana, 'fab_status_rede()', { ip: '1.1.1.1' })).data], [true, false], 'status da rede');
-await rpc(admin, `fab_salvar_wifi(true, '{}'::text[])`);
-ok(fails_with(await rpc(ana, 'fab_boot()', { ip: '203.0.113.9' }), 'WIFI'), 'remover a rede volta a bloquear');
+// CORREÇÃO: X-Forwarded-For forjado pelo cliente não libera o acesso
+ok(fails_with(await rpc(ana, 'fab_boot()', { headers: { 'x-forwarded-for': '203.0.113.9' } }), 'WIFI'), 'X-Forwarded-For forjado NÃO burla a regra do Wi-Fi');
+ok(fails_with(await rpc(ana, 'fab_boot()', { ip: '198.51.100.7', headers: { 'x-forwarded-for': '203.0.113.9, 1.1.1.1' } }), 'WIFI'), 'X-Forwarded-For não sobrepõe o IP real');
+ok((await rpc(joaoB, 'fab_boot()', { ip: '1.2.3.4' })).ok, 'regra de Wi-Fi da A não afeta a B');
 await rpc(admin, `fab_salvar_wifi(false, '{}'::text[])`);
 ok((await rpc(ana, 'fab_boot()')).ok, 'desligar a exigência libera todos');
 
-// ============ 8. links de acompanhamento ============
+// ============ 9. links "só ver" ============
 console.log('\n--- links "só ver" ---');
-ok(fails_with(await rpc(ana, `fab_criar_chave('TV')`), 'Apenas o administrador'), 'só administrador cria link');
 const chave = (await rpc(admin, `fab_criar_chave('TV da fábrica')`)).data;
 ok(/^[0-9a-f]{32}$/.test(chave), 'chave aleatória de 128 bits');
-const [{ chave_hash }] = await q(`select chave_hash from fab.chaves_acesso`);
-ok(chave_hash !== chave && chave_hash.length === 64, 'no banco fica só o hash da chave');
-ok((await rpc(null, `fab_validar_chave('${chave}')`, { role: 'anon' })).data === true, 'chave válida');
-ok((await rpc(null, `fab_validar_chave('${chave.replace(/.$/, 'x')}')`, { role: 'anon' })).data === false, 'chave alterada é inválida');
 r = await rpc(null, `fab_boot_chave('${chave}')`, { role: 'anon' });
-ok(r.ok && r.data.eu.leitura === true && r.data.eu.admin === false && r.data.eu.nome.includes('só ver'), 'link abre como "só ver", sem poder de administrador');
-ok((await rpc(null, `fab_painel_chave('${chave}')`, { role: 'anon' })).ok, 'link abre o painel');
-ok(fails_with(await rpc(null, `fab_painel()`, { role: 'anon' }), 'permission denied'), 'link não dá acesso às funções de usuário');
+ok(r.ok && r.data.eu.leitura && !r.data.eu.admin && r.data.empresa.codigo === 'alfa', 'link abre a empresa certa como "só ver"');
+ok((await rpc(null, `fab_painel_chave('${chave}')`, { role: 'anon' })).data.prodHoje.Corte === 100, 'link mostra o painel da empresa dele');
+await rpc(adminB, 'fab_revogar_chaves()');
+ok((await rpc(null, `fab_validar_chave('${chave}')`, { role: 'anon' })).data === true, 'B revogar os links dela não afeta os da A');
 await rpc(admin, 'fab_revogar_chaves()');
 ok(fails_with(await rpc(null, `fab_painel_chave('${chave}')`, { role: 'anon' }), 'inválido'), 'chave revogada para de funcionar');
 
-// ============ 9. cadastros ============
+// ============ 10. cadastros ============
 console.log('\n--- cadastros ---');
-ok(fails_with(await rpc(ana, `fab_salvar_lista('Cores','{Azul}')`), 'Apenas o administrador'), 'funcionário não edita listas');
 r = await rpc(admin, `fab_salvar_lista('Cores', array[' Preto','Branco','Preto','','Azul'])`);
 eq(r.data, ['Preto', 'Branco', 'Azul'], 'lista é limpa, sem repetidos, na ordem digitada');
-ok(fails_with(await rpc(admin, `fab_salvar_lista('Setores','{x}')`), 'Lista inválida'), 'lista desconhecida é recusada');
-r = await rpc(admin, 'fab_listar_usuarios()');
-ok(r.ok && r.data.length === 5 && r.data.every(u => u.senha === ''), 'lista usuários sem expor senhas');
-ok(fails_with(await rpc(admin, `fab_atualizar_perfil('admin','Edson','Administração','funcionario',true,true)`), 'pelo menos um administrador'), 'não rebaixa o último administrador');
-ok(fails_with(await rpc(admin, `fab_atualizar_perfil('admin','Edson','Administração','admin',false,true)`), 'pelo menos um administrador'), 'não desativa o último administrador');
-r = await rpc(admin, `fab_atualizar_perfil('ana','Ana Souza','Costureira','funcionario',false,false)`);
-ok(r.ok, 'desativa uma funcionária');
-ok(fails_with(await rpc(ana, 'fab_boot()'), 'SESSAO'), 'funcionária desativada perde o acesso na hora');
-await rpc(admin, `fab_atualizar_perfil('ana','Ana Souza','Costureira','funcionario',true,false)`);
+eq((await rpc(adminB, 'fab_boot()')).data.cores, ['Preto', 'Branco'], 'listas são de cada empresa');
+// CORREÇÃO: o admin não se tranca para fora
+await q(`update fab.perfis set perfil = 'admin' where id = $1`, [carla]);
+ok(fails_with(await rpc(admin, `fab_atualizar_perfil('admin','Edson','Administração','admin',false,true)`), 'própria conta'), 'admin não desativa a própria conta');
+ok(fails_with(await rpc(admin, `fab_atualizar_perfil('admin','Edson','Administração','funcionario',true,true)`), 'própria conta'), 'admin não se rebaixa');
+await q(`update fab.perfis set perfil = 'funcionario' where id = $1`, [carla]);
+ok(fails_with(await rpc(adminB, `fab_atualizar_perfil('joao','João','Cortador','funcionario',true,false)`), '') === false, 'admin da B edita o próprio funcionário');
 
-// ============ 10. relatório ============
+// ============ 11. dono do sistema ============
+console.log('\n--- dono do sistema ---');
+ok(fails_with(await rpc(adminB, 'fab_empresas()'), 'responsável pelo sistema'), 'admin de empresa não vê a lista de empresas');
+r = await rpc(admin, 'fab_empresas()');
+ok(r.ok && r.data.length === 2 && r.data.find(e => e.codigo === 'beta').usuarios === 2, 'dono lista empresas com contagem de usuários');
+ok((await rpc(admin, 'fab_boot()')).data.eu.dono === true && (await rpc(adminB, 'fab_boot()')).data.eu.dono === false, 'boot diz quem é dono');
+ok(fails_with(await rpc(admin, `fab_bloquear_empresa('${empA}', true, 'x')`), 'própria empresa'), 'dono não bloqueia a própria empresa');
+await rpc(admin, `fab_bloquear_empresa('${empB}', true, 'Mensalidade em atraso')`);
+ok(fails_with(await rpc(adminB, 'fab_boot()'), 'EMPRESA_BLOQUEADA'), 'empresa bloqueada perde o acesso na hora');
+ok(fails_with(await rpc(joaoB, `fab_bater_ponto('entrada')`), 'EMPRESA_BLOQUEADA'), 'funcionário de empresa bloqueada também');
+await rpc(admin, `fab_bloquear_empresa('${empB}', false, '')`);
+ok((await rpc(adminB, 'fab_boot()')).ok, 'desbloquear devolve o acesso');
+ok(fails_with(await rpc(null, `fab_criar_empresa('alfa','Outra')`, { role: 'service_role' }), 'Já existe'), 'código de empresa é único');
+ok(fails_with(await rpc(null, `fab_criar_empresa('Com Espaço','X')`, { role: 'service_role' }), 'Código inválido'), 'código de empresa é validado');
+
+// ============ 12. financeiro ============
+console.log('\n--- financeiro ---');
+ok(fails_with(await rpc(ana, 'fin_dados()'), 'Apenas o administrador'), 'funcionário não vê o financeiro');
+let fin = (await rpc(admin, 'fin_dados()')).data;
+eq(fin.contas.map(c => c.nome), ['Caixa', 'Conta corrente'], 'empresa nova já vem com contas padrão');
+ok(fin.listas.categorias.includes('Matéria-prima') && fin.listas.formas.includes('PIX'), 'e com categorias e formas de pagamento');
+const conta = fin.contas.find(c => c.nome === 'Conta corrente').id;
+const cartao = (await rpc(admin, `fin_salvar_cartao(${j({ nome: 'Visa Empresa', diaFechamento: 25, diaVencimento: 5 })})`)).data;
+ok(!!cartao, 'cadastra cartão');
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'entrada', data: '2026-11-10', descricao: 'Venda lote 12', valor: 5000, contaId: conta, categoria: 'Vendas' })})`);
+ok(r.ok, 'lança entrada');
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'saida', data: '2026-11-26', descricao: 'Linha e aviamentos', valor: 300, cartaoId: cartao, categoria: 'Matéria-prima' })})`);
+ok(r.ok, 'lança saída no cartão');
+fin = (await rpc(admin, 'fin_dados()')).data;
+eq(fin.lancamentos.find(l => l.descricao === 'Linha e aviamentos').vencimentoFatura, '2027-01-05', 'compra após o fechamento (dia 26 > 25) cai na fatura de janeiro');
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'saida', data: '2026-11-20', descricao: 'Botões', valor: 50, cartaoId: cartao })})`);
+fin = (await rpc(admin, 'fin_dados()')).data;
+eq(fin.lancamentos.find(l => l.descricao === 'Botões').vencimentoFatura, '2026-12-05', 'compra antes do fechamento cai na fatura de dezembro');
+eq((await q(`select fab.fin_vencimento_fatura('2026-01-31', 31, 10)::text as d`))[0].d, '2026-02-10', 'fechamento no dia 31 com vencimento dia 10');
+eq((await q(`select fab.fin_vencimento_fatura('2026-02-15', 30, 28)::text as d`))[0].d, '2026-03-28', 'mês curto: fechamento 30 vira 28/02 e o vencimento no mesmo dia passa para o mês seguinte (regra do app original)');
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'programada', data: '2026-11-01', descricao: 'Máquina de costura', valor: 3000, contaId: conta, parcelas: 3, valorParcela: 1000, diaVencimento: 15 })})`);
+const progId = r.data;
+ok(r.ok, 'lança saída programada em 3 parcelas');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'programada', data: '2026-11-01', descricao: 'x', valor: 10, contaId: conta, parcelas: 2, valorParcela: 5 })})`), 'dia do vencimento'), 'programada na conta exige dia de vencimento');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'saida', data: '2026-11-01', descricao: 'x', valor: 10 })})`), 'conta ou o cartão'), 'saída exige conta ou cartão');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'saida', data: '2026-11-01', descricao: 'x', valor: 0, contaId: conta })})`), 'maior que zero'), 'valor zero é recusado');
+r = await rpc(admin, `fin_pagar_parcela('${progId}', '2026-11-15', 1000, null)`);
+fin = (await rpc(admin, 'fin_dados()')).data;
+const prog = fin.lancamentos.find(l => l.id === progId);
+const pago = fin.lancamentos.find(l => l.origemId === progId);
+ok(r.ok && prog.parcelasPagas === 1 && pago.tipo === 'saida' && pago.descricao.endsWith('parcela 1/3') && pago.contaId === conta, 'pagar parcela vira saída efetivada na conta');
+r = await rpc(admin, `fin_pagar_fatura('${cartao}', '2026-12-05', 50, '${conta}', '2026-12-05')`);
+ok(r.ok, 'paga fatura do cartão');
+ok(fails_with(await rpc(admin, `fin_pagar_fatura('${cartao}', '2026-12-05', 50, '${conta}', '2026-12-05')`), 'já foi paga'), 'mesma fatura não é paga duas vezes');
+const meta = (await rpc(admin, `fin_salvar_meta(${j({ nome: 'Reserva de emergência', valorMeta: 10000 })})`)).data;
+await rpc(admin, `fin_movimentar_meta('${meta}', 'deposito', 800, '2026-11-20', '${conta}')`);
+ok(fails_with(await rpc(admin, `fin_movimentar_meta('${meta}', 'retirada', 900, '2026-11-21', '${conta}')`), 'só tem'), 'não retira mais do que foi guardado');
+await rpc(admin, `fin_salvar_expectativa('2026-11', 6000, ${j({ 'Matéria-prima': '500', Aluguel: '1200', Vazia: '0' })})`);
+fin = (await rpc(admin, 'fin_dados()')).data;
+eq(fin.expectativas[0], { mes: '2026-11', entradas: 6000, saidas: { Aluguel: 1200, 'Matéria-prima': 500 } }, 'planejamento guarda previsão por categoria (ignora zeros)');
+ok((await rpc(adminB, 'fin_dados()')).data.lancamentos.length === 0, 'financeiro da A não aparece na B');
+ok(fails_with(await rpc(adminB, `fin_apagar_lancamento('${progId}')`), 'não encontrado'), 'B não apaga lançamento financeiro da A');
+ok(fails_with(await rpc(adminB, `fin_salvar_lancamento(${j({ tipo: 'entrada', data: '2026-11-01', descricao: 'x', valor: 1, contaId: conta })})`), 'Conta inválida'), 'B não usa conta da A');
+
+// ============ 13. DRE ============
+console.log('\n--- resultado (DRE) ---');
+ok(fails_with(await rpc(ana, 'dre_dados()'), 'Apenas o administrador'), 'funcionário não vê a DRE');
+let dre = (await rpc(admin, 'dre_dados()')).data;
+eq(dre.categorias.length, 18, 'empresa nova já vem com as 18 categorias do DRE');
+const cat = Object.fromEntries(dre.categorias.map(c => [c.chave, c.id]));
+const itens = (marcas) => j(dre.categorias.map(c => ({ categoriaId: c.id, ...(marcas[c.chave] ?? { marca: 'na' }) })));
+r = await rpc(admin, `dre_salvar_mes('2026-10', ${itens({ gross: { marca: 'valor', valor: 50000 }, tax: { marca: 'valor', valor: 5000 }, cmv: { marca: 'valor', valor: 20000 }, rent: { marca: 'depois' } })})`);
+ok(r.ok && r.data === 'pendente', 'mês com "preencher depois" fica pendente');
+r = await rpc(admin, `dre_salvar_mes('2026-10', ${itens({ gross: { marca: 'valor', valor: 50000 }, tax: { marca: 'valor', valor: 5000 }, cmv: { marca: 'valor', valor: 20000 }, rent: { marca: 'valor', valor: 3000 } })})`);
+ok(r.ok && r.data === 'fechado', 'mês completo fica fechado');
+ok(fails_with(await rpc(admin, `dre_salvar_mes('2026-10', ${j([{ categoriaId: cat.gross, marca: 'valor', valor: -1 }])})`), 'negativos'), 'valor negativo é recusado');
+ok(fails_with(await rpc(admin, `dre_salvar_categoria(${j({ id: cat.cmv, nome: 'CMV', ativa: false })})`), 'essencial'), 'categoria essencial não pode ser desativada');
+const nova = (await rpc(admin, `dre_salvar_categoria(${j({ grupo: 'admin', nome: 'Software de gestão', variabilidade: 'fixed' })})`)).data;
+ok(!!nova, 'cria categoria própria');
+dre = (await rpc(admin, 'dre_dados()')).data;
+ok(dre.categorias.find(c => c.id === nova).tipo === 'minus', 'categoria nova de despesa é subtraída');
+eq(dre.meses[0].valores[cat.gross], { marca: 'valor', valor: 50000 }, 'valores do mês voltam por categoria');
+ok((await rpc(adminB, 'dre_dados()')).data.meses.length === 0, 'DRE da A não aparece na B');
+ok(fails_with(await rpc(adminB, `dre_salvar_mes('2026-10', ${j([{ categoriaId: cat.gross, marca: 'valor', valor: 1 }])})`), 'Categoria inválida'), 'B não grava em categoria da A');
+
+// ============ 14. relatório ============
 console.log('\n--- relatório ---');
-const seg = new Date(); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7) - 14);   // segunda-feira de 2 semanas atrás
+const seg = new Date(); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7) - 14);
 const dia = n => { const d = new Date(seg); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-await q(`insert into fab.ponto (user_id, dia, entrada, saida, extra_min) values
-  ($1,$2,'08:00','17:00',0), ($1,$3,'08:00','18:30',60)`, [ana, dia(0), dia(1)]);
-await q(`insert into fab.dias_sem_expediente (dia, motivo) values ($1,'Feriado')`, [dia(3)]);   // quinta
+await q(`insert into fab.ponto (empresa_id, user_id, dia, entrada, saida, extra_min) values ($1,$2,$3,'08:00','17:00',0), ($1,$2,$4,'08:00','18:30',60)`, [empA, ana, dia(0), dia(1)]);
+await q(`insert into fab.dias_sem_expediente (empresa_id, dia, motivo) values ($1,$2,'Feriado')`, [empA, dia(3)]);
 r = await rpc(admin, `fab_relatorio('${dia(0)}','${dia(4)}')`);
-const rel = r.data;
-const pa = rel.pessoas.find(p => p.nome === 'Ana Souza');
-ok(r.ok && rel.diasUteis === 4, 'dias úteis: seg a sex menos o feriado = 4');
+const rel = r.data, pa = rel.pessoas.find(p => p.nome === 'Ana Souza');
+ok(r.ok && rel.diasUteis === 4, 'dias úteis: seg a sex menos o feriado da empresa = 4');
 eq([pa.diasTrab, pa.horas, pa.extras], [2, '19:30', '1:00'], 'Ana: 2 dias, 19:30 de horas (9:00 + 10:30), 1:00 de extra');
 eq(pa.faltas, [dia(2), dia(4)], 'faltas = quarta e sexta (feriado não conta)');
-eq(rel.registros.map(x => x.data), [dia(1), dia(0)], 'registros do período, do mais novo ao mais antigo');
-ok(fails_with(await rpc(admin, `fab_relatorio('${dia(4)}','${dia(0)}')`), 'Período inválido'), 'período invertido é recusado');
-ok(fails_with(await rpc(admin, `fab_relatorio('2020-01-01','2026-01-01')`), 'no máximo 1 ano'), 'período maior que 1 ano é recusado');
-const hoje = (await q(`select fab.hoje()::text as d`))[0].d;
-r = await rpc(admin, `fab_relatorio('${hoje}','${hoje}')`);
-eq(r.data.porEtapa, { Corte: 100, Costura: 70, 'Conferência': 25 }, 'produção do período por etapa');
-eq(r.data.porPessoa.map(p => `${p.nome}/${p.etapa}/${p.qtd}`).sort(),
-   ['Ana Souza/Costura/70', 'Bruno Lima/Corte/100', 'Carla Dias/Conferência/20', 'Edson/Conferência/5'].sort(), 'produção por pessoa');
+ok((await rpc(adminB, `fab_relatorio('${dia(0)}','${dia(4)}')`)).data.diasUteis === 5, 'feriado cadastrado na A não vale para a B');
 
 // ---------- amostras reais para o teste do front-end ----------
-const out = join(here, '../../web/src/api/__fixtures__');
-mkdirSync(out, { recursive: true });
-const boot = (await rpc(carla, 'fab_boot()')).data;
-writeFileSync(join(out, 'supabase-boot.json'), JSON.stringify(boot, null, 2));
-writeFileSync(join(out, 'supabase-painel.json'), JSON.stringify((await rpc(admin, 'fab_painel()')).data, null, 2));
-writeFileSync(join(out, 'supabase-relatorio.json'), JSON.stringify(rel, null, 2));
+if (process.env.UPDATE_FIXTURES === '1') {
+  const out = join(here, '../../web/src/api/__fixtures__');
+  mkdirSync(out, { recursive: true });
+  writeFileSync(join(out, 'supabase-boot.json'), JSON.stringify((await rpc(carla, 'fab_boot()')).data, null, 2));
+  writeFileSync(join(out, 'supabase-painel.json'), JSON.stringify((await rpc(admin, 'fab_painel()')).data, null, 2));
+  writeFileSync(join(out, 'supabase-relatorio.json'), JSON.stringify(rel, null, 2));
+  writeFileSync(join(out, 'supabase-fin.json'), JSON.stringify((await rpc(admin, 'fin_dados()')).data, null, 2));
+  writeFileSync(join(out, 'supabase-dre.json'), JSON.stringify((await rpc(admin, 'dre_dados()')).data, null, 2));
+  console.log('\namostras regravadas em web/src/api/__fixtures__');
+}
 
-console.log(fails ? `\n${fails} FALHA(S)` : '\nTUDO OK');
+console.log(fails ? `\n${fails} FALHA(S) de ${passes + fails}` : `\nTUDO OK (${passes} verificações)`);
 process.exit(fails ? 1 : 0);

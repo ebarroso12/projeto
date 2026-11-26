@@ -14,7 +14,7 @@ interface AuthValue {
   notice: string | null;
   wifiBlocked: boolean;
   demo: boolean;
-  signIn: (login: string, senha: string) => Promise<void>;
+  signIn: (login: string, senha: string, empresa?: string) => Promise<void>;
   signOut: () => void;
   retryWifi: () => void;
 }
@@ -46,7 +46,9 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
   const setToken = useCallback((t: string | null) => {
     tokenRef.current = t;
     setTokenState(t);
-    storage.set(TOKEN_KEY, t);
+    // sessão de link "só ver" (?k=) é refeita a cada abertura pelo próprio link; não guarda,
+    // senão reabrir o app sem o ?k= cairia numa sessão velha e mostraria "sessão expirada".
+    storage.set(TOKEN_KEY, keyRef.current ? null : t);
   }, []);
 
   const api = useMemo(() => makeApi(() => tokenRef.current), [makeApi]);
@@ -56,7 +58,7 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
     if (err.code === 'SESSAO') {
       setToken(null);
       clientRef.current?.clear();
-      setNotice('Sua sessão expirou. Entre de novo, por favor.');
+      setNotice(err.message || 'Sua sessão expirou. Entre de novo, por favor.');
     }
     if (err.code === 'WIFI') setWifiBlocked(true);
   }, [setToken]);
@@ -88,8 +90,8 @@ export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: 
     return () => { alive = false; };
   }, [api, setToken]);
 
-  const signIn = useCallback(async (login: string, senha: string) => {
-    const t = await api.login(login.trim(), senha);
+  const signIn = useCallback(async (login: string, senha: string, empresa?: string) => {
+    const t = await api.login(login.trim(), senha, empresa?.trim().toLowerCase());
     queryClient.clear();
     setNotice(null);
     setWifiBlocked(false);

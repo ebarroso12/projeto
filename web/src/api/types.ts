@@ -9,6 +9,8 @@ export interface Eu {
   leitura: boolean;   // usuário "só ver"
   podeFalta: boolean; // pode colocar itens em falta
   demo: boolean;
+  financeiro: boolean; // vê Financeiro e Resultado
+  dono: boolean;       // responsável pelo sistema (gerencia empresas)
 }
 
 export interface Ponto { entrada: string; saida: string; extra: string }
@@ -28,6 +30,7 @@ export interface Disponivel { modelo: string; cor: string; tamanho: string; valo
 
 export interface Boot {
   eu: Eu;
+  empresa: EmpresaInfo;
   hoje: string;
   ponto: Ponto;
   horaFim: string;
@@ -95,3 +98,67 @@ export interface LancamentoInput {
 export interface LancamentoResultado { total: number; avisos: string[] }
 
 export interface FaltaInput { modelo: string; cor: string; tamanho: string; qtd: string; obs: string }
+
+// =====================================================================
+// Multiempresa
+// =====================================================================
+export interface EmpresaInfo { codigo: string; nome: string }
+
+export interface Empresa {
+  id: string; codigo: string; nome: string; ativa: boolean; motivo: string;
+  criadaEm: string; usuarios: number; admins: number; ultimoAcesso: string;
+}
+export interface NovaEmpresaInput { codigo: string; nome: string; adminLogin: string; adminNome: string; adminSenha: string }
+
+// =====================================================================
+// Financeiro
+// =====================================================================
+export type FinTipo = 'entrada' | 'saida' | 'programada';
+
+export interface FinConta { id: string; nome: string; saldoInicial: number; ativa: boolean }
+export interface FinCartao { id: string; nome: string; diaFechamento: number; diaVencimento: number; ativo: boolean }
+export interface FinLancamento {
+  id: string; tipo: FinTipo; data: string; descricao: string; valor: number;
+  contaId: string | null; cartaoId: string | null;
+  forma: string; categoria: string; responsavel: string; centro: string;
+  parcelas: number | null; valorParcela: number | null; diaVencimento: number | null; parcelasPagas: number;
+  vencimentoFatura: string | null; origemId: string | null; obs: string;
+}
+export interface FinPagamentoFatura { id: string; cartaoId: string; vencimento: string; valor: number; contaId: string; data: string }
+export interface FinMeta { id: string; nome: string; valorMeta: number; dataAlvo: string | null; ativa: boolean }
+export interface FinMovimentoMeta { id: string; metaId: string; tipo: 'deposito' | 'retirada'; valor: number; data: string; contaId: string }
+export interface FinExpectativa { mes: string; entradas: number; saidas: Record<string, number> }
+export interface FinListas { categorias: string[]; responsaveis: string[]; centros: string[]; formas: string[] }
+export type FinListaTipo = 'categoria' | 'responsavel' | 'centro' | 'forma';
+
+export interface FinDados {
+  hoje: string; dataInicio: string; listas: FinListas;
+  contas: FinConta[]; cartoes: FinCartao[]; lancamentos: FinLancamento[];
+  pagamentosFatura: FinPagamentoFatura[]; metas: FinMeta[]; movimentosMeta: FinMovimentoMeta[];
+  expectativas: FinExpectativa[];
+}
+
+export interface FinLancamentoInput {
+  id?: string; tipo: FinTipo; data: string; descricao: string; valor: number;
+  contaId?: string | null; cartaoId?: string | null;
+  forma?: string; categoria?: string; responsavel?: string; centro?: string;
+  parcelas?: number | null; valorParcela?: number | null; diaVencimento?: number | null; obs?: string;
+}
+
+// =====================================================================
+// Resultado da empresa (DRE gerencial)
+// =====================================================================
+export type DreGrupo = 'sales' | 'direct' | 'selling' | 'admin' | 'finance';
+export type DreMarca = 'valor' | 'na' | 'depois';
+
+export interface DreCategoria {
+  id: string; chave: string; grupo: DreGrupo; nome: string; tipo: 'plus' | 'minus';
+  variabilidade: 'variable' | 'fixed'; essencial: boolean; nota: string; ativa: boolean; ordem: number;
+}
+export interface DreValor { marca: DreMarca; valor: number | null }
+export interface DreMes { mes: string; status: 'pendente' | 'fechado'; atualizadoEm: string; valores: Record<string, DreValor> }
+export interface DreDados { hoje: string; categorias: DreCategoria[]; meses: DreMes[] }
+export interface DreItemInput { categoriaId: string; marca: DreMarca; valor: number | null }
+export interface DreCategoriaInput {
+  id?: string; grupo?: DreGrupo; nome: string; tipo?: 'plus' | 'minus'; variabilidade: 'variable' | 'fixed'; nota?: string; ativa?: boolean;
+}

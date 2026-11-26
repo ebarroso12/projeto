@@ -1,0 +1,196 @@
+{
+  "hoje": "2026-11-26",
+  "metas": [
+    {
+      "id": "fdb48b98-d6f2-48c6-a304-3ce3089158d1",
+      "nome": "Reserva de emergência",
+      "ativa": true,
+      "dataAlvo": null,
+      "valorMeta": 10000
+    }
+  ],
+  "contas": [
+    {
+      "id": "88051e0d-07a9-43d7-8818-75904f7bf32a",
+      "nome": "Caixa",
+      "ativa": true,
+      "saldoInicial": 0
+    },
+    {
+      "id": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "nome": "Conta corrente",
+      "ativa": true,
+      "saldoInicial": 0
+    }
+  ],
+  "listas": {
+    "formas": [
+      "PIX",
+      "Boleto",
+      "Débito automático",
+      "Cartão de débito",
+      "Transferência",
+      "Dinheiro"
+    ],
+    "centros": [
+      "Produção",
+      "Administrativo",
+      "Comercial"
+    ],
+    "categorias": [
+      "Matéria-prima",
+      "Folha de pagamento",
+      "Aluguel",
+      "Energia e água",
+      "Impostos",
+      "Frete e transporte",
+      "Manutenção",
+      "Marketing",
+      "Vendas",
+      "Outros"
+    ],
+    "responsaveis": []
+  },
+  "cartoes": [
+    {
+      "id": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "nome": "Visa Empresa",
+      "ativo": true,
+      "diaFechamento": 25,
+      "diaVencimento": 5
+    }
+  ],
+  "dataInicio": "2026-11-26",
+  "lancamentos": [
+    {
+      "id": "11cb691c-e20c-460c-8383-c02e2ed103b7",
+      "obs": "",
+      "data": "2026-11-26",
+      "tipo": "saida",
+      "forma": "",
+      "valor": 300,
+      "centro": "",
+      "contaId": null,
+      "cartaoId": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "origemId": null,
+      "parcelas": null,
+      "categoria": "Matéria-prima",
+      "descricao": "Linha e aviamentos",
+      "responsavel": "",
+      "valorParcela": null,
+      "diaVencimento": null,
+      "parcelasPagas": 0,
+      "vencimentoFatura": "2027-01-05"
+    },
+    {
+      "id": "e5a169d3-034c-4d0a-8eda-c193fcc0c2fb",
+      "obs": "",
+      "data": "2026-11-20",
+      "tipo": "saida",
+      "forma": "",
+      "valor": 50,
+      "centro": "",
+      "contaId": null,
+      "cartaoId": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "origemId": null,
+      "parcelas": null,
+      "categoria": "",
+      "descricao": "Botões",
+      "responsavel": "",
+      "valorParcela": null,
+      "diaVencimento": null,
+      "parcelasPagas": 0,
+      "vencimentoFatura": "2026-12-05"
+    },
+    {
+      "id": "d0e720f8-4052-4367-8eec-8a596347b6a9",
+      "obs": "",
+      "data": "2026-11-15",
+      "tipo": "saida",
+      "forma": "",
+      "valor": 1000,
+      "centro": "",
+      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "cartaoId": null,
+      "origemId": "5190689f-02dd-4d8b-bf97-26fa68ff6743",
+      "parcelas": null,
+      "categoria": "",
+      "descricao": "Máquina de costura · parcela 1/3",
+      "responsavel": "",
+      "valorParcela": null,
+      "diaVencimento": null,
+      "parcelasPagas": 0,
+      "vencimentoFatura": null
+    },
+    {
+      "id": "41bd0ad1-5271-43db-bd1e-db22ee6eb3da",
+      "obs": "",
+      "data": "2026-11-10",
+      "tipo": "entrada",
+      "forma": "",
+      "valor": 5000,
+      "centro": "",
+      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "cartaoId": null,
+      "origemId": null,
+      "parcelas": null,
+      "categoria": "Vendas",
+      "descricao": "Venda lote 12",
+      "responsavel": "",
+      "valorParcela": null,
+      "diaVencimento": null,
+      "parcelasPagas": 0,
+      "vencimentoFatura": null
+    },
+    {
+      "id": "5190689f-02dd-4d8b-bf97-26fa68ff6743",
+      "obs": "",
+      "data": "2026-11-01",
+      "tipo": "programada",
+      "forma": "",
+      "valor": 3000,
+      "centro": "",
+      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "cartaoId": null,
+      "origemId": null,
+      "parcelas": 3,
+      "categoria": "",
+      "descricao": "Máquina de costura",
+      "responsavel": "",
+      "valorParcela": 1000,
+      "diaVencimento": 15,
+      "parcelasPagas": 1,
+      "vencimentoFatura": null
+    }
+  ],
+  "expectativas": [
+    {
+      "mes": "2026-11",
+      "saidas": {
+        "Aluguel": 1200,
+        "Matéria-prima": 500
+      },
+      "entradas": 6000
+    }
+  ],
+  "movimentosMeta": [
+    {
+      "id": "4cc5c13e-2a7b-4209-a72f-ff5af7ff1079",
+      "data": "2026-11-20",
+      "tipo": "deposito",
+      "valor": 800,
+      "metaId": "fdb48b98-d6f2-48c6-a304-3ce3089158d1",
+      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61"
+    }
+  ],
+  "pagamentosFatura": [
+    {
+      "id": "984420bc-36bf-4a1a-8dcd-172f68f5a2e5",
+      "data": "2026-12-05",
+      "valor": 50,
+      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "cartaoId": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "vencimento": "2026-12-05"
+    }
+  ]
+}

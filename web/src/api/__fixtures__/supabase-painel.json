@@ -34,17 +34,17 @@
     },
     {
       "nome": "Bruno Lima",
-      "extra": "13:17",
-      "saida": "13:17",
+      "extra": "13:56",
+      "saida": "13:56",
       "setor": "Cortador",
-      "entrada": "13:17"
+      "entrada": "13:56"
     },
     {
       "nome": "Carla Dias",
       "extra": "",
-      "saida": "13:17",
+      "saida": "",
       "setor": "Conferente",
-      "entrada": "13:17"
+      "entrada": ""
     }
   ],
   "prodHoje": {

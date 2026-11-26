@@ -15,6 +15,7 @@ export type Transport = (fn: string, args: unknown[]) => Promise<unknown>;
 /** O Apps Script devolve só o texto do erro; "WIFI" e "SESSAO" são códigos do servidor. */
 export function fromServerMessage(raw: string): ApiError {
   if (raw.includes('WIFI')) return new ApiError('WIFI', 'Conecte-se ao Wi-Fi da fábrica.');
+  if (raw.includes('EMPRESA_BLOQUEADA')) return new ApiError('SESSAO', 'O acesso desta empresa está suspenso. Fale com o responsável pelo sistema.');
   if (raw.includes('SESSAO')) return new ApiError('SESSAO', 'Sua sessão expirou. Entre de novo.');
   return new ApiError('SERVIDOR', raw.replace(/^Error:\s*/, '').trim() || 'O servidor recusou a operação.');
 }

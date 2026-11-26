@@ -1,11 +1,13 @@
 {
   "eu": {
     "demo": false,
+    "dono": false,
     "nome": "Carla Dias",
     "admin": false,
     "setor": "Conferente",
     "leitura": false,
-    "podeFalta": true
+    "podeFalta": true,
+    "financeiro": false
   },
   "hoje": "2026-11-26",
   "cores": [
@@ -15,8 +17,8 @@
   ],
   "ponto": {
     "extra": "",
-    "saida": "13:17",
-    "entrada": "13:17"
+    "saida": "",
+    "entrada": ""
   },
   "etapas": [
     "Corte",
@@ -24,6 +26,10 @@
     "Conferência"
   ],
   "emFalta": [],
+  "empresa": {
+    "nome": "Confecções Alfa",
+    "codigo": "alfa"
+  },
   "horaFim": "17:30",
   "modelos": [
     "Camisa Polo",
@@ -31,22 +37,22 @@
   ],
   "meusHoje": [
     {
-      "id": "40f1d380-3207-4ecc-87f5-7b03528a8558",
+      "id": "d673e04e-eacf-4f3b-bcb4-8f40234bf9cb",
       "cor": "Preto",
       "qtd": 8,
       "hist": "",
-      "hora": "13:17",
+      "hora": "13:56",
       "etapa": "Conferência",
       "modelo": "Camisa Polo",
       "edicoes": 0,
       "tamanho": "M"
     },
     {
-      "id": "a920a638-c666-481c-be9b-c386760175ee",
+      "id": "01895a11-851c-41bd-94b8-e5b9c5e35642",
       "cor": "Preto",
       "qtd": 12,
       "hist": "",
-      "hora": "13:17",
+      "hora": "13:56",
       "etapa": "Conferência",
       "modelo": "Camisa Polo",
       "edicoes": 0,

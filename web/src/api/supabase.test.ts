@@ -3,7 +3,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import boot from './__fixtures__/supabase-boot.json';
 import painel from './__fixtures__/supabase-painel.json';
 import relatorio from './__fixtures__/supabase-relatorio.json';
-import { parseBoot, parsePainel, parseRelatorio } from './normalize';
+import fin from './__fixtures__/supabase-fin.json';
+import dre from './__fixtures__/supabase-dre.json';
+import { parseBoot, parseDre, parseFin, parsePainel, parseRelatorio } from './normalize';
+import { calcularDre } from '../features/dre/calc';
+import { faturasAbertas, saldoTotal } from '../features/financeiro/calc';
 import { createSupabaseApi, mapError } from './supabase';
 
 type Reply = { data?: unknown; error?: { message: string; code?: string } | null };
@@ -76,10 +80,11 @@ describe('adaptador Supabase', () => {
   it('login usa e-mail interno e recusa senha errada', async () => {
     const { sb, auth } = fake();
     const api = createSupabaseApi(sb);
-    expect(await api.login('  Ana ', 'segredo1')).toBe('sb');
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'ana@fabrica.local', password: 'segredo1' });
+    expect(await api.login('  Ana ', 'segredo1', ' Alfa ')).toBe('sb');
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'alfa.ana@fabrica.local', password: 'segredo1' });
     auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: { message: 'Invalid login credentials' } });
-    await expect(api.login('ana', 'x')).rejects.toThrow('Login ou senha incorretos.');
+    await expect(api.login('ana', 'x', 'alfa')).rejects.toThrow('Empresa, login ou senha incorretos.');
+    await expect(api.login('ana', 'x')).rejects.toThrow('Informe o código da empresa.');
   });
 
   it('lança produção com os parâmetros nomeados do banco', async () => {
@@ -148,5 +153,21 @@ describe('adaptador Supabase', () => {
     await expect(api.trocarSenha('errada', 'nova1234')).rejects.toThrow('Senha atual incorreta.');
     await api.trocarSenha('atual1', 'nova1234');
     expect(auth.updateUser).toHaveBeenCalledWith({ password: 'nova1234' });
+  });
+});
+
+describe('contratos do financeiro e do resultado (saída real do banco)', () => {
+  it('fin_dados vira FinDados utilizável pelos cálculos', () => {
+    const d = parseFin(fin);
+    expect(d.contas.length).toBeGreaterThan(0);
+    expect(d.listas.categorias.length).toBeGreaterThan(0);
+    expect(Number.isFinite(saldoTotal(d))).toBe(true);
+    expect(Array.isArray(faturasAbertas(d))).toBe(true);
+  });
+  it('dre_dados vira DreDados com as categorias padrão', () => {
+    const d = parseDre(dre);
+    expect(d.categorias.length).toBeGreaterThanOrEqual(18);
+    const r = calcularDre(d.categorias, d.meses[0]?.valores ?? {});
+    expect(r.final).toBeCloseTo(r.operacional + r.financeiro);
   });
 });

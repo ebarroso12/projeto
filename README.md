@@ -1,7 +1,9 @@
 # Fábrica · Gestão da produção
 
-Sistema administrativo da fábrica: painel, relatório, itens em falta, lançamento de produção, ponto e
-cadastros. Funciona no computador do administrador (menu lateral, tabelas densas) e no celular de quem
+Sistema administrativo **multiempresa** para fábricas: painel, relatório, itens em falta, lançamento de
+produção, ponto, cadastros, **financeiro** (entradas, saídas, contas a pagar, cartões, metas, planejamento) e
+**resultado da empresa** (DRE gerencial). Cada empresa cliente tem seus próprios usuários e administradores e só
+enxerga os próprios dados; o responsável pelo sistema cria e bloqueia empresas na tela **Empresas**. Funciona no computador do administrador (menu lateral, tabelas densas) e no celular de quem
 está no chão da fábrica (barra inferior, botões grandes).
 
 ```
@@ -9,7 +11,7 @@ web/                  app (Vite + React + TypeScript), site estático
   src/api/            contrato com o servidor + 3 servidores: supabase, apps script (client+transport), demonstração (mock)
   src/app/            sessão, carga inicial, registro de módulos, casca do app
   src/ui/             componentes (Button, Card, DataTable, Dialog, QueryView, …)
-  src/features/       um módulo por pasta (painel, relatorio, falta, lancar, ponto, cadastros)
+  src/features/       um módulo por pasta (painel, relatorio, falta, lancar, ponto, cadastros, financeiro, dre, empresas)
 supabase/             banco de dados: migrações SQL, função de borda e testes (Postgres local)
 apps-script/Api.gs    ligação opcional ao sistema antigo em Google Apps Script
 docs/SUPABASE.md      passo a passo para colocar no Supabase
@@ -33,10 +35,10 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras e segurança (80+ verificações)
-cd web && npm install && npm run typecheck && npm test      # app: 31 testes
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (107 verificações)
+cd web && npm install && npm run typecheck && npm test      # app: 45 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 25 verificações no navegador (desktop, celular, perfis)
+node web/e2e/smoke.cjs                         # 37 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)
@@ -57,8 +59,18 @@ node web/e2e/smoke.cjs                         # 25 verificações no navegador 
   (`useAction`, com proteção contra toque duplo).
 - **Tokens de design** (`styles/tokens.css`) com tema claro e escuro.
 
+## Em produção
+- Site: Vercel (projeto `fabrica`, time `edsonbdados-9184`), banco: Supabase `wwflyczpnizlmnzczqsl`.
+- Entrar: **Empresa** (código) + **Login** + **Senha**. Link pronto para mandar à equipe: `https://SEU_SITE/?e=codigo-da-empresa`.
+- No Auth, o e-mail interno de cada pessoa é `<empresa>.<login>@fabrica.local` (o mesmo login pode existir em empresas diferentes).
+
+## Multiempresa (vender para outras fábricas)
+1. Entre com o usuário dono do sistema → **Empresas → Nova empresa** (nome, código de acesso e o 1º administrador).
+2. Mande ao cliente os dados mostrados (botão **Copiar dados**). O administrador dele cria a própria equipe em **Cadastros**.
+3. Cliente em atraso: **Bloquear** (todos perdem o acesso na hora; os dados ficam guardados). **Liberar** devolve o acesso.
+- Isolamento garantido no banco: toda tabela tem `empresa_id` e toda função usa a empresa de quem está logado (`fab.eu()`).
+
 ## Pontos de atenção
-- **Nada foi aplicado ainda em um projeto Supabase seu**: veja `docs/SUPABASE.md` (item 1) sobre onde criar o projeto.
 - Os dados históricos da planilha precisam ser importados (ver `docs/SUPABASE.md`).
 - Senhas: mínimo de 6 caracteres (piso do Supabase Auth). O Supabase guarda apenas hash; a tela
   Cadastros nunca mostra senhas.

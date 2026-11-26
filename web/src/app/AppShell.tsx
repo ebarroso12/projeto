@@ -74,6 +74,7 @@ export function AppShell() {
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
   const [pwd, setPwd] = useState(false);
+  const [mais, setMais] = useState(false);
   const items = visibleFeatures(boot.eu);
   const current = features.find(f => pathname.startsWith(f.path));
 
@@ -85,7 +86,7 @@ export function AppShell() {
       <aside className="sidebar" aria-label="Menu principal">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">F</div>
-          <div className="brand-name">Fábrica<small>{demo ? 'Demonstração' : 'Gestão da produção'}</small></div>
+          <div className="brand-name">{boot.empresa.nome || 'Fábrica'}<small>{demo ? 'Demonstração' : 'Gestão da produção'}</small></div>
         </div>
         <nav className="nav">
           {items.map(f => {
@@ -125,7 +126,7 @@ export function AppShell() {
       </div>
 
       <nav className="bottomnav" aria-label="Menu principal">
-        {items.map(f => {
+        {(items.length > 5 ? items.slice(0, 4) : items).map(f => {
           const count = f.badge?.(boot) ?? 0;
           return (
             <NavLink key={f.id} to={f.path}>
@@ -134,7 +135,20 @@ export function AppShell() {
             </NavLink>
           );
         })}
+        {items.length > 5 && (
+          <a href="#mais" className={items.slice(4).some(f => pathname.startsWith(f.path)) ? 'active' : undefined}
+            onClick={e => { e.preventDefault(); setMais(true); }} aria-haspopup="dialog">
+            <Icon name="more" size={21} /><span>Mais</span>
+          </a>
+        )}
       </nav>
+      <Dialog open={mais} onClose={() => setMais(false)} title="Mais opções" variant="drawer">
+        <nav className="nav" aria-label="Mais opções">
+          {items.slice(4).map(f => (
+            <NavLink key={f.id} to={f.path} onClick={() => setMais(false)}><Icon name={f.icon} />{f.label}</NavLink>
+          ))}
+        </nav>
+      </Dialog>
 
       <ChangePassword open={pwd} onClose={() => setPwd(false)} />
     </div>

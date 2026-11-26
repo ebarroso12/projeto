@@ -1,0 +1,314 @@
+{
+  "hoje": "2026-11-26",
+  "meses": [
+    {
+      "mes": "2026-10",
+      "status": "fechado",
+      "valores": {
+        "182b9b35-dfb6-4ca6-a569-c6ce4f3bc0ea": {
+          "marca": "na",
+          "valor": null
+        },
+        "2e04f60f-475a-4c08-bb3b-53641b4aba0d": {
+          "marca": "na",
+          "valor": null
+        },
+        "2f7bbaef-4f33-42fb-bd82-91c8f77f0aa7": {
+          "marca": "na",
+          "valor": null
+        },
+        "3392057a-a9c3-4890-bd13-bb2ae63dea9e": {
+          "marca": "na",
+          "valor": null
+        },
+        "41d43ebd-32a8-4853-82a0-dae43cfc761c": {
+          "marca": "na",
+          "valor": null
+        },
+        "511023b3-d170-45ed-8138-22867475a27e": {
+          "marca": "na",
+          "valor": null
+        },
+        "58d94dcb-c7fb-426e-b6a1-f88932c22256": {
+          "marca": "valor",
+          "valor": 5000
+        },
+        "727d51f6-6e2d-49ea-9e2e-a8b20042459b": {
+          "marca": "na",
+          "valor": null
+        },
+        "74b03b10-f8cc-48b3-8d42-4813432662b0": {
+          "marca": "valor",
+          "valor": 3000
+        },
+        "9dccc058-117a-47f4-8349-45b1d2eaeb64": {
+          "marca": "na",
+          "valor": null
+        },
+        "9fb3dd89-4786-4efb-a25a-57c2676a139c": {
+          "marca": "valor",
+          "valor": 20000
+        },
+        "c15867ec-e875-40a1-9285-1d9e126b3cae": {
+          "marca": "na",
+          "valor": null
+        },
+        "c1fe39c8-ab22-4e60-96f5-f6aaee92cae5": {
+          "marca": "na",
+          "valor": null
+        },
+        "db6aee53-27e8-4835-842f-f6c5b0114828": {
+          "marca": "valor",
+          "valor": 50000
+        },
+        "e809fc20-482d-4d1e-a2a7-1830f738093f": {
+          "marca": "na",
+          "valor": null
+        },
+        "eda327f4-82fe-445e-b9a2-9187c4bfb5b8": {
+          "marca": "na",
+          "valor": null
+        },
+        "f7770582-0ef1-4984-9093-12698525e5ea": {
+          "marca": "na",
+          "valor": null
+        },
+        "ff6a63f1-ce00-4e0d-93b0-ad7487afb35b": {
+          "marca": "na",
+          "valor": null
+        }
+      },
+      "atualizadoEm": "2026-11-26T13:56"
+    }
+  ],
+  "categorias": [
+    {
+      "id": "db6aee53-27e8-4835-842f-f6c5b0114828",
+      "nome": "Faturamento bruto",
+      "nota": "Total de vendas do mês, mesmo que parte ainda não tenha sido recebida",
+      "tipo": "plus",
+      "ativa": true,
+      "chave": "gross",
+      "grupo": "sales",
+      "ordem": 1,
+      "essencial": true,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "eda327f4-82fe-445e-b9a2-9187c4bfb5b8",
+      "nome": "Devoluções e descontos",
+      "nota": "Vendas canceladas, devoluções e descontos sobre vendas",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "returns",
+      "grupo": "sales",
+      "ordem": 2,
+      "essencial": true,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "58d94dcb-c7fb-426e-b6a1-f88932c22256",
+      "nome": "Impostos sobre vendas",
+      "nota": "Valor do imposto do mês informado pela contabilidade",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "tax",
+      "grupo": "sales",
+      "ordem": 3,
+      "essencial": true,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "9fb3dd89-4786-4efb-a25a-57c2676a139c",
+      "nome": "CMV / custo dos produtos vendidos",
+      "nota": "Custo já calculado dos produtos vendidos, não compras para estoque",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "cmv",
+      "grupo": "direct",
+      "ordem": 4,
+      "essencial": true,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "2e04f60f-475a-4c08-bb3b-53641b4aba0d",
+      "nome": "Mão de obra direta (se fora do CMV)",
+      "nota": "Não preencha se já está incluída no CMV",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "labor",
+      "grupo": "direct",
+      "ordem": 5,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "c15867ec-e875-40a1-9285-1d9e126b3cae",
+      "nome": "Taxas de marketplace",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "marketplace",
+      "grupo": "selling",
+      "ordem": 6,
+      "essencial": false,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "727d51f6-6e2d-49ea-9e2e-a8b20042459b",
+      "nome": "Anúncios e publicidade",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "ads",
+      "grupo": "selling",
+      "ordem": 7,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "2f7bbaef-4f33-42fb-bd82-91c8f77f0aa7",
+      "nome": "Embalagens de envio",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "packing",
+      "grupo": "selling",
+      "ordem": 8,
+      "essencial": false,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "e809fc20-482d-4d1e-a2a7-1830f738093f",
+      "nome": "Fretes pagos pela empresa",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "shipping",
+      "grupo": "selling",
+      "ordem": 9,
+      "essencial": false,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "182b9b35-dfb6-4ca6-a569-c6ce4f3bc0ea",
+      "nome": "Comissões de vendas",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "commission",
+      "grupo": "selling",
+      "ordem": 10,
+      "essencial": false,
+      "variabilidade": "variable"
+    },
+    {
+      "id": "74b03b10-f8cc-48b3-8d42-4813432662b0",
+      "nome": "Aluguel",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "rent",
+      "grupo": "admin",
+      "ordem": 11,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "ff6a63f1-ce00-4e0d-93b0-ad7487afb35b",
+      "nome": "Contador",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "accountant",
+      "grupo": "admin",
+      "ordem": 12,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "511023b3-d170-45ed-8138-22867475a27e",
+      "nome": "Energia e água administrativas",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "electricity",
+      "grupo": "admin",
+      "ordem": 13,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "41d43ebd-32a8-4853-82a0-dae43cfc761c",
+      "nome": "Internet e telefone",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "internet",
+      "grupo": "admin",
+      "ordem": 14,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "3392057a-a9c3-4890-bd13-bb2ae63dea9e",
+      "nome": "Pró-labore",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "prolabore",
+      "grupo": "admin",
+      "ordem": 15,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "c1fe39c8-ab22-4e60-96f5-f6aaee92cae5",
+      "nome": "Limpeza e escritório",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "cleaning",
+      "grupo": "admin",
+      "ordem": 16,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "9dccc058-117a-47f4-8349-45b1d2eaeb64",
+      "nome": "Juros recebidos",
+      "nota": "",
+      "tipo": "plus",
+      "ativa": true,
+      "chave": "interest",
+      "grupo": "finance",
+      "ordem": 17,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "f7770582-0ef1-4984-9093-12698525e5ea",
+      "nome": "Dividendos recebidos",
+      "nota": "",
+      "tipo": "plus",
+      "ativa": true,
+      "chave": "dividend",
+      "grupo": "finance",
+      "ordem": 18,
+      "essencial": false,
+      "variabilidade": "fixed"
+    },
+    {
+      "id": "d7fc6257-5b9b-4d9d-9f26-317d3d8b9803",
+      "nome": "Software de gestão",
+      "nota": "",
+      "tipo": "minus",
+      "ativa": true,
+      "chave": "custom-48fdbe21f4d04250b9c03c694b12959a",
+      "grupo": "admin",
+      "ordem": 19,
+      "essencial": false,
+      "variabilidade": "fixed"
+    }
+  ]
+}

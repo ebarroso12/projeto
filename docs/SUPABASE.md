@@ -30,16 +30,18 @@ supabase secrets set BOOTSTRAP_TOKEN=$(openssl rand -hex 16)   # só para o 1º 
 supabase functions deploy usuarios
 ```
 
-## 4. Primeiro administrador
-Chame uma vez (troque os valores). Só funciona enquanto não existir nenhum perfil:
+## 4. Instalação: primeira empresa e dono do sistema
+Chame uma vez (troque os valores). Só funciona enquanto não existir nenhum perfil. Cria a empresa, o
+administrador dela e marca essa pessoa como **dono do sistema** (quem vê a tela Empresas):
 ```bash
 curl -X POST "https://SEU_REF.supabase.co/functions/v1/usuarios" \
   -H "Authorization: Bearer SUA_CHAVE_PUBLISHABLE" -H "Content-Type: application/json" \
-  -d '{"action":"bootstrap","token":"O_BOOTSTRAP_TOKEN","login":"edson","nome":"Edson","senha":"MINIMO6"}'
+  -d '{"action":"bootstrap","token":"O_BOOTSTRAP_TOKEN","codigo":"minha-fabrica","nome":"Minha Fábrica","login":"edson","adminNome":"Edson","senha":"MINIMO6"}'
 supabase secrets unset BOOTSTRAP_TOKEN                         # apague depois de usar
 ```
-Daí em diante, entre no app como administrador e crie as pessoas em **Cadastros → Nova pessoa**.
-Senhas têm no mínimo **6 caracteres** (piso do Supabase Auth).
+Daí em diante: o dono cria empresas clientes em **Empresas → Nova empresa**; cada administrador cria a
+própria equipe em **Cadastros → Nova pessoa**. Senhas têm no mínimo **6 caracteres** (piso do Supabase Auth).
+No login a pessoa informa **empresa + login + senha** (e-mail interno no Auth: `<empresa>.<login>@fabrica.local`).
 
 ## 5. Listas e link de acompanhamento
 - **Cadastros → Modelos, cores e tamanhos:** preencha as listas (o lançamento só aceita itens dessas listas).
@@ -63,10 +65,13 @@ A chave *publishable* foi feita para ficar no navegador. **Nunca** coloque a `se
 | Funcionário só edita/apaga os próprios lançamentos **de hoje**; admin edita tudo | `fab_editar_lancamento` / `fab_apagar_lancamento` |
 | Apagar é lógico; toda edição fica no log de auditoria | `fab.lancamento_log` |
 | Um ponto por pessoa por dia (toque duplo não duplica) | `unique (user_id, dia)` |
-| Hora extra e fechamento automático do ponto esquecido | `fab_bater_ponto`, `fab.fechar_pendentes` (pg_cron, a cada 10 min) |
-| Wi-Fi da fábrica conferido pelo **IP que o servidor vê** | `fab.checa_wifi` (o navegador não envia IP) |
+| Hora extra e fechamento automático do ponto esquecido | `fab_bater_ponto`, `fab.fechar_pendentes` (pg_cron, de hora em hora; fecha só dias anteriores) |
+| Wi-Fi da fábrica conferido pelo **IP que o servidor vê** (`cf-connecting-ip`, não falsificável pelo navegador) | `fab.checa_wifi` |
 | Item em falta dá baixa sozinho ao completar a quantidade | gatilho `lancamentos_baixa` |
-| Sempre sobra um administrador ativo | `fab_atualizar_perfil` |
+| Sempre sobra um administrador ativo; ninguém desativa ou rebaixa a si mesmo | `fab_atualizar_perfil` |
+| Cada empresa só vê os próprios dados; empresa bloqueada perde o acesso na hora | `fab.eu()` (erro `EMPRESA_BLOQUEADA`) |
+| Financeiro e Resultado só para administradores | `fin_*`, `dre_*` (`fab.exige_admin`) |
+| Compra no cartão sai do caixa só quando a fatura é paga; parcelas seguem o dia de vencimento | `fin_salvar_lancamento`, `fin_pagar_fatura` |
 | Feriados não contam como falta | tabela `fab.dias_sem_expediente` |
 | Link "só ver": chave aleatória de 128 bits, guardada como hash, revogável | `fab_criar_chave` / `fab_revogar_chaves` |
 
