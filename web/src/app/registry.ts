@@ -1,4 +1,5 @@
-import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import type { ComponentType, LazyExoticComponent } from 'react';
+import { lazyPage } from './lazyPage';
 import type { Boot, Eu } from '../api/types';
 import type { IconName } from '../ui/Icon';
 
@@ -22,12 +23,12 @@ export interface Feature {
 const gestao = (eu: Eu) => eu.admin || eu.leitura;
 
 export const features: Feature[] = [
-  { id: 'painel', path: '/painel', label: 'Painel', title: 'Painel', group: 'Acompanhar', icon: 'grid', allowed: gestao, Page: lazy(() => import('../features/painel/PainelPage')) },
-  { id: 'relatorio', path: '/relatorio', label: 'Relatório', title: 'Relatório', group: 'Acompanhar', icon: 'report', allowed: gestao, Page: lazy(() => import('../features/relatorio/RelatorioPage')) },
-  { id: 'falta', path: '/falta', label: 'Em falta', title: 'Em falta no estoque', group: 'Acompanhar', icon: 'alert', allowed: () => true, badge: b => b.emFalta.length, Page: lazy(() => import('../features/falta/FaltaPage')) },
-  { id: 'lancar', path: '/lancar', label: 'Lançar', title: 'Lançar produção', group: 'Operação', icon: 'edit', allowed: eu => !eu.leitura, Page: lazy(() => import('../features/lancar/LancarPage')) },
-  { id: 'ponto', path: '/ponto', label: 'Ponto', title: 'Ponto', group: 'Operação', icon: 'clock', allowed: eu => !eu.leitura, Page: lazy(() => import('../features/ponto/PontoPage')) },
-  { id: 'cadastros', path: '/cadastros', label: 'Cadastros', title: 'Cadastros', group: 'Administração', icon: 'users', allowed: eu => eu.admin, Page: lazy(() => import('../features/cadastros/CadastrosPage')) },
+  { id: 'painel', path: '/painel', label: 'Painel', title: 'Painel', group: 'Acompanhar', icon: 'grid', allowed: gestao, Page: lazyPage(() => import('../features/painel/PainelPage')) },
+  { id: 'relatorio', path: '/relatorio', label: 'Relatório', title: 'Relatório', group: 'Acompanhar', icon: 'report', allowed: gestao, Page: lazyPage(() => import('../features/relatorio/RelatorioPage')) },
+  { id: 'falta', path: '/falta', label: 'Em falta', title: 'Em falta no estoque', group: 'Acompanhar', icon: 'alert', allowed: () => true, badge: b => b.emFalta.length, Page: lazyPage(() => import('../features/falta/FaltaPage')) },
+  { id: 'lancar', path: '/lancar', label: 'Lançar', title: 'Lançar produção', group: 'Operação', icon: 'edit', allowed: eu => !eu.leitura, Page: lazyPage(() => import('../features/lancar/LancarPage')) },
+  { id: 'ponto', path: '/ponto', label: 'Ponto', title: 'Ponto', group: 'Operação', icon: 'clock', allowed: eu => !eu.leitura, Page: lazyPage(() => import('../features/ponto/PontoPage')) },
+  { id: 'cadastros', path: '/cadastros', label: 'Cadastros', title: 'Cadastros', group: 'Administração', icon: 'users', allowed: eu => eu.admin, Page: lazyPage(() => import('../features/cadastros/CadastrosPage')) },
 ];
 
 const ORDER_GESTAO = ['painel', 'relatorio', 'falta', 'lancar', 'ponto', 'cadastros'];
