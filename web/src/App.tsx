@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
-import type { Transport } from './api/transport';
+import type { Api } from './api/client';
 import { AppShell } from './app/AppShell';
 import { AuthProvider, useAuth } from './app/auth';
 import { BootGate, FullLoading, useBoot } from './app/boot';
@@ -34,12 +34,12 @@ function Root() {
   return <BootGate><AuthedRoutes /></BootGate>;
 }
 
-export default function App({ transport, demo }: { transport: Transport; demo: boolean }) {
+export default function App({ makeApi, demo }: { makeApi: (getToken: () => string | null) => Api; demo: boolean }) {
   return (
     <ThemeProvider>
       <ToastProvider>
         <ConfirmProvider>
-          <AuthProvider transport={transport} demo={demo}>
+          <AuthProvider makeApi={makeApi} demo={demo}>
             <Root />
           </AuthProvider>
         </ConfirmProvider>

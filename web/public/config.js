@@ -1,6 +1,15 @@
 // Configuração de execução. Edite sem precisar recompilar o app.
+// (Nada aqui é segredo: a chave "publishable" do Supabase foi feita para ficar no navegador;
+//  quem protege os dados são as regras do banco.)
 //
-// apiUrl: endereço do Web App do Apps Script (termina em /exec) com o Api.gs implantado.
-//         Deixe vazio para abrir em MODO DEMONSTRAÇÃO (dados fictícios, nada é enviado).
-// A chave de acesso "só ver" vai no endereço do site:  https://seu-site/?k=SUA_CHAVE
-window.__FABRICA__ = { apiUrl: '' };
+// Escolha UM servidor:
+//   1) Supabase (recomendado):  supabaseUrl + supabaseKey
+//   2) Google Apps Script:      apiUrl (endereço /exec com o Api.gs implantado)
+//   3) Nenhum: MODO DEMONSTRAÇÃO, com dados fictícios e nada é enviado.
+//
+// Link "só ver" para TV/tablet:  https://seu-site/?k=SUA_CHAVE
+window.__FABRICA__ = {
+  supabaseUrl: '',
+  supabaseKey: '',
+  apiUrl: '',
+};

@@ -2,7 +2,7 @@ import { getIp } from '../lib/network';
 import {
   parseBoot, parseFaltas, parsePainel, parseRelatorio, parseUsuarios, parseWifi, rec, str, strings, num,
 } from './normalize';
-import type { Transport } from './transport';
+import { ApiError, type Transport } from './transport';
 import type { FaltaInput, LancamentoInput, LancamentoResultado, UsuarioInput } from './types';
 
 /**
@@ -43,6 +43,9 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     listarUsuarios: async () => parseUsuarios(await call('listarUsuarios', tok())),
     salvarUsuario: async (u: UsuarioInput) => { await call('salvarUsuario', tok(), u); },
     salvarLista: async (nome: string, valores: string[]) => strings(await call('salvarLista', tok(), nome, valores)),
+
+    criarChave: async (_nome: string): Promise<string> => { throw new ApiError('SERVIDOR', 'Links de acompanhamento só estão disponíveis com o servidor Supabase.'); },
+    revogarChaves: async (): Promise<number> => { throw new ApiError('SERVIDOR', 'Links de acompanhamento só estão disponíveis com o servidor Supabase.'); },
 
     verWifi: async () => parseWifi(await call('verWifi', tok())),
     salvarWifi: async (exigir: boolean, ips: { nome: string; ip: string; em: string }[]) =>

@@ -1,0 +1,8 @@
+# Cabeçalhos de segurança (Netlify e Cloudflare Pages leem este arquivo).
+/*
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+/config.js
+  Cache-Control: no-cache

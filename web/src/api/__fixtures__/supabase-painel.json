@@ -1,0 +1,55 @@
+{
+  "saldo": [
+    {
+      "cor": "Branco",
+      "conf": 5,
+      "erro": true,
+      "corte": 0,
+      "modelo": "Calça Jeans",
+      "naConf": 0,
+      "costura": 0,
+      "tamanho": "P",
+      "naCostura": 0
+    },
+    {
+      "cor": "Preto",
+      "conf": 20,
+      "erro": false,
+      "corte": 100,
+      "modelo": "Camisa Polo",
+      "naConf": 50,
+      "costura": 70,
+      "tamanho": "M",
+      "naCostura": 30
+    }
+  ],
+  "editados": [],
+  "presenca": [
+    {
+      "nome": "Ana Souza",
+      "extra": "",
+      "saida": "",
+      "setor": "Costureira",
+      "entrada": ""
+    },
+    {
+      "nome": "Bruno Lima",
+      "extra": "11:56",
+      "saida": "11:56",
+      "setor": "Cortador",
+      "entrada": "11:56"
+    },
+    {
+      "nome": "Carla Dias",
+      "extra": "",
+      "saida": "11:56",
+      "setor": "Conferente",
+      "entrada": "11:56"
+    }
+  ],
+  "prodHoje": {
+    "Corte": 100,
+    "Costura": 70,
+    "Conferência": 25
+  }
+}

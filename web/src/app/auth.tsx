@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createApi, type Api } from '../api/client';
-import { ApiError, type Transport } from '../api/transport';
+import type { Api } from '../api/client';
+import { ApiError } from '../api/transport';
 import { storage } from '../lib/storage';
 
 const TOKEN_KEY = 'fab_token';
@@ -34,7 +34,7 @@ export const useApi = (): Api => useAuth().api;
  *  - erro SESSAO em qualquer chamada derruba a sessão e volta ao login;
  *  - erro WIFI em qualquer chamada mostra a tela de "conecte no Wi-Fi da fábrica".
  */
-export function AuthProvider({ transport, demo, children }: { transport: Transport; demo: boolean; children: ReactNode }) {
+export function AuthProvider({ makeApi, demo, children }: { makeApi: (getToken: () => string | null) => Api; demo: boolean; children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => storage.get(TOKEN_KEY));
   const tokenRef = useRef(token);
   const keyRef = useRef(new URLSearchParams(window.location.search).get('k'));
@@ -49,7 +49,7 @@ export function AuthProvider({ transport, demo, children }: { transport: Transpo
     storage.set(TOKEN_KEY, t);
   }, []);
 
-  const api = useMemo(() => createApi(transport, () => tokenRef.current), [transport]);
+  const api = useMemo(() => makeApi(() => tokenRef.current), [makeApi]);
 
   const onError = useCallback((err: unknown) => {
     if (!(err instanceof ApiError)) return;

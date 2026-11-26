@@ -4,6 +4,7 @@ import type { Usuario, UsuarioInput } from '../../api/types';
 import { useApi } from '../../app/auth';
 import { useAction } from '../../app/useAction';
 import { loginFromName } from '../../lib/format';
+import { MIN_SENHA } from '../../lib/rules';
 import { Button } from '../../ui/Button';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { Dialog } from '../../ui/Dialog';
@@ -17,7 +18,7 @@ const SETORES = ['Costureira', 'Cortador', 'Conferente', 'Estoque', 'Outra', 'Ad
 const PERFIS = [{ value: 'funcionario', label: 'Funcionário' }, { value: 'admin', label: 'Administrador' }];
 const SIM_NAO = ['Sim', 'Não'];
 
-const randomPin = () => String(Math.floor(1000 + Math.random() * 9000));
+const randomPin = () => String(Math.floor(100000 + Math.random() * 900000));
 
 function UserDrawer({ user, onClose }: { user: Usuario | null; onClose: () => void }) {
   const api = useApi();
@@ -36,7 +37,7 @@ function UserDrawer({ user, onClose }: { user: Usuario | null; onClose: () => vo
 
   const submit = () => {
     if (!f.nome.trim() || !f.login.trim()) { setError('Preencha o nome e o login.'); return; }
-    if (novo && f.senha.length < 4) { setError('A senha precisa ter pelo menos 4 caracteres.'); return; }
+    if (novo && f.senha.length < MIN_SENHA) { setError(`A senha precisa ter pelo menos ${MIN_SENHA} caracteres.`); return; }
     setError('');
     save.mutate(f);
   };

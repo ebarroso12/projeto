@@ -6,6 +6,7 @@
  * Chave "só ver": ?k=demo-key
  */
 import { hmToMin, isoDay } from '../lib/format';
+import { MIN_SENHA } from '../lib/rules';
 import { ApiError, fromServerMessage, type Transport } from './transport';
 
 const ETAPAS = ['Corte', 'Costura', 'Conferência'];
@@ -159,7 +160,7 @@ const handlers: Record<string, (a: unknown[]) => unknown> = {
   trocarSenha: ([t, atual, nova]) => {
     const u = userOf(String(t));
     if (u.senha !== atual) throw fromServerMessage('Senha atual incorreta.');
-    if (String(nova).length < 4) throw fromServerMessage('A nova senha precisa ter pelo menos 4 caracteres.');
+    if (String(nova).length < MIN_SENHA) throw fromServerMessage(`A nova senha precisa ter pelo menos ${MIN_SENHA} caracteres.`);
     u.senha = String(nova);
     return null;
   },
@@ -293,7 +294,7 @@ const handlers: Record<string, (a: unknown[]) => unknown> = {
     if (!r.nome.trim() || !login) throw fromServerMessage('Preencha nome e login.');
     const ex = state.users.find(u => u.login === login);
     if (r.novo && ex) throw fromServerMessage('Esse login já existe.');
-    if (r.novo && r.senha.length < 4) throw fromServerMessage('A senha precisa ter pelo menos 4 caracteres.');
+    if (r.novo && r.senha.length < MIN_SENHA) throw fromServerMessage(`A senha precisa ter pelo menos ${MIN_SENHA} caracteres.`);
     const u = ex ?? ({ login } as MUser);
     Object.assign(u, { nome: r.nome.trim(), setor: r.setor, perfil: r.perfil, ativo: r.ativo !== 'Não', podeFalta: r.podeFalta === 'Sim' });
     if (r.senha) u.senha = r.senha;

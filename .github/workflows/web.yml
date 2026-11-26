@@ -1,0 +1,57 @@
+# Testa tudo e publica o app no GitHub Pages (sem Vercel).
+# Configuração (Settings > Secrets and variables > Actions > Variables):
+#   SUPABASE_URL              ex.: https://xxxx.supabase.co
+#   SUPABASE_PUBLISHABLE_KEY  chave "publishable" (pública por projeto; NÃO use a service_role)
+# E em Settings > Pages > Source: "GitHub Actions".
+name: web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Banco de dados (migrações e regras de negócio)
+        working-directory: supabase
+        run: npm ci && npm test
+      - name: App (tipos, testes e build)
+        working-directory: web
+        run: npm ci && npm run typecheck && npm test && npm run build
+      - name: Gera config.js de produção
+        working-directory: web
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          printf "window.__FABRICA__ = { supabaseUrl: %s, supabaseKey: %s, apiUrl: '' };\n" \
+            "$(node -p 'JSON.stringify(process.env.SUPABASE_URL||"")')" \
+            "$(node -p 'JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY||"")')" > dist/config.js
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: web/dist }
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

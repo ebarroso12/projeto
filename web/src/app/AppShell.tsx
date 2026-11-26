@@ -7,6 +7,7 @@ import { TextField } from '../ui/Field';
 import { Icon } from '../ui/Icon';
 import { useToast } from '../ui/Toast';
 import { longDate } from '../lib/format';
+import { MIN_SENHA } from '../lib/rules';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useApi, useAuth } from './auth';
 import { useBoot } from './boot';
@@ -22,16 +23,16 @@ function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void 
     mutationFn: () => api.trocarSenha(atual, nova),
     onSuccess: () => { toast.success('Senha trocada!'); onClose(); },
   });
-  const submit = (e: FormEvent) => { e.preventDefault(); if (nova.length >= 4) m.mutate(); };
+  const submit = (e: FormEvent) => { e.preventDefault(); if (nova.length >= MIN_SENHA) m.mutate(); };
   useEffect(() => { if (!open) { setAtual(''); setNova(''); m.reset(); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Dialog open={open} onClose={onClose} title="Trocar senha"
-      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={m.isPending} disabled={nova.length < 4 || !atual} onClick={() => m.mutate()}>Salvar</Button></>}>
+      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={m.isPending} disabled={nova.length < MIN_SENHA || !atual} onClick={() => m.mutate()}>Salvar</Button></>}>
       <form onSubmit={submit} className="stack" style={{ gap: 14 }}>
         <TextField label="Senha atual" type="password" value={atual} onChange={e => setAtual(e.target.value)} autoComplete="current-password" />
         <TextField label="Nova senha" type="password" value={nova} onChange={e => setNova(e.target.value)} autoComplete="new-password"
-          hint="Mínimo de 4 caracteres." error={m.error instanceof Error ? m.error.message : undefined} />
+          hint={`Mínimo de ${MIN_SENHA} caracteres.`} error={m.error instanceof Error ? m.error.message : undefined} />
       </form>
     </Dialog>
   );

@@ -1,0 +1,68 @@
+{
+  "pessoas": [
+    {
+      "nome": "Ana Souza",
+      "horas": "19:30",
+      "extras": "1:00",
+      "faltas": [
+        "2026-11-11",
+        "2026-11-13"
+      ],
+      "diasTrab": 2,
+      "semSaida": 0
+    },
+    {
+      "nome": "Bruno Lima",
+      "horas": "0:00",
+      "extras": "0:00",
+      "faltas": [
+        "2026-11-09",
+        "2026-11-10",
+        "2026-11-11",
+        "2026-11-13"
+      ],
+      "diasTrab": 0,
+      "semSaida": 0
+    },
+    {
+      "nome": "Carla Dias",
+      "horas": "0:00",
+      "extras": "0:00",
+      "faltas": [
+        "2026-11-09",
+        "2026-11-10",
+        "2026-11-11",
+        "2026-11-13"
+      ],
+      "diasTrab": 0,
+      "semSaida": 0
+    }
+  ],
+  "editados": [],
+  "porEtapa": {
+    "Corte": 0,
+    "Costura": 0,
+    "Conferência": 0
+  },
+  "diasUteis": 4,
+  "porModelo": [],
+  "porPessoa": [],
+  "registros": [
+    {
+      "auto": false,
+      "data": "2026-11-10",
+      "nome": "Ana Souza",
+      "extra": "1:00",
+      "saida": "18:30",
+      "entrada": "08:00"
+    },
+    {
+      "auto": false,
+      "data": "2026-11-09",
+      "nome": "Ana Souza",
+      "extra": "",
+      "saida": "17:00",
+      "entrada": "08:00"
+    }
+  ]
+}

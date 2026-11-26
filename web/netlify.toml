@@ -1,0 +1,8 @@
+# Netlify (alternativa à Vercel). O app usa rotas com "#", então não precisa de redirecionamentos.
+[build]
+  base = "web"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
