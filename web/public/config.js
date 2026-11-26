@@ -3,13 +3,13 @@
 //  quem protege os dados são as regras do banco.)
 //
 // Escolha UM servidor:
-//   1) Supabase (recomendado):  supabaseUrl + supabaseKey
+//   1) Supabase (em uso):       supabaseUrl + supabaseKey
 //   2) Google Apps Script:      apiUrl (endereço /exec com o Api.gs implantado)
 //   3) Nenhum: MODO DEMONSTRAÇÃO, com dados fictícios e nada é enviado.
 //
 // Link "só ver" para TV/tablet:  https://seu-site/?k=SUA_CHAVE
 window.__FABRICA__ = {
-  supabaseUrl: '',
-  supabaseKey: '',
+  supabaseUrl: 'https://wwflyczpnizlmnzczqsl.supabase.co',
+  supabaseKey: 'sb_publishable_ehDMdW99jzH8mj_UUPR58w_aQ6clc2Y',
   apiUrl: '',
 };

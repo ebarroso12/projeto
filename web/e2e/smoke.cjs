@@ -23,6 +23,8 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
     page.on('console', m => { if (m.type() === 'error' && !/ipify|Failed to load resource/.test(m.text())) errors.push(m.text()); });
     // o serviço de IP é externo: nos testes, responde um IP fixo
     await page.route('https://api.ipify.org/**', r => r.fulfill({ json: { ip: '203.0.113.7' } }));
+    // o teste roda sempre em modo demonstração, mesmo com o config.js de produção apontando para o Supabase
+    await page.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.__FABRICA__ = {};' }));
     await page.goto(url || BASE);
     return page;
   };
