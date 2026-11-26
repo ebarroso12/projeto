@@ -407,6 +407,7 @@ const dreMeses: { mes: string; status: string; atualizadoEm: string; valores: Re
 Object.assign(handlers, {
   criarChave: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return 'demo-key'; },
   revogarChaves: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return 0; },
+  exportar: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return { formato: 'fabrica-backup-1', geradoEm: `${today()}T12:00:00`, empresa: { codigo: 'demo', nome: 'Confecção Demonstração' }, tabelas: { financeiro: finSnapshot(), dre_meses: dreMeses } }; },
 
   empresas: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return empresasDemo; },
   criarEmpresa: ([t, o]: unknown[]) => {

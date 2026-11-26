@@ -35,10 +35,10 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (107 verificações)
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (114 verificações)
 cd web && npm install && npm run typecheck && npm test      # app: 45 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 37 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
+node web/e2e/smoke.cjs                         # 38 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)
@@ -69,6 +69,13 @@ node web/e2e/smoke.cjs                         # 37 verificações no navegador 
 2. Mande ao cliente os dados mostrados (botão **Copiar dados**). O administrador dele cria a própria equipe em **Cadastros**.
 3. Cliente em atraso: **Bloquear** (todos perdem o acesso na hora; os dados ficam guardados). **Liberar** devolve o acesso.
 - Isolamento garantido no banco: toda tabela tem `empresa_id` e toda função usa a empresa de quem está logado (`fab.eu()`).
+
+## Proteção dos dados
+- **Cadastros → Cópia de segurança**: o administrador baixa um arquivo com todos os dados da empresa (sem senhas).
+  Recomendado uma vez por semana. Função `fab_exportar` (só administrador, só a própria empresa).
+- **`.github/workflows/manter-ativo.yml`**: uma consulta leve por dia para o Supabase gratuito não pausar o projeto.
+- O projeto Supabase hoje é compartilhado com outro app (tabelas no esquema `public`). A Fábrica fica toda no
+  esquema `fab`. **Nunca** rode `supabase db reset` nesse projeto: apagaria os dois sistemas.
 
 ## Pontos de atenção
 - Os dados históricos da planilha precisam ser importados (ver `docs/SUPABASE.md`).

@@ -129,6 +129,9 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => page.getByRole('cell', { name: 'teste', exact: true }).isVisible()), 'cria pessoa e lista na tabela');
   ok((await page.locator('code', { hasText: '••••' }).count()) > 0, 'senhas mascaradas por padrão');
   await shot(page, '09-cadastros');
+  await page.getByRole('tab', { name: 'Cópia de segurança' }).click();
+  const [bk] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar cópia de segurança' }).click()]);
+  ok(/^backup-.*\.json$/.test(bk.suggestedFilename()), 'baixa a cópia de segurança (' + bk.suggestedFilename() + ')');
   await page.getByRole('tab', { name: 'Wi-Fi da fábrica' }).click();
   await page.getByText('Redes cadastradas').waitFor();
   await shot(page, '10-wifi');

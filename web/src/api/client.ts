@@ -54,6 +54,8 @@ export function createApi(transport: Transport, getToken: () => string | null) {
 
     criarChave: async (nome: string): Promise<string> => str(await call('criarChave', tok(), nome)),
     revogarChaves: async (): Promise<number> => num(await call('revogarChaves', tok())),
+    /** Cópia de segurança de todos os dados da empresa (JSON). */
+    exportar: async (): Promise<unknown> => call('exportar', tok()),
 
     verWifi: async () => parseWifi(await call('verWifi', tok())),
     salvarWifi: async (exigir: boolean, ips: { nome: string; ip: string; em: string }[]) =>

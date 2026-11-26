@@ -1,0 +1,26 @@
+# Uma consulta leve por dia ao banco, para o Supabase (plano gratuito) não pausar o projeto por inatividade.
+# Usa só a URL e a chave "publishable" que já estão públicas em web/public/config.js; não precisa de segredo.
+name: manter-ativo
+
+on:
+  schedule:
+    - cron: '23 11 * * *'   # todo dia, 08:23 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consulta o banco
+        run: |
+          URL=$(grep -oE "supabaseUrl: *'[^']+'" web/public/config.js | cut -d"'" -f2)
+          KEY=$(grep -oE "supabaseKey: *'[^']+'" web/public/config.js | cut -d"'" -f2)
+          [ -n "$URL" ] && [ -n "$KEY" ] || { echo "config.js sem Supabase; nada a fazer"; exit 0; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/rest/v1/rpc/fab_validar_chave" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" -d '{"p_chave":"manter-ativo"}')
+          echo "resposta: $code"
+          [ "$code" = "200" ]

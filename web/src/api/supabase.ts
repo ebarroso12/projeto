@@ -128,6 +128,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
 
     criarChave: async nome => str(await rpc('fab_criar_chave', { p_nome: nome })),
     revogarChaves: async () => num(await rpc('fab_revogar_chaves')),
+    exportar: async () => rpc('fab_exportar'),
 
     verWifi: async () => parseWifi(await rpc('fab_ver_wifi')),
     salvarWifi: async (exigir, ips) => parseWifi(await rpc('fab_salvar_wifi', { p_exigir: exigir, p_manter: ips.map(i => i.ip) })),

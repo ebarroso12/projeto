@@ -311,6 +311,18 @@ eq([pa.diasTrab, pa.horas, pa.extras], [2, '19:30', '1:00'], 'Ana: 2 dias, 19:30
 eq(pa.faltas, [dia(2), dia(4)], 'faltas = quarta e sexta (feriado não conta)');
 ok((await rpc(adminB, `fab_relatorio('${dia(0)}','${dia(4)}')`)).data.diasUteis === 5, 'feriado cadastrado na A não vale para a B');
 
+// ============ 15. cópia de segurança ============
+console.log('\n--- cópia de segurança ---');
+r = await rpc(admin, 'fab_exportar()');
+ok(r.ok && r.data.formato === 'fabrica-backup-1' && r.data.empresa.codigo === 'alfa', 'admin exporta a própria empresa');
+const tabs = r.ok ? r.data.tabelas : {};
+ok(tabs.perfis?.length === 5 && tabs.perfis.every(x => x.empresa_id === empA), 'backup traz só as pessoas da empresa A');
+ok(tabs.ponto?.length >= 2 && tabs.itens_lista?.length >= 7 && Array.isArray(tabs.fin_lancamentos) && Array.isArray(tabs.dre_categorias), 'backup traz produção, ponto, financeiro e resultado');
+ok(!('chaves_acesso' in tabs), 'backup não leva as chaves de acesso');
+ok(fails_with(await rpc(ana, 'fab_exportar()'), 'Apenas o administrador'), 'funcionário não exporta');
+ok(fails_with(await rpc(null, 'fab_exportar()', { role: 'anon' }), 'permission denied'), 'anônimo não exporta');
+ok((await rpc(adminB, 'fab_exportar()')).data.tabelas.perfis.every(x => x.empresa_id === empB), 'admin da B exporta só a B');
+
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {
   const out = join(here, '../../web/src/api/__fixtures__');
