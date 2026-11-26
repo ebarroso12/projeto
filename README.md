@@ -42,6 +42,8 @@ node web/e2e/smoke.cjs                         # 25 verificações no navegador 
 ## Publicar (sem Vercel)
 - **GitHub Pages:** `.github/workflows/web.yml` roda os testes e publica. Defina as variáveis
   `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` e, em *Settings → Pages*, a fonte "GitHub Actions".
+- **Vercel:** *Add New → Project*, importe `ebarroso12/projeto`, **Root Directory = `web`** (o `web/vercel.json` já
+  define build e cabeçalhos). Em *Settings → Environment Variables* não é preciso nada: edite `public/config.js`.
 - **Netlify / Cloudflare Pages:** raiz `web`, comando `npm run build`, saída `dist`
   (`netlify.toml` e `public/_headers` já estão prontos; o `config.js` pode ser editado no próprio host).
 - O site é 100% estático e usa rotas com `#`: funciona em qualquer hospedagem de arquivos.
