@@ -133,6 +133,13 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   const [bk] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar cópia de segurança' }).click()]);
   ok(/^backup-.*\.json$/.test(bk.suggestedFilename()), 'baixa a cópia de segurança (' + bk.suggestedFilename() + ')');
 
+  // Dashboard mensal (gráficos)
+  await page.locator('.sidebar').getByRole('link', { name: 'Dashboard' }).click();
+  await page.getByText('Síntese gerencial').waitFor();
+  ok(await page.locator('svg[role="img"]').count() >= 4, 'dashboard desenha os gráficos');
+  ok(await page.getByText('Destaques do mês').isVisible(), 'dashboard mostra destaques do mês');
+  await shot(page, '11b-dashboard');
+
   // Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Financeiro' }).click();
   await page.getByText('Saldo em contas').waitFor();

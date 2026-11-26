@@ -11,7 +11,7 @@ web/                  app (Vite + React + TypeScript), site estático
   src/api/            contrato com o servidor + 3 servidores: supabase, apps script (client+transport), demonstração (mock)
   src/app/            sessão, carga inicial, registro de módulos, casca do app
   src/ui/             componentes (Button, Card, DataTable, Dialog, QueryView, …)
-  src/features/       um módulo por pasta (painel, relatorio, falta, lancar, ponto, cadastros, financeiro, dre, empresas)
+  src/features/       um módulo por pasta (painel, dashboard, relatorio, falta, lancar, ponto, cadastros, financeiro, dre, empresas)
 supabase/             banco de dados: migrações SQL, função de borda e testes (Postgres local)
 apps-script/Api.gs    ligação opcional ao sistema antigo em Google Apps Script
 docs/SUPABASE.md      passo a passo para colocar no Supabase
@@ -38,7 +38,7 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (114 verificações)
 cd web && npm install && npm run typecheck && npm test      # app: 45 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 38 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
+node web/e2e/smoke.cjs                         # 40 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)

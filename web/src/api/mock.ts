@@ -85,7 +85,20 @@ function seedData() {
   state.lancs.push({ id: `L${state.nextId++}`, login: 'carla', nome: 'Carla Dias', etapa: 'Conferência', modelo: 'Jaqueta Corta-vento', cor: 'Cinza', tamanho: 'GG', qtd: 40, data: isoDay(hoje), hora: '10:12', edicoes: 2, hist: '10:20 30→35; 10:41 35→40' });
   state.lancs.push({ id: `L${state.nextId++}`, login: 'ana', nome: 'Ana Souza', etapa: 'Costura', modelo: 'Jaqueta Corta-vento', cor: 'Cinza', tamanho: 'GG', qtd: 12, data: isoDay(hoje), hora: '09:02', edicoes: 0, hist: '' });
 
-  for (let k = 14; k >= 1; k--) {
+  // histórico de ~4 meses (para o Dashboard comparar o mês com a média dos anteriores)
+  for (let k = 120; k >= 7; k--) {
+    const d = isoDay(addDays(hoje, -k));
+    if (!isWeekday(d)) continue;
+    const [modelo, cor, tamanho] = pick(combos);
+    const ritmo = 0.8 + 0.25 * Math.sin(k / 9) + rnd() * 0.2;
+    const corte = Math.round((70 + rnd() * 40) * ritmo), costura = Math.round(corte * (0.85 + rnd() * 0.1)), conf = Math.round(costura * (0.85 + rnd() * 0.1));
+    for (const [etapa, qtd] of [['Corte', corte], ['Costura', costura], ['Conferência', conf]] as [string, number][]) {
+      const u = etapaUser[etapa]!;
+      state.lancs.push({ id: `L${state.nextId++}`, login: u.login, nome: u.nome, etapa, modelo, cor, tamanho, qtd, data: d, hora: `${pad(9 + Math.floor(rnd() * 7))}:${pad(Math.floor(rnd() * 60))}`, edicoes: 0, hist: '' });
+    }
+  }
+
+  for (let k = 120; k >= 1; k--) {
     const d = isoDay(addDays(hoje, -k));
     if (!isWeekday(d)) continue;
     for (const u of state.users.filter(x => x.perfil === 'funcionario' && !x.leitura)) {

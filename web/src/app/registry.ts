@@ -23,6 +23,7 @@ export interface Feature {
 const gestao = (eu: Eu) => eu.admin || eu.leitura;
 
 export const features: Feature[] = [
+  { id: 'dashboard', path: '/dashboard', label: 'Dashboard', title: 'Dashboard mensal', group: 'Acompanhar', icon: 'chart', allowed: gestao, Page: lazyPage(() => import('../features/dashboard/DashboardPage')) },
   { id: 'painel', path: '/painel', label: 'Painel', title: 'Painel', group: 'Acompanhar', icon: 'grid', allowed: gestao, Page: lazyPage(() => import('../features/painel/PainelPage')) },
   { id: 'relatorio', path: '/relatorio', label: 'Relatório', title: 'Relatório', group: 'Acompanhar', icon: 'report', allowed: gestao, Page: lazyPage(() => import('../features/relatorio/RelatorioPage')) },
   { id: 'falta', path: '/falta', label: 'Em falta', title: 'Em falta no estoque', group: 'Acompanhar', icon: 'alert', allowed: () => true, badge: b => b.emFalta.length, Page: lazyPage(() => import('../features/falta/FaltaPage')) },
@@ -34,8 +35,8 @@ export const features: Feature[] = [
   { id: 'empresas', path: '/empresas', label: 'Empresas', title: 'Empresas clientes', group: 'Administração', icon: 'building', allowed: eu => eu.dono, Page: lazyPage(() => import('../features/empresas/EmpresasPage')) },
 ];
 
-const ORDER_GESTAO = ['painel', 'relatorio', 'falta', 'financeiro', 'resultado', 'lancar', 'ponto', 'cadastros', 'empresas'];
-const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'painel', 'relatorio', 'financeiro', 'resultado', 'cadastros', 'empresas'];
+const ORDER_GESTAO = ['painel', 'dashboard', 'relatorio', 'falta', 'financeiro', 'resultado', 'lancar', 'ponto', 'cadastros', 'empresas'];
+const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'dashboard', 'painel', 'relatorio', 'financeiro', 'resultado', 'cadastros', 'empresas'];
 
 /** Módulos que o usuário pode ver, já na ordem do menu. */
 export function visibleFeatures(eu: Eu): Feature[] {
