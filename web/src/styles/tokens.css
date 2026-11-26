@@ -1,64 +1,65 @@
-/* Tokens de design: toda cor, raio e sombra do app sai daqui. */
+/* Tokens de design: toda cor, raio e sombra do app sai daqui.
+   Visual: neutro (zinco), um único acento azul, superfícies claras, bordas quase invisíveis. */
 :root {
   color-scheme: light;
-  --bg: #f3f5f8;
+  --bg: #f7f7f8;
   --surface: #ffffff;
-  --surface-2: #f0f3f7;
-  --surface-3: #e5eaf1;
-  --text: #121821;
-  --muted: #566176;
-  --faint: #8691a4;
-  --line: #e1e6ee;
-  --line-strong: #cdd5e1;
+  --surface-2: #f2f2f4;
+  --surface-3: #e9e9ec;
+  --text: #0b0b0f;
+  --muted: #6b6b76;
+  --faint: #9a9aa5;
+  --line: rgba(15, 15, 25, .07);
+  --line-strong: rgba(15, 15, 25, .12);
 
-  --brand: #1f4e79;
-  --brand-hover: #173d60;
+  --brand: #2f6bff;
+  --brand-hover: #1f58ea;
   --brand-ink: #ffffff;
-  --brand-soft: #e5eef8;
+  --brand-soft: rgba(47, 107, 255, .09);
 
-  --ok: #137a37;      --ok-soft: #e3f4ea;
-  --warn: #9a5a00;    --warn-soft: #fff2d3;
-  --danger: #b3261e;  --danger-soft: #fdebea;
-  --info: #1b5eb0;    --info-soft: #e6effc;
+  --ok: #0f9d58;      --ok-soft: rgba(15, 157, 88, .1);
+  --warn: #c27803;    --warn-soft: rgba(234, 160, 20, .13);
+  --danger: #e5484d;  --danger-soft: rgba(229, 72, 77, .1);
+  --info: #2f6bff;    --info-soft: rgba(47, 107, 255, .09);
 
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
-  --shadow: 0 4px 16px rgba(16, 24, 40, .08);
-  --shadow-lg: 0 16px 48px rgba(16, 24, 40, .22);
-  --focus: 0 0 0 3px rgba(31, 78, 121, .35);
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(15, 15, 25, .04);
+  --shadow: 0 8px 24px -8px rgba(15, 15, 25, .12);
+  --shadow-lg: 0 24px 64px -12px rgba(15, 15, 25, .28);
+  --focus: 0 0 0 4px rgba(47, 107, 255, .18);
 
-  --sidebar-w: 248px;
-  --topbar-h: 56px;
-  --bottomnav-h: 62px;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --sidebar-w: 240px;
+  --topbar-h: 60px;
+  --bottomnav-h: 64px;
+  --font: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0d1117;
-  --surface: #151b24;
-  --surface-2: #1b2330;
-  --surface-3: #243044;
-  --text: #e7ebf2;
-  --muted: #9aa6ba;
-  --faint: #6f7c91;
-  --line: #263142;
-  --line-strong: #34435b;
+  --bg: #09090b;
+  --surface: #121215;
+  --surface-2: #19191d;
+  --surface-3: #232328;
+  --text: #f4f4f6;
+  --muted: #a0a0ab;
+  --faint: #6c6c76;
+  --line: rgba(255, 255, 255, .07);
+  --line-strong: rgba(255, 255, 255, .12);
 
-  --brand: #6aa7dd;
-  --brand-hover: #86b9e8;
-  --brand-ink: #0b1420;
-  --brand-soft: #182739;
+  --brand: #5b8cff;
+  --brand-hover: #7aa2ff;
+  --brand-ink: #ffffff;
+  --brand-soft: rgba(91, 140, 255, .14);
 
-  --ok: #4cc27a;      --ok-soft: #12301f;
-  --warn: #e8b455;    --warn-soft: #352a10;
-  --danger: #ff7f76;  --danger-soft: #3a1816;
-  --info: #7fb2ff;    --info-soft: #14253d;
+  --ok: #3ecf8e;      --ok-soft: rgba(62, 207, 142, .12);
+  --warn: #f5b544;    --warn-soft: rgba(245, 181, 68, .13);
+  --danger: #ff6b6f;  --danger-soft: rgba(255, 107, 111, .12);
+  --info: #5b8cff;    --info-soft: rgba(91, 140, 255, .14);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
-  --shadow: 0 4px 16px rgba(0, 0, 0, .45);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, .6);
-  --focus: 0 0 0 3px rgba(106, 167, 221, .45);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow: 0 8px 24px -8px rgba(0, 0, 0, .6);
+  --shadow-lg: 0 24px 64px -12px rgba(0, 0, 0, .75);
+  --focus: 0 0 0 4px rgba(91, 140, 255, .25);
 }

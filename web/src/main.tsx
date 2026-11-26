@@ -4,6 +4,7 @@ import App from './App';
 import type { Api } from './api/client';
 import { createApi } from './api/client';
 import { httpTransport } from './api/transport';
+import '@fontsource-variable/inter'; // fonte embutida no app (sem depender de servidor externo)
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/layout.css';
