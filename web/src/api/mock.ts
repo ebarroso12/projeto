@@ -1208,3 +1208,11 @@ Object.assign(handlers, {
     };
   },
 });
+
+// ---------------------------------------------------------------- avisos (demonstração: não há servidor de envio)
+const pushDemo = new Set<string>();
+Object.assign(handlers, {
+  pushInscrever: ([t, o]: unknown[]) => { userOf(String(t)); pushDemo.add(String((o as { endpoint: string }).endpoint)); return null; },
+  pushCancelar: ([t, ep]: unknown[]) => { userOf(String(t)); pushDemo.delete(String(ep)); return null; },
+  pushStatus: ([t, ep]: unknown[]) => { userOf(String(t)); return { esteAparelho: pushDemo.has(String(ep)), aparelhos: pushDemo.size, configurado: false }; },
+});

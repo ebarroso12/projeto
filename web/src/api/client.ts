@@ -129,6 +129,11 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     apagarMovMaterial: async (id: string) => { await call('apagarMovMaterial', tok(), id); },
     materialOpcoes: async () => parseMaterialOpcoes(await call('materialOpcoes', tok())),
 
+    // ----- avisos no celular -----
+    pushInscrever: async (o: { endpoint: string; p256dh: string; auth: string; aparelho: string }) => { await call('pushInscrever', tok(), o); },
+    pushCancelar: async (endpoint: string) => { await call('pushCancelar', tok(), endpoint); },
+    pushStatus: async (endpoint: string) => { const r = rec(await call('pushStatus', tok(), endpoint)); return { esteAparelho: r.esteAparelho === true, aparelhos: num(r.aparelhos), configurado: r.configurado === true }; },
+
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),
     finSalvarLancamento: async (o: FinLancamentoInput) => str(await call('finSalvarLancamento', tok(), o)),

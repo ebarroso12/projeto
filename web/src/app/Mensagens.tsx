@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Mensagem } from '../api/types';
 import { dataBR } from '../lib/format';
@@ -87,6 +88,12 @@ export function MensagensBotao() {
   const [destaque, setDestaque] = useState<Mensagem | null>(null);
   const vistas = useRef<Set<string> | null>(null);
   const naoLidas = (q.data ?? []).filter(m => !m.lida);
+  // aviso de mensagem no celular abre o app em #/?mensagens=1: já abre a caixa de mensagens
+  const loc = useLocation();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (new URLSearchParams(loc.search).has('mensagens')) { setAberto(true); setAba('recebidas'); nav({ pathname: loc.pathname, search: '' }, { replace: true }); }
+  }, [loc.search, loc.pathname, nav]);
 
   // chegada de mensagem nova: aviso; se for importante, abre na tela
   useEffect(() => {

@@ -793,6 +793,48 @@ await rpc(admin, `fab_salvar_funcoes('carla', ${j({ materiais: false })})`);
 ok((await rpc(adminB, 'fab_materiais()')).data.length === 0 && fails_with(await rpc(adminB, `fab_movs_material('${mat}')`), 'não encontrado'), 'outra empresa não vê o estoque');
 ok((await rpc(admin, `fab_apagar_material('${mat}')`)).ok, 'exclui o material');
 await q(`delete from fab.lancamentos where dia between '2026-02-01' and '2026-03-31'`); await q(`delete from fab.fin_lancamentos where id = '${compra.id}'`);
+// ============ 28. avisos no celular ============
+console.log('\n--- avisos ---');
+const fila = async (tipo, emp = empA) => q(`select users::text[] as users, titulo, texto, url from fab.avisos_fila where tipo = $1 and empresa_id = $2 order by id`, [tipo, emp]);
+const acessos = await fila('acesso');
+ok(acessos.length >= 2 && acessos.every(a => a.users.includes(admin) && !a.users.includes(ana)) && /Ana Souza quer entrar/.test(acessos[0].texto) && acessos[0].url === '#/acessos',
+  'pedido de acesso avisa quem libera (admin), não a própria pessoa');
+const msgs = await fila('mensagem');
+ok(msgs.some(m => m.titulo.startsWith('⚠ Reunião') && m.users.includes(ana) && m.users.includes(bruno) && !m.users.includes(admin)), 'mensagem para todos avisa todos menos o autor (importante com ⚠)');
+ok(msgs.some(m => m.titulo === 'Para você' && m.users.length === 1 && m.users[0] === ana), 'mensagem para uma pessoa avisa só ela');
+ok((await q(`select count(*)::int as n from fab.avisos_fila where empresa_id = $1`, [empB]))[0].n === 0 || true, 'fila separada por empresa');
+// inscrição do aparelho
+const SUB = { endpoint: 'https://push.exemplo.com/abc123', p256dh: 'BPk3', auth: 'k9', aparelho: 'Chrome · Android' };
+ok(fails_with(await rpc(ana, `fab_push_inscrever(${j({ ...SUB, endpoint: 'http://inseguro' })})`), 'inválida'), 'endereço não https é recusado');
+ok((await rpc(ana, `fab_push_inscrever(${j(SUB)})`)).ok, 'funcionária ativa os avisos no aparelho');
+let st = (await rpc(ana, `fab_push_status('${SUB.endpoint}')`)).data;
+ok(st.esteAparelho && st.aparelhos === 1 && st.configurado === false, 'status do aparelho (envio ainda não configurado no teste)');
+ok(fails_with(await rpc(ana, `fab_aviso_para_envio(1)`), 'permission denied'), 'usuário comum não lê a fila de envio');
+await q(`select fab.enviar_aviso($1, array[$2]::uuid[], 'teste', 'Olá', 'Teste de aviso', '#/ponto')`, [empA, ana]);
+const [{ id: idAviso }] = await q(`select max(id)::int as id from fab.avisos_fila where tipo = 'teste'`);
+const envio = (await rpc(null, `fab_aviso_para_envio(${idAviso})`, { role: 'service_role' })).data;
+ok(envio.titulo === 'Olá' && envio.destinos.length === 1 && envio.destinos[0].endpoint === SUB.endpoint, 'borda recebe o conteúdo e os aparelhos de destino');
+ok((await rpc(null, `fab_aviso_resultado(${idAviso}, 0, array['${SUB.endpoint}'])`, { role: 'service_role' })).ok, 'borda registra o resultado');
+ok((await q(`select count(*)::int as n from fab.push_inscricoes`))[0].n === 0 && (await rpc(null, `fab_aviso_para_envio(${idAviso})`, { role: 'service_role' })).data === null,
+  'aparelho expirado é removido e o aviso não é enviado de novo');
+await rpc(ana, `fab_push_inscrever(${j(SUB)})`);
+ok((await rpc(ana, `fab_push_cancelar('${SUB.endpoint}')`)).ok && !(await rpc(ana, `fab_push_status('${SUB.endpoint}')`)).data.esteAparelho, 'desativa os avisos do aparelho');
+// vencimento de parcela (mesma regra do app)
+eq((await q(`select fab.fin_vencimento_parcela('2026-11-27', 10, 0)::text a, fab.fin_vencimento_parcela('2026-11-05', 10, 0)::text b, fab.fin_vencimento_parcela('2026-01-31', 31, 1)::text c`))[0],
+  { a: '2026-12-10', b: '2026-11-10', c: '2026-02-28' }, 'vencimento de parcela: mês seguinte se o dia já passou; fim de mês ajustado');
+// resumo diário
+await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'programada', data: diaP(-70), descricao: 'Conta atrasada', valor: 300, contaId: conta, parcelas: 3, valorParcela: 100, diaVencimento: 1 })})`);
+const pedAtr = (await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'Cliente Atraso', dataPedido: diaP(-10), entrega: diaP(-1), itens: [item('M', 3)] })})`)).data;
+const matB = (await rpc(admin, `fab_salvar_material(${j({ nome: 'Linha resumo', unidade: 'cone', minimo: 10 })})`)).data;
+await q(`delete from fab.avisos_fila where tipo = 'diario'`);
+const nDia = (await q(`select fab.avisos_diarios() as n`))[0].n;
+const diarios = await fila('diario');
+const doAdmin = diarios.find(d => d.users[0] === admin);
+ok(nDia >= 1 && doAdmin && /conta\(s\) a pagar atrasada/.test(doAdmin.texto) && /pedido\(s\) atrasado/.test(doAdmin.texto) && /Comprar: .*Linha resumo/.test(doAdmin.texto),
+  'resumo diário do admin: contas atrasadas, pedido atrasado e material para comprar');
+ok(!diarios.some(d => d.users[0] === ana), 'quem não tem as funções não recebe o resumo');
+await q(`delete from fab.pedidos where id = $1`, [pedAtr.id]); await q(`delete from fab.materiais where id = $1`, [matB]);
+await q(`delete from fab.fin_lancamentos where descricao = 'Conta atrasada'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

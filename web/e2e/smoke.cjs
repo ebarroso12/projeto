@@ -17,7 +17,8 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   const browser = await chromium.launch();
   const errors = [];
   const newPage = async (viewport, url) => {
-    const ctx = await browser.newContext({ viewport, acceptDownloads: true, deviceScaleFactor: 1 });
+    // service worker bloqueado nos testes de tela: ele buscaria o config.js real por fora do page.route
+    const ctx = await browser.newContext({ viewport, acceptDownloads: true, deviceScaleFactor: 1, serviceWorkers: 'block' });
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error' && !/ipify|Failed to load resource/.test(m.text())) errors.push(m.text()); });
@@ -353,6 +354,11 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await shot(page, '18-materia-prima');
   await page.locator('dialog[open]').getByRole('button', { name: 'Fechar' }).last().click();
 
+  // Avisos e instalação (sino no topo)
+  await page.getByRole('button', { name: 'Avisos e instalar app' }).click();
+  ok(await page.locator('dialog[open]').getByText('Avisos neste aparelho').isVisible() && await page.locator('dialog[open]').getByText('Pedidos de acesso para liberar').isVisible(), 'sino abre avisos e instalação');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Fechar' }).last().click();
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();
@@ -464,6 +470,24 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.context().close();
 
   ok(errors.length === 0, 'sem erros no console: ' + errors.join(' | '));
+  // App instalável: service worker guarda o app e ele abre sem internet
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.__FABRICA__ = {};' }));
+    await ctx.route('https://api.ipify.org/**', r => r.fulfill({ json: { ip: '203.0.113.7' } }));
+    const pg = await ctx.newPage();
+    await pg.goto(BASE);
+    await pg.getByLabel('Login').waitFor();
+    const pronto = await pg.evaluate(async () => { const r = await navigator.serviceWorker.ready; return !!r.active; });
+    ok(pronto, 'service worker instalado');
+    ok(await pg.evaluate(() => fetch('manifest.webmanifest').then(r => r.json()).then(m => m.display === 'standalone' && m.icons.length >= 2)), 'manifesto do app instalável');
+    await pg.reload(); await pg.getByLabel('Login').waitFor();
+    await ctx.setOffline(true);
+    await pg.reload();
+    ok(await until(() => pg.getByLabel('Login').isVisible(), 6000), 'sem internet o app ainda abre');
+    await ctx.setOffline(false);
+    await ctx.close();
+  }
   await browser.close();
   console.log(fails ? `\n${fails} FALHA(S)` : '\nTUDO OK');
   process.exit(fails ? 1 : 0);

@@ -11,6 +11,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/polish.css';
+import { registrarSW } from './lib/avisos';
 
 // depois de "Atualizar", o endereço vem com ?v=<hora> para furar o cache: limpa da barra de endereço
 try {
@@ -58,3 +59,6 @@ void pickBackend().then(({ makeApi, demo }) => {
     <StrictMode><App makeApi={makeApi} demo={demo} /></StrictMode>,
   );
 });
+
+// app instalável, abre sem internet e recebe avisos (não em desenvolvimento, para não guardar arquivos em cache)
+if (import.meta.env.PROD) window.addEventListener('load', () => { void registrarSW(); });
