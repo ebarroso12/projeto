@@ -429,3 +429,14 @@ dialog.dlg.drawer.wide { width: min(1080px, calc(100vw - 24px)); }
 .lp-rodape { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 24px 16px 40px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
 @media (max-width: 860px) { .lp-hero { grid-template-columns: 1fr; } .lp-hero-arte { grid-template-columns: repeat(3, 1fr); max-width: 420px; } }
 @media (max-width: 480px) { .lp-topo img { height: 32px; } .lp-btn.pequeno { padding: 0 12px; font-size: 13px; } .lp-cta .lp-btn { width: 100%; } }
+
+/* ---------- oficinas e remessas ---------- */
+.acerto { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.acerto > div { padding: 10px 14px; display: grid; gap: 2px; background: var(--surface); align-content: start; }
+.acerto span { font-size: 12px; color: var(--muted); }
+.acerto b { font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* rodapé das janelas: botões quebram linha no celular em vez de sair da tela */
+.dlg-foot { flex-wrap: wrap; row-gap: 8px; }
+.inp-num { width: 84px; min-height: 38px; text-align: center; }
+/* corpo das janelas é coluna flex: nenhum bloco (tabelas, quadros) deve ser achatado; quem rola é o corpo */
+.dlg-body > * { flex-shrink: 0; }

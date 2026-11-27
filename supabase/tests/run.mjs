@@ -861,6 +861,82 @@ ok((await rpc(null, 'fab_vitrine()', { role: 'anon' })).data.convite === tokPub2
 ok((await rpc(admin, 'fab_link_publico_desativar()')).ok && (await rpc(null, 'fab_vitrine()', { role: 'anon' })).data.convite === null, 'tirar o link da página');
 ok(fails_with(await rpc(null, 'fab_vitrine_admin()', { role: 'anon' }), 'permission denied'), 'anônimo não vê o painel do link');
 await q(`delete from fab.empresas where id = $1`, [idPub]); await q(`delete from fab.sistema where chave = 'vitrine_whatsapp'`);
+// ============ 30. oficinas, ordens de corte e remessas ============
+console.log('\n--- oficinas e remessas ---');
+const ofMaria = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'oficina', nome: 'Costura da Maria', telefone: '16 99999-0001', dados: { etapa: 'Costura', valorPeca: '2.5' } })})`)).data;
+const ofJoao = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'oficina', nome: 'Corte do João', dados: { etapa: 'Corte' } })})`)).data;
+ok(Boolean(ofMaria) && Boolean(ofJoao), 'cadastra oficinas (costura e corte)');
+const opR = (await rpc(admin, 'fab_remessa_opcoes()')).data;
+ok(opR.oficinas.some(o => o.id === ofMaria && o.valorPeca === 2.5 && o.etapa === 'Costura') && opR.pessoas.some(x => x.login === 'ana'), 'opções: oficinas (com valor por peça) e funcionários');
+const mat30 = (await rpc(admin, `fab_salvar_material(${j({ nome: 'Malha 30', unidade: 'kg', inicio: diaP(-10), regras: [{ etapa: 'Corte', modelo: 'Calça Jeans', qtdPorPeca: 0.25 }] })})`)).data;
+await rpc(admin, `fab_movimentar_material(${j({ materialId: mat30, tipo: 'entrada', qtd: 100, data: diaP(-10) })})`);
+const saldoMat = async () => (await rpc(admin, 'fab_materiais()')).data.find(x => x.id === mat30).saldo;
+const s0 = await saldoMat();
+// ordem de corte
+ok(fails_with(await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: {}, modelo: 'Calça Jeans', cor: 'Branco', itens: [{ tamanho: 'P', qtd: 1 }] })})`), 'Informe quem fez'), 'ordem exige quem cortou');
+let oc30 = await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, data: diaP(-6), modelo: 'Calça Jeans', cor: 'Branco', materialId: mat30, materialQtd: 25,
+  itens: [{ tamanho: 'P', qtd: 40 }, { tamanho: 'M', qtd: 50 }, { tamanho: 'G', qtd: 0 }] })})`);
+const ordem = oc30.data;
+ok(oc30.ok && ordem.pecas === 90 && ordem.numero >= 1, 'ordem de corte: 90 peças da bobina');
+ok((await saldoMat()) === s0 - 25, 'bobina baixa pela quantidade real usada (25 kg), sem baixar de novo pela regra');
+let rem30 = (await rpc(admin, 'fab_remessas(120)')).data;
+const oJ = rem30.ordens.find(o => o.id === ordem.id);
+ok(oJ.quem === 'Corte do João' && oJ.consumoPeca === 0.25 && oJ.materialQtd === 25 && oJ.itens.P === 40 && oJ.itens.M === 50, 'ordem mostra rendimento: esperado 100 peças (25 ÷ 0,25), cortadas 90');
+const lancCorte = await q(`select user_id, oficina_nome, origem, qtd from fab.lancamentos where ordem_id = $1 and apagado_em is null order by tamanho`, [ordem.id]);
+ok(lancCorte.length === 2 && lancCorte.every(l => l.user_id === null && l.oficina_nome === 'Corte do João' && l.origem === 'ordem'), 'corte entra na produção no nome da oficina');
+const idLc = (await q(`select id from fab.lancamentos where ordem_id = $1 limit 1`, [ordem.id]))[0].id;
+ok(fails_with(await rpc(admin, `fab_editar_lancamento('${idLc}', 5)`), 'Oficinas e remessas'), 'lançamento da ordem não é editado no Lançar');
+const relO = (await rpc(admin, `fab_relatorio('${diaP(-7)}', '${diaP(0)}')`)).data;
+ok(relO.porPessoa.some(x => x.nome === 'Corte do João (oficina)' && x.etapa === 'Corte' && x.qtd === 90), 'relatório mostra a produção da oficina');
+// remessa para costura
+ok(fails_with(await rpc(admin, `fab_salvar_remessa(${j({ quem: { oficinaId: ofMaria }, etapa: 'Corte', itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 1 }] })})`), 'Etapa inválida'), 'remessa não é para corte');
+let rr30 = await rpc(admin, `fab_salvar_remessa(${j({ quem: { oficinaId: ofMaria }, etapa: 'Costura', dataEnvio: diaP(-5), prazo: diaP(-1), valorPeca: 2.5, descontoFaltante: 10, ordemId: ordem.id,
+  itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 40 }, { modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'M', qtd: 50 }] })})`);
+const remessa = rr30.data;
+ok(rr30.ok && remessa.pecas === 90, 'remessa de 90 peças para a costureira');
+rem30 = (await rpc(admin, 'fab_remessas(120)')).data;
+let rM = rem30.remessas.find(x => x.id === remessa.id);
+const itP = rM.itens.find(i => i.tamanho === 'P'), itM = rM.itens.find(i => i.tamanho === 'M');
+ok(rM.quem === 'Costura da Maria' && rM.telefone === '16 99999-0001' && rM.ordemNumero === ordem.numero && rem30.ordens.find(o => o.id === ordem.id).remetido === 90, 'remessa ligada à ordem e à oficina');
+// retornos
+let rt30 = await rpc(admin, `fab_registrar_retorno(${j({ remessaId: remessa.id, data: diaP(-2), itens: [{ itemId: itP.id, boas: 30, defeito: 2 }, { itemId: itM.id, boas: 50 }] })})`);
+ok(rt30.ok, 'registra retorno (boas e com defeito)');
+ok(fails_with(await rpc(admin, `fab_registrar_retorno(${j({ remessaId: remessa.id, itens: [{ itemId: itP.id, boas: 10 }] })})`), 'voltaram 42 de 40'), 'não volta mais do que foi enviado');
+ok(fails_with(await rpc(admin, `fab_salvar_remessa(${j({ id: remessa.id, quem: { oficinaId: ofMaria }, itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 1 }] })})`), 'Já há retorno'), 'remessa com retorno não muda os itens');
+const costMaria = await q(`select sum(qtd)::int as n from fab.lancamentos where retorno_id = $1 and apagado_em is null and etapa = 'Costura' and oficina_nome = 'Costura da Maria'`, [rt30.data]);
+eq(costMaria[0].n, 80, 'as 80 peças boas entram como costura no nome da oficina');
+ok((await rpc(admin, `fab_apagar_retorno('${rt30.data}')`)).ok && (await q(`select count(*)::int as n from fab.lancamentos where retorno_id = $1 and apagado_em is null`, [rt30.data]))[0].n === 0, 'apagar retorno tira a costura lançada');
+rt30 = await rpc(admin, `fab_registrar_retorno(${j({ remessaId: remessa.id, data: diaP(-2), itens: [{ itemId: itP.id, boas: 30, defeito: 2 }, { itemId: itM.id, boas: 50 }] })})`);
+rM = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === remessa.id);
+ok(rM.itens.find(i => i.tamanho === 'P').boas === 30 && rM.itens.find(i => i.tamanho === 'P').defeito === 2 && rM.retornos.length === 1, 'remessa soma o que voltou por item');
+// aviso diário de remessa atrasada
+await q(`delete from fab.avisos_fila where tipo = 'diario'`);
+await q(`select fab.avisos_diarios()`);
+ok((await fila('diario')).some(d => d.users[0] === admin && /1 remessa\(s\) atrasada\(s\) nas oficinas: 8 peça\(s\)/.test(d.texto)), 'resumo diário avisa remessa atrasada e quantas peças faltam voltar');
+// acerto
+const acerto30 = (await rpc(admin, `fab_fechar_remessa('${remessa.id}', ${j({ contaId: conta, data: diaP(0) })})`)).data;
+eq(acerto30, { enviadas: 90, boas: 80, defeito: 2, faltando: 8, valor: 120, noFinanceiro: true }, 'acerto: 80 boas × 2,50 − 8 faltando × 10,00 = R$ 120');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const pgM = fin.lancamentos.find(l => l.descricao.startsWith(`Remessa #${remessa.numero} · Costura · Costura da Maria`));
+ok(pgM && pgM.valor === 120 && pgM.categoria === 'Facção' && pgM.contraparteId === ofMaria, 'pagamento da oficina no Financeiro');
+ok(fails_with(await rpc(admin, `fab_registrar_retorno(${j({ remessaId: remessa.id, itens: [{ itemId: itP.id, boas: 1 }] })})`), 'já foi fechada'), 'remessa fechada não recebe retorno');
+ok((await rpc(admin, `fab_reabrir_remessa('${remessa.id}')`)).ok && !(await rpc(admin, 'fin_dados()')).data.lancamentos.some(l => l.id === pgM.id), 'reabrir tira o pagamento do Financeiro');
+ok(fails_with(await rpc(admin, `fab_apagar_ordem_corte('${ordem.id}')`), 'exclua a remessa antes'), 'ordem com remessa não é apagada');
+// lançar em nome de
+let lp30 = await rpc(admin, `fab_lancar_por(${j({ login: 'ana' })}, 'Costura', 'Camisa Polo', 'Branco', '', ${j([{ tamanho: 'G', qtd: 7 }])})`);
+ok(lp30.ok, 'admin lança em nome da costureira');
+const lpRow = (await q(`select user_id, lancado_por, origem from fab.lancamentos where origem = 'nome' order by criado_em desc limit 1`))[0];
+ok(lpRow.user_id === ana && lpRow.lancado_por === admin, 'lançamento fica no nome dela, com registro de quem lançou');
+lp30 = await rpc(admin, `fab_lancar_por(${j({ oficinaId: ofMaria })}, 'Costura', 'Camisa Polo', 'Branco', '', ${j([{ tamanho: 'G', qtd: 3 }])})`);
+ok(lp30.ok && (await q(`select count(*)::int as n from fab.lancamentos where origem = 'nome' and oficina_nome = 'Costura da Maria' and user_id is null`))[0].n === 1, 'lança em nome de uma oficina');
+ok(fails_with(await rpc(carla, `fab_lancar_por(${j({ login: 'ana' })}, 'Costura', 'Camisa Polo', 'Branco', '', ${j([{ tamanho: 'G', qtd: 1 }])})`), 'administrador'), 'funcionário não lança em nome de outro');
+// permissões e isolamento
+ok(fails_with(await rpc(ana, 'fab_remessas(120)'), 'FUNCAO_BLOQUEADA'), 'funcionário sem Oficinas e remessas não vê');
+ok((await rpc(adminB, 'fab_remessas(120)')).data.remessas.length === 0 && fails_with(await rpc(adminB, `fab_fechar_remessa('${remessa.id}', null)`), 'não encontrada'), 'outra empresa não vê nem fecha');
+ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.alvo === 'remessas'), 'remessas ficam na auditoria');
+await q(`delete from fab.remessas`); await q(`delete from fab.ordens_corte`); await q(`delete from fab.materiais where id = $1`, [mat30]);
+await q(`delete from fab.lancamentos where origem <> 'lancar' or (modelo = 'Calça Jeans' and cor = 'Branco')`);
+await q(`delete from fab.fin_lancamentos where categoria = 'Facção'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

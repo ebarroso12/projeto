@@ -18,7 +18,7 @@ import { HistoricoContraparte } from './HistoricoContraparte';
 
 interface Campo { k: string; label: string; tipo?: 'texto' | 'moeda' | 'longo'; dica?: string; meia?: boolean }
 interface Config {
-  titulo: string; singular: string; icone: 'card' | 'users' | 'building' | 'wallet';
+  titulo: string; singular: string; fem?: boolean; icone: 'card' | 'users' | 'building' | 'wallet' | 'truck';
   nome: string; documento?: string; contato: boolean; extras: Campo[];
   colunas: (r: Registro2) => { sub: string; extra?: string };
 }
@@ -50,6 +50,12 @@ const CONFIG: Record<TipoRegistro, Config> = {
       { k: 'prazo', label: 'Prazo de pagamento', meia: true }, { k: 'pix', label: 'PIX / dados bancários' }, { k: 'endereco', label: 'Endereço' }],
     colunas: r => ({ sub: [r.dados.produtos, r.cidade].filter(Boolean).join(' · '), extra: [r.telefone, r.dados.contato].filter(Boolean).join(' · ') }),
   },
+  oficina: {
+    titulo: 'Oficinas', singular: 'oficina', fem: true, icone: 'truck', nome: 'Nome da oficina / costureira / cortador', documento: 'CPF ou CNPJ (opcional)', contato: true,
+    extras: [{ k: 'etapa', label: 'O que faz', dica: 'Corte, Costura ou Conferência (acabamento)', meia: true }, { k: 'valorPeca', label: 'Valor por peça (R$)', tipo: 'moeda', meia: true },
+      { k: 'pix', label: 'PIX / dados para pagamento' }, { k: 'endereco', label: 'Endereço' }],
+    colunas: r => ({ sub: [r.dados.etapa, r.cidade].filter(Boolean).join(' · '), extra: [r.telefone, r.dados.valorPeca && `${formatBRL(Number(r.dados.valorPeca))}/peça`].filter(Boolean).join(' · ') }),
+  },
   banco: {
     titulo: 'Bancos', singular: 'banco', icone: 'wallet', nome: 'Banco', documento: undefined, contato: false,
     extras: [{ k: 'agencia', label: 'Agência', meia: true }, { k: 'conta', label: 'Conta', meia: true }, { k: 'tipoConta', label: 'Tipo de conta', dica: 'Corrente PJ, poupança…', meia: true },
@@ -75,7 +81,7 @@ function Formulario({ tipo, inicial, onClose }: { tipo: TipoRegistro; inicial: R
     const id = await api.salvarRegistro(o);
     if (tipo === 'banco' && contaFin) await api.finSalvarConta({ nome: `${o.nome}${o.dados.conta ? ` ${o.dados.conta}` : ''}`, saldoInicial: 0 });
     return id;
-  }, { success: `${cfg.singular[0]!.toUpperCase()}${cfg.singular.slice(1)} salvo.`, invalidate: [['registros', tipo], BOOT_KEY, ['financeiro']], onSuccess: onClose });
+  }, { success: `${cfg.singular[0]!.toUpperCase()}${cfg.singular.slice(1)} ${cfg.fem ? 'salva' : 'salvo'}.`, invalidate: [['registros', tipo], BOOT_KEY, ['financeiro'], ['remessas']], onSuccess: onClose });
   const moeda = (s: string) => s.replace(',', '.').replace(/[^\d.]/g, '');
   return (
     <Dialog open onClose={onClose} title={inicial ? (comHistorico ? inicial.nome : `Editar ${cfg.singular}`) : `Novo ${cfg.singular}`} variant="drawer"
@@ -133,7 +139,7 @@ export function RegistrosTab({ tipo }: { tipo: TipoRegistro }) {
   const cols: Column<Registro2>[] = [
     { id: 'nome', header: cfg.titulo.slice(0, -1).replace(/e$/, 'e'), value: r => r.nome,
       cell: r => <button type="button" className="link-empresa" onClick={() => setEditando(r)}><b>{r.nome}</b>{!r.ativo && <Badge>inativo</Badge>}<small>{cfg.colunas(r).sub || '—'}</small></button> },
-    { id: 'extra', header: tipo === 'produto' ? 'Preço' : tipo === 'banco' ? 'PIX' : 'Contato', value: r => cfg.colunas(r).extra ?? '', cell: r => cfg.colunas(r).extra || '—' },
+    { id: 'extra', header: tipo === 'produto' ? 'Preço' : tipo === 'banco' ? 'PIX' : tipo === 'oficina' ? 'Contato e valor' : 'Contato', value: r => cfg.colunas(r).extra ?? '', cell: r => cfg.colunas(r).extra || '—' },
     ...(comFin ? [{
       id: 'ano', header: tipo === 'cliente' ? `Recebido em ${ano}` : `Pago em ${ano}`, numeric: true, value: (r: Registro2) => totalDe(r.id).valor,
       cell: (r: Registro2) => {
@@ -155,10 +161,10 @@ export function RegistrosTab({ tipo }: { tipo: TipoRegistro }) {
   ];
   return (
     <Card title={cfg.titulo} flush
-      actions={<Button variant="primary" icon={<Icon name="plus" size={16} />} onClick={() => setEditando(null)}>Novo {cfg.singular}</Button>}>
+      actions={<Button variant="primary" icon={<Icon name="plus" size={16} />} onClick={() => setEditando(null)}>{cfg.fem ? 'Nova' : 'Novo'} {cfg.singular}</Button>}>
       <QueryView query={q}>
         {rows => <DataTable label={cfg.titulo} columns={cols} rows={rows} rowKey={r => r.id} searchable exportName={tipo + 's'}
-          empty={`Nenhum ${cfg.singular} cadastrado ainda.`} initialSort={{ id: 'nome', dir: 1 }} />}
+          empty={cfg.fem ? `Nenhuma ${cfg.singular} cadastrada ainda.` : `Nenhum ${cfg.singular} cadastrado ainda.`} initialSort={{ id: 'nome', dir: 1 }} />}
       </QueryView>
       {editando !== undefined && <Formulario tipo={tipo} inicial={editando} onClose={() => setEditando(undefined)} />}
     </Card>

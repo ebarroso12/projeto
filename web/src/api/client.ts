@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseAcerto, parseRemessaOpcoes, parseRemessasDados, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, MaterialInput, MovMaterialInput, PedidoInput, PedidoReceber, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, MaterialInput, MovMaterialInput, OrdemCorteInput, PedidoInput, PedidoReceber, QuemFez, RemessaInput, RetornoInput, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -138,6 +138,19 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     pushInscrever: async (o: { endpoint: string; p256dh: string; auth: string; aparelho: string }) => { await call('pushInscrever', tok(), o); },
     pushCancelar: async (endpoint: string) => { await call('pushCancelar', tok(), endpoint); },
     pushStatus: async (endpoint: string) => { const r = rec(await call('pushStatus', tok(), endpoint)); return { esteAparelho: r.esteAparelho === true, aparelhos: num(r.aparelhos), configurado: r.configurado === true }; },
+
+    // ----- oficinas e remessas -----
+    remessas: async (dias = 120) => parseRemessasDados(await call('remessas', tok(), dias)),
+    remessaOpcoes: async () => parseRemessaOpcoes(await call('remessaOpcoes', tok())),
+    salvarOrdemCorte: async (o: OrdemCorteInput) => { const r = rec(await call('salvarOrdemCorte', tok(), o)); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },
+    apagarOrdemCorte: async (id: string) => { await call('apagarOrdemCorte', tok(), id); },
+    salvarRemessa: async (o: RemessaInput) => { const r = rec(await call('salvarRemessa', tok(), o)); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },
+    apagarRemessa: async (id: string) => { await call('apagarRemessa', tok(), id); },
+    registrarRetorno: async (o: RetornoInput) => str(await call('registrarRetorno', tok(), o)),
+    apagarRetorno: async (id: string) => { await call('apagarRetorno', tok(), id); },
+    fecharRemessa: async (id: string, pagar: { contaId: string; data: string } | null) => parseAcerto(await call('fecharRemessa', tok(), id, pagar)),
+    reabrirRemessa: async (id: string) => { await call('reabrirRemessa', tok(), id); },
+    lancarPor: async (por: QuemFez, o: LancamentoInput) => (r => ({ total: num(r.total), avisos: strings(r.avisos) }))(rec(await call('lancarPor', tok(), por, o))),
 
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),

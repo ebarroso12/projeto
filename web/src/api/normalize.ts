@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, VitrineAdmin, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, VitrineAdmin, AcertoRemessa, Remessa, RemessaOpcoes, RemessasDados, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -246,7 +246,7 @@ export const parseEmpresaDetalhe = (v: unknown): EmpresaDetalhe => {
 };
 
 // ---------------------------------------------------------------- cadastros gerais e mensagens
-const TIPOS_REG = ['produto', 'cliente', 'fornecedor', 'banco'];
+const TIPOS_REG = ['produto', 'cliente', 'fornecedor', 'banco', 'oficina'];
 export const parseRegistros = (v: unknown): Registro2[] => list(v, r => ({
   id: str(r.id), tipo: (TIPOS_REG.includes(str(r.tipo)) ? str(r.tipo) : 'cliente') as TipoRegistro, nome: str(r.nome),
   documento: str(r.documento), telefone: str(r.telefone), email: str(r.email), cidade: str(r.cidade), obs: str(r.obs),
@@ -334,3 +334,36 @@ export function parseVitrineAdmin(v: unknown): VitrineAdmin {
     whatsapp: r.whatsapp ? str(r.whatsapp) : null,
   };
 }
+
+const arrR = (x: unknown) => (Array.isArray(x) ? x : []).map(rec);
+export function parseRemessasDados(v: unknown): RemessasDados {
+  const r = rec(v);
+  return {
+    remessas: arrR(r.remessas).map(m => ({
+      id: str(m.id), numero: num(m.numero), quem: str(m.quem), login: strOrNull(m.login), oficinaId: strOrNull(m.oficinaId), telefone: strOrNull(m.telefone),
+      etapa: str(m.etapa), dataEnvio: str(m.dataEnvio), prazo: strOrNull(m.prazo), valorPeca: num(m.valorPeca), descontoFaltante: num(m.descontoFaltante),
+      ordemNumero: numOrNull(m.ordemNumero), status: (str(m.status) === 'fechada' ? 'fechada' : 'aberta') as Remessa['status'], fechadaEm: strOrNull(m.fechadaEm),
+      valorPago: numOrNull(m.valorPago), noFinanceiro: bool(m.noFinanceiro), obs: str(m.obs),
+      itens: arrR(m.itens).map(i => ({ id: str(i.id), modelo: str(i.modelo), cor: str(i.cor), tamanho: str(i.tamanho), qtd: num(i.qtd), boas: num(i.boas), defeito: num(i.defeito) })),
+      retornos: arrR(m.retornos).map(t => ({ id: str(t.id), data: str(t.data), obs: str(t.obs), boas: num(t.boas), defeito: num(t.defeito) })),
+    })),
+    ordens: arrR(r.ordens).map(o => ({
+      id: str(o.id), numero: num(o.numero), data: str(o.data), quem: str(o.quem), modelo: str(o.modelo), cor: str(o.cor), obs: str(o.obs),
+      material: strOrNull(o.material), unidade: strOrNull(o.unidade), materialQtd: numOrNull(o.materialQtd), consumoPeca: numOrNull(o.consumoPeca),
+      itens: Object.fromEntries(Object.entries(rec(o.itens)).map(([k, x]) => [k, num(x)])), remetido: num(o.remetido),
+    })),
+  };
+}
+export function parseRemessaOpcoes(v: unknown): RemessaOpcoes {
+  const r = rec(v);
+  return {
+    oficinas: arrR(r.oficinas).map(o => ({ id: str(o.id), nome: str(o.nome), telefone: str(o.telefone), etapa: str(o.etapa), valorPeca: numOrNull(o.valorPeca) })),
+    pessoas: arrR(r.pessoas).map(p => ({ login: str(p.login), nome: str(p.nome), setor: str(p.setor) })),
+    materiais: arrR(r.materiais).map(m => ({ id: str(m.id), nome: str(m.nome), unidade: str(m.unidade) })),
+    contas: arrR(r.contas).map(c => ({ id: str(c.id), nome: str(c.nome) })),
+  };
+}
+export const parseAcerto = (v: unknown): AcertoRemessa => {
+  const r = rec(v);
+  return { enviadas: num(r.enviadas), boas: num(r.boas), defeito: num(r.defeito), faltando: num(r.faltando), valor: num(r.valor), noFinanceiro: bool(r.noFinanceiro) };
+};

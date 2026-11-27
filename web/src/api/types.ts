@@ -214,7 +214,7 @@ export interface FuncoesPessoa { nome: string; perfil: string; eu: boolean; prot
 // =====================================================================
 // Cadastros gerais e mensagens
 // =====================================================================
-export type TipoRegistro = 'produto' | 'cliente' | 'fornecedor' | 'banco';
+export type TipoRegistro = 'produto' | 'cliente' | 'fornecedor' | 'banco' | 'oficina';
 export interface Registro2 {
   id: string; tipo: TipoRegistro; nome: string; documento: string; telefone: string; email: string; cidade: string; obs: string;
   dados: Record<string, string>; ativo: boolean; criadoEm: string;
@@ -286,3 +286,35 @@ export interface VitrineAdmin {
   link: { token: string; dias: number; usos: number; usosMax: number; valido: boolean; empresas: number } | null;
   whatsapp: string | null;
 }
+
+// =====================================================================
+// Oficinas e remessas (facção)
+// =====================================================================
+/** Quem fez: funcionário (login) ou oficina de fora (id do cadastro). */
+export type QuemFez = { login: string } | { oficinaId: string };
+export interface OrdemCorte {
+  id: string; numero: number; data: string; quem: string; modelo: string; cor: string; obs: string;
+  material: string | null; unidade: string | null; materialQtd: number | null; consumoPeca: number | null;
+  itens: Record<string, number>; remetido: number;
+}
+export interface OrdemCorteInput { quem: QuemFez; data: string; modelo: string; cor: string; materialId?: string | null; materialQtd?: number | null; obs: string; itens: { tamanho: string; qtd: number }[] }
+export interface RemessaItem { id: string; modelo: string; cor: string; tamanho: string; qtd: number; boas: number; defeito: number }
+export interface Remessa {
+  id: string; numero: number; quem: string; login: string | null; oficinaId: string | null; telefone: string | null; etapa: string;
+  dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number; ordemNumero: number | null;
+  status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null; noFinanceiro: boolean; obs: string;
+  itens: RemessaItem[]; retornos: { id: string; data: string; obs: string; boas: number; defeito: number }[];
+}
+export interface RemessaInput {
+  id?: string; quem: QuemFez; etapa: string; dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number;
+  ordemId?: string | null; obs: string; itens: { modelo: string; cor: string; tamanho: string; qtd: number }[];
+}
+export interface RetornoInput { remessaId: string; data: string; obs: string; itens: { itemId: string; boas: number; defeito: number }[] }
+export interface RemessasDados { remessas: Remessa[]; ordens: OrdemCorte[] }
+export interface RemessaOpcoes {
+  oficinas: { id: string; nome: string; telefone: string; etapa: string; valorPeca: number | null }[];
+  pessoas: { login: string; nome: string; setor: string }[];
+  materiais: { id: string; nome: string; unidade: string }[];
+  contas: { id: string; nome: string }[];
+}
+export interface AcertoRemessa { enviadas: number; boas: number; defeito: number; faltando: number; valor: number; noFinanceiro: boolean }

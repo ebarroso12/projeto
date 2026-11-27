@@ -14,7 +14,7 @@ import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseAcerto, parseRemessaOpcoes, parseRemessasDados, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import { ApiError, fromServerMessage } from './transport';
@@ -206,6 +206,17 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     pushInscrever: async o => { await rpc('fab_push_inscrever', { p: o }); },
     pushCancelar: async endpoint => { await rpc('fab_push_cancelar', { p_endpoint: endpoint }); },
     pushStatus: async endpoint => { const r = rec(await rpc('fab_push_status', { p_endpoint: endpoint })); return { esteAparelho: r.esteAparelho === true, aparelhos: num(r.aparelhos), configurado: r.configurado === true }; },
+    remessas: async (dias = 120) => parseRemessasDados(await rpc('fab_remessas', { p_dias: dias })),
+    remessaOpcoes: async () => parseRemessaOpcoes(await rpc('fab_remessa_opcoes')),
+    salvarOrdemCorte: async o => { const r = rec(await rpc('fab_salvar_ordem_corte', { p: o })); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },
+    apagarOrdemCorte: async id => { await rpc('fab_apagar_ordem_corte', { p_id: id }); },
+    salvarRemessa: async o => { const r = rec(await rpc('fab_salvar_remessa', { p: o })); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },
+    apagarRemessa: async id => { await rpc('fab_apagar_remessa', { p_id: id }); },
+    registrarRetorno: async o => str(await rpc('fab_registrar_retorno', { p: o })),
+    apagarRetorno: async id => { await rpc('fab_apagar_retorno', { p_id: id }); },
+    fecharRemessa: async (id, pagar) => parseAcerto(await rpc('fab_fechar_remessa', { p_id: id, p_pagar: pagar })),
+    reabrirRemessa: async id => { await rpc('fab_reabrir_remessa', { p_id: id }); },
+    lancarPor: async (por, o) => (r => ({ total: num(r.total), avisos: strings(r.avisos) }))(rec(await rpc('fab_lancar_por', { p_por: por, p_etapa: o.etapa, p_modelo: o.modelo, p_cor: o.cor, p_obs: o.obs, p_itens: o.itens }))),
     finDados: async () => parseFin(await rpc('fin_dados')),
     finSalvarLancamento: async o => str(await rpc('fin_salvar_lancamento', { p: o })),
     finContrapartes: async () => parseContrapartes(await rpc('fin_contrapartes')),

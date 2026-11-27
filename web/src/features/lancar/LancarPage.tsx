@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import type { Disponivel, Lancamento } from '../../api/types';
+import { useQuery } from '@tanstack/react-query';
+import { pode } from '../../app/registry';
+import type { Disponivel, LancamentoInput, Lancamento, QuemFez } from '../../api/types';
 import { useApi } from '../../app/auth';
 import { BOOT_KEY, useBoot } from '../../app/boot';
 import { useAction } from '../../app/useAction';
@@ -43,11 +45,16 @@ export default function LancarPage() {
   const [erro, setErro] = useState('');
   const [avisos, setAvisos] = useState<string[]>([]);
   const [editing, setEditing] = useState<Lancamento | null>(null);
+  // administrador pode lançar em nome de quem não usa celular (funcionário ou oficina de fora)
+  const [por, setPor] = useState('');
+  const podePor = eu.admin && !eu.leitura && pode(eu, 'remessas');
+  const opcPor = useQuery({ queryKey: ['remessas', 'opcoes'], queryFn: () => api.remessaOpcoes(), enabled: podePor });
+  const quemPor: QuemFez | null = por.startsWith('p:') ? { login: por.slice(2) } : por.startsWith('o:') ? { oficinaId: por.slice(2) } : null;
 
   const etapa = eu.admin ? etapaSel : etapaDoSetor(eu.setor);
 
-  const lancar = useAction(api.lancar, {
-    success: r => `${r.total} peças lançadas!`,
+  const lancar = useAction((o: LancamentoInput) => (quemPor ? api.lancarPor(quemPor, o) : api.lancar(o)), {
+    success: r => `${r.total} peças lançadas${quemPor ? ' em nome de quem fez' : ''}!`,
     invalidate: [BOOT_KEY, ['painel']],
     onSuccess: r => { setQtds({}); setObs(''); setAvisos(r.avisos); },
   });
@@ -64,7 +71,7 @@ export default function LancarPage() {
     setErro('');
     const total = itens.reduce((s, i) => s + i.qtd, 0);
     const ok = await confirm({
-      title: `Lançar ${etapa}`,
+      title: `Lançar ${etapa}${quemPor ? ` · ${(opcPor.data?.pessoas.find(x => `p:${x.login}` === por)?.nome ?? opcPor.data?.oficinas.find(o => `o:${o.id}` === por)?.nome) ?? ''}` : ''}`,
       confirmLabel: 'Lançar',
       message: (
         <div className="stack" style={{ gap: 8 }}>
@@ -97,7 +104,14 @@ export default function LancarPage() {
       <div className="grid-2">
         <Card title="Novo lançamento">
           <div className="stack">
-            {eu.admin && <SelectField label="Etapa" value={etapaSel} onChange={e => setEtapaSel(e.target.value)} options={etapas} />}
+            {eu.admin && <div className="form-grid">
+              <SelectField label="Etapa" value={etapaSel} onChange={e => setEtapaSel(e.target.value)} options={etapas} />
+              {podePor && <SelectField label="Quem fez" value={por} onChange={e => setPor(e.target.value)}
+                options={[{ value: '', label: 'Eu mesmo' },
+                  ...(opcPor.data?.pessoas ?? []).filter(x => x.nome !== eu.nome).map(x => ({ value: `p:${x.login}`, label: `${x.nome} · ${x.setor}` })),
+                  ...(opcPor.data?.oficinas ?? []).map(o => ({ value: `o:${o.id}`, label: `${o.nome} (oficina)` }))]}
+                hint="Para lançar por quem não usa o celular." />}
+            </div>}
             <div className="form-grid">
               <SelectField label="Modelo" value={modelo} onChange={e => setModelo(e.target.value)} options={modelos} placeholder="Escolha…" />
               <SelectField label="Cor" value={cor} onChange={e => setCor(e.target.value)} options={cores} placeholder="Escolha…" />

@@ -8,6 +8,7 @@
 import { hmToMin, isoDay } from '../lib/format';
 import { MIN_SENHA } from '../lib/rules';
 import { ApiError, fromServerMessage, type Transport } from './transport';
+import type { LancamentoInput } from './types';
 
 const ETAPAS = ['Corte', 'Costura', 'Conferência'];
 const HORA_FIM = '17:30';
@@ -756,7 +757,7 @@ Object.assign(handlers, {
 });
 
 // ---------------------------------------------------------------- funções por pessoa (demonstração)
-const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'pedidos', 'materiais', 'produtividade', 'financeiro', 'resultado', 'cadastros', 'acessos', 'mensagens', 'empresas'];
+const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'pedidos', 'remessas', 'materiais', 'produtividade', 'financeiro', 'resultado', 'cadastros', 'acessos', 'mensagens', 'empresas'];
 const extras: Record<string, Record<string, boolean>> = {};
 const padraoDe = (u: MUser, f: string) => (f === 'empresas' ? u.login === 'admin' : ['lancar', 'ponto', 'falta'].includes(f) ? true : u.perfil === 'admin');
 function funcoesDe(u: MUser): Record<string, boolean> {
@@ -1006,7 +1007,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 function producaoDemo(ini: string, fim: string) {
   const doPeriodo = state.lancs.filter(l => l.data >= ini && l.data <= fim);
-  const logins = [...new Set(doPeriodo.map(l => l.login))];
+  const logins = [...new Set(doPeriodo.map(l => l.login))].filter(l => state.users.some(u => u.login === l));   // oficinas de fora não entram aqui
   return logins.map(login => {
     const u = state.users.find(x => x.login === login)!;
     const meus = doPeriodo.filter(l => l.login === login);
@@ -1240,3 +1241,181 @@ Object.assign(handlers, {
     return null;
   },
 });
+
+// ---------------------------------------------------------------- oficinas e remessas (demonstração; mesma regra do banco)
+interface MOrdem { id: string; numero: number; data: string; quem: string; login: string; modelo: string; cor: string; obs: string; materialId: string | null; materialQtd: number | null; itens: Record<string, number> }
+interface MRemessa {
+  id: string; numero: number; quem: string; login: string; oficinaId: string | null; etapa: string; dataEnvio: string; prazo: string | null;
+  valorPeca: number; descontoFaltante: number; ordemId: string | null; status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null;
+  finId: string | null; obs: string; itens: { id: string; modelo: string; cor: string; tamanho: string; qtd: number }[];
+  retornos: { id: string; data: string; obs: string; itens: { itemId: string; boas: number; defeito: number }[] }[];
+}
+const ordensDemo: MOrdem[] = [];
+const remessasDemo: MRemessa[] = [];
+registrosDemo.push(
+  { id: 'of1', tipo: 'oficina', nome: 'Costura da Maria', documento: '', telefone: '(16) 99999-3030', email: '', cidade: 'Franca/SP', obs: 'Faz moletom e polo', dados: { etapa: 'Costura', valorPeca: '2.50', pix: '16999993030' }, ativo: true, criadoEm: '2026-09-01' },
+  { id: 'of2', tipo: 'oficina', nome: 'Facção Bom Ponto', documento: '', telefone: '(16) 98888-4040', email: '', cidade: 'Restinga/SP', obs: '', dados: { etapa: 'Costura', valorPeca: '2.20' }, ativo: true, criadoEm: '2026-09-15' },
+  { id: 'of3', tipo: 'oficina', nome: 'Corte do João', documento: '', telefone: '(16) 97777-5050', email: '', cidade: 'Franca/SP', obs: '', dados: { etapa: 'Corte', valorPeca: '0.40' }, ativo: true, criadoEm: '2026-08-20' },
+);
+const quemDemo = (q: Record<string, string>) => {
+  if (q?.login) { const u = state.users.find(x => x.login === q.login); if (!u) throw fromServerMessage('Pessoa não encontrada.'); return { login: u.login, nome: u.nome, oficinaId: null as string | null }; }
+  if (q?.oficinaId) { const o = registrosDemo.find(x => x.id === q.oficinaId && x.tipo === 'oficina'); if (!o) throw fromServerMessage('Oficina não encontrada.'); return { login: '', nome: String(o.nome), oficinaId: String(o.id) }; }
+  throw fromServerMessage('Informe quem fez (funcionário ou oficina).');
+};
+const lancDe = (quem: { login: string; nome: string }, etapa: string, modelo: string, cor: string, tamanho: string, qtd: number, data: string) =>
+  state.lancs.push({ id: `L${state.nextId++}`, login: quem.login, nome: quem.login ? quem.nome : `${quem.nome} (oficina)`, etapa, modelo, cor, tamanho, qtd, data, hora: hhmm(), edicoes: 0, hist: '' } as MLanc);
+(function seedRemessas() {
+  const hoje = new Date();
+  const d = (n: number) => isoDay(addDays(hoje, n));
+  ordensDemo.push({ id: 'oc1', numero: 12, data: d(-6), quem: 'Corte do João', login: '', modelo: 'Camisa Polo', cor: 'Branco', obs: '', materialId: 'm1', materialQtd: 30, itens: { P: 40, M: 50, G: 30 } });
+  remessasDemo.push({
+    id: 'rm1', numero: 31, quem: 'Costura da Maria', login: '', oficinaId: 'of1', etapa: 'Costura', dataEnvio: d(-5), prazo: d(-1), valorPeca: 2.5, descontoFaltante: 8, ordemId: 'oc1',
+    status: 'aberta', fechadaEm: null, valorPago: null, finId: null, obs: '',
+    itens: [{ id: 'ri1', modelo: 'Camisa Polo', cor: 'Branco', tamanho: 'P', qtd: 40 }, { id: 'ri2', modelo: 'Camisa Polo', cor: 'Branco', tamanho: 'M', qtd: 50 }],
+    retornos: [{ id: 'rt1', data: d(-2), obs: '', itens: [{ itemId: 'ri1', boas: 38, defeito: 1 }, { itemId: 'ri2', boas: 30, defeito: 0 }] }],
+  }, {
+    id: 'rm2', numero: 32, quem: 'Facção Bom Ponto', login: '', oficinaId: 'of2', etapa: 'Costura', dataEnvio: d(-3), prazo: d(4), valorPeca: 2.2, descontoFaltante: 0, ordemId: 'oc1',
+    status: 'aberta', fechadaEm: null, valorPago: null, finId: null, obs: '', itens: [{ id: 'ri3', modelo: 'Camisa Polo', cor: 'Branco', tamanho: 'G', qtd: 30 }], retornos: [],
+  }, {
+    id: 'rm0', numero: 29, quem: 'Costura da Maria', login: '', oficinaId: 'of1', etapa: 'Costura', dataEnvio: d(-20), prazo: d(-12), valorPeca: 2.5, descontoFaltante: 8, ordemId: null,
+    status: 'fechada', fechadaEm: d(-11), valorPago: 292, finId: null, obs: '',
+    itens: [{ id: 'ri0', modelo: 'Bermuda Tactel', cor: 'Preto', tamanho: 'M', qtd: 120 }], retornos: [{ id: 'rt0', data: d(-12), obs: '', itens: [{ itemId: 'ri0', boas: 120, defeito: 0 }] }],
+  });
+})();
+const remessaJson = (r: MRemessa) => ({
+  id: r.id, numero: r.numero, quem: r.quem, login: r.login || null, oficinaId: r.oficinaId, telefone: r.oficinaId ? String(registrosDemo.find(x => x.id === r.oficinaId)?.telefone ?? '') : null,
+  etapa: r.etapa, dataEnvio: r.dataEnvio, prazo: r.prazo, valorPeca: r.valorPeca, descontoFaltante: r.descontoFaltante,
+  ordemNumero: ordensDemo.find(o => o.id === r.ordemId)?.numero ?? null, status: r.status, fechadaEm: r.fechadaEm, valorPago: r.valorPago,
+  noFinanceiro: !!r.finId && fin.lancamentos.some(l => l.id === r.finId && !l.apagado), obs: r.obs,
+  itens: r.itens.map(i => ({ ...i, boas: r.retornos.flatMap(t => t.itens).filter(x => x.itemId === i.id).reduce((s, x) => s + x.boas, 0),
+    defeito: r.retornos.flatMap(t => t.itens).filter(x => x.itemId === i.id).reduce((s, x) => s + x.defeito, 0) })),
+  retornos: r.retornos.map(t => ({ id: t.id, data: t.data, obs: t.obs, boas: t.itens.reduce((s, x) => s + x.boas, 0), defeito: t.itens.reduce((s, x) => s + x.defeito, 0) })),
+});
+const consumoPecaDe = (matId: string, modelo: string) => {
+  const m = materiaisDemo.find(x => x.id === matId);
+  return m?.regras.find(r => r.etapa === 'Corte' && r.modelo === modelo)?.qtdPorPeca ?? m?.regras.find(r => r.etapa === 'Corte' && r.modelo === '')?.qtdPorPeca ?? null;
+};
+Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
+Object.assign(handlers, {
+  remessas: ([t]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    return {
+      remessas: remessasDemo.map(remessaJson).sort((a, b) => Number(b.status === 'aberta') - Number(a.status === 'aberta') || (a.prazo ?? '9').localeCompare(b.prazo ?? '9') || b.numero - a.numero),
+      ordens: [...ordensDemo].sort((a, b) => b.data.localeCompare(a.data)).map(o => {
+        const m = materiaisDemo.find(x => x.id === o.materialId);
+        return { ...o, material: m?.nome ?? null, unidade: m?.unidade ?? null, consumoPeca: o.materialId ? consumoPecaDe(o.materialId, o.modelo) : null,
+          remetido: remessasDemo.filter(r => r.ordemId === o.id).flatMap(r => r.itens).reduce((s, i) => s + i.qtd, 0) };
+      }),
+    };
+  },
+  remessaOpcoes: ([t]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    return {
+      oficinas: registrosDemo.filter(r => r.tipo === 'oficina' && r.ativo !== false).map(r => ({ id: r.id, nome: r.nome, telefone: r.telefone, etapa: (r.dados as Record<string, string>).etapa ?? '', valorPeca: Number((r.dados as Record<string, string>).valorPeca) || null })),
+      pessoas: state.users.filter(x => x.ativo && !x.leitura).map(x => ({ login: x.login, nome: x.nome, setor: x.setor })),
+      materiais: materiaisDemo.filter(m => m.ativo).map(m => ({ id: m.id, nome: m.nome, unidade: m.unidade })),
+      contas: funcoesDe(u).financeiro ? fin.contas.filter(c => c.ativa).map(c => ({ id: c.id, nome: c.nome })) : [],
+    };
+  },
+  salvarOrdemCorte: ([t, o]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const r = o as { quem: Record<string, string>; data: string; modelo: string; cor: string; materialId?: string; materialQtd?: number; obs: string; itens: { tamanho: string; qtd: number }[] };
+    const quem = quemDemo(r.quem);
+    const itens = r.itens.filter(i => Number(i.qtd) > 0);
+    if (!itens.length) throw fromServerMessage('Informe a quantidade cortada em pelo menos um tamanho.');
+    const numero = Math.max(0, ...ordensDemo.map(x => x.numero)) + 1, id = `oc${Date.now()}`, data = r.data || today();
+    ordensDemo.push({ id, numero, data, quem: quem.nome, login: quem.login, modelo: r.modelo, cor: r.cor, obs: r.obs ?? '', materialId: r.materialId || null, materialQtd: r.materialQtd ? Number(r.materialQtd) : null,
+      itens: Object.fromEntries(itens.map(i => [i.tamanho, Number(i.qtd)])) });
+    for (const i of itens) lancDe(quem, 'Corte', r.modelo, r.cor, i.tamanho, Number(i.qtd), data);
+    if (r.materialId && r.materialQtd) movsDemo.push({ id: `mv${Date.now()}`, materialId: r.materialId, tipo: 'saida', qtd: Number(r.materialQtd), data, valor: null, fornecedor: '', finId: null, obs: `Ordem de corte #${numero}`, por: u.nome });
+    return { id, numero, pecas: itens.reduce((s, i) => s + Number(i.qtd), 0) };
+  },
+  apagarOrdemCorte: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    if (remessasDemo.some(r => r.ordemId === id)) throw fromServerMessage('Há remessa feita a partir desta ordem: exclua a remessa antes.');
+    const i = ordensDemo.findIndex(o => o.id === id); if (i < 0) throw fromServerMessage('Ordem de corte não encontrada.');
+    ordensDemo.splice(i, 1); return null;
+  },
+  salvarRemessa: ([t, o]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const r = o as RemessaInputMock;
+    const quem = quemDemo(r.quem);
+    if (r.etapa === 'Corte') throw fromServerMessage('Etapa inválida para remessa.');
+    if (!r.itens?.length) throw fromServerMessage('Inclua pelo menos um item na remessa.');
+    if (r.prazo && r.prazo < r.dataEnvio) throw fromServerMessage('O prazo não pode ser antes do envio.');
+    const ex = remessasDemo.find(x => x.id === r.id);
+    if (ex && ex.retornos.length) throw fromServerMessage('Já há retorno nesta remessa: não dá para mudar os itens. Registre a diferença no retorno.');
+    const base = { quem: quem.nome, login: quem.login, oficinaId: quem.oficinaId, etapa: r.etapa || 'Costura', dataEnvio: r.dataEnvio || today(), prazo: r.prazo || null,
+      valorPeca: Number(r.valorPeca) || 0, descontoFaltante: Number(r.descontoFaltante) || 0, ordemId: r.ordemId || null, obs: r.obs ?? '',
+      itens: r.itens.map((i, n) => ({ id: `ri${Date.now()}${n}`, modelo: i.modelo, cor: i.cor, tamanho: i.tamanho, qtd: Number(i.qtd) })) };
+    if (ex) { Object.assign(ex, base); return { id: ex.id, numero: ex.numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) }; }
+    const numero = Math.max(0, ...remessasDemo.map(x => x.numero)) + 1, id = `rm${Date.now()}`;
+    remessasDemo.push({ id, numero, status: 'aberta', fechadaEm: null, valorPago: null, finId: null, retornos: [], ...base });
+    return { id, numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) };
+  },
+  apagarRemessa: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const i = remessasDemo.findIndex(r => r.id === id); if (i < 0) throw fromServerMessage('Remessa não encontrada.');
+    if (remessasDemo[i]!.retornos.length) throw fromServerMessage('A remessa já tem retorno: exclua os retornos antes.');
+    remessasDemo.splice(i, 1); return null;
+  },
+  registrarRetorno: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const p = o as { remessaId: string; data: string; obs: string; itens: { itemId: string; boas: number; defeito: number }[] };
+    const r = remessasDemo.find(x => x.id === p.remessaId); if (!r) throw fromServerMessage('Remessa não encontrada.');
+    if (r.status !== 'aberta') throw fromServerMessage('A remessa já foi fechada. Reabra para registrar retorno.');
+    const itens = p.itens.filter(i => Number(i.boas) + Number(i.defeito) > 0);
+    if (!itens.length) throw fromServerMessage('Informe quantas peças voltaram (boas ou com defeito).');
+    for (const i of itens) {
+      const it = r.itens.find(x => x.id === i.itemId); if (!it) throw fromServerMessage('Item inválido na remessa.');
+      const ja = r.retornos.flatMap(x => x.itens).filter(x => x.itemId === it.id).reduce((s, x) => s + x.boas + x.defeito, 0);
+      if (ja + Number(i.boas) + Number(i.defeito) > it.qtd) throw fromServerMessage(`${it.modelo} ${it.cor} ${it.tamanho}: voltaram ${ja + Number(i.boas) + Number(i.defeito)} de ${it.qtd} enviadas (já tinham voltado ${ja}).`);
+    }
+    const id = `rt${Date.now()}`, data = p.data || today();
+    r.retornos.push({ id, data, obs: p.obs ?? '', itens: itens.map(i => ({ itemId: i.itemId, boas: Number(i.boas), defeito: Number(i.defeito) })) });
+    for (const i of itens) { const it = r.itens.find(x => x.id === i.itemId)!; if (Number(i.boas) > 0) lancDe({ login: r.login, nome: r.quem }, r.etapa, it.modelo, it.cor, it.tamanho, Number(i.boas), data); }
+    return id;
+  },
+  apagarRetorno: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = remessasDemo.find(x => x.retornos.some(y => y.id === id)); if (!r) throw fromServerMessage('Retorno não encontrado.');
+    if (r.status !== 'aberta') throw fromServerMessage('A remessa já foi fechada. Reabra para corrigir.');
+    r.retornos = r.retornos.filter(y => y.id !== id); return null;
+  },
+  fecharRemessa: ([t, id, pagar]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const r = remessasDemo.find(x => x.id === id); if (!r) throw fromServerMessage('Remessa não encontrada.');
+    if (r.status !== 'aberta') throw fromServerMessage('A remessa já está fechada.');
+    const j = remessaJson(r);
+    const env = j.itens.reduce((s, i) => s + i.qtd, 0), boas = j.itens.reduce((s, i) => s + i.boas, 0), def = j.itens.reduce((s, i) => s + i.defeito, 0);
+    const falt = env - boas - def, valor = Math.max(0, Math.round((boas * r.valorPeca - falt * r.descontoFaltante) * 100) / 100);
+    const pg = pagar as { contaId: string; data: string } | null;
+    if (pg && valor > 0) {
+      conta(pg.contaId);
+      r.finId = uid();
+      fin.lancamentos.push({ id: r.finId, tipo: 'saida', data: pg.data || today(), descricao: `Remessa #${r.numero} · ${r.etapa} · ${r.quem} (${boas} peças)`, valor, contaId: pg.contaId, cartaoId: null,
+        forma: '', categoria: 'Facção', responsavel: r.quem, centro: '', parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: null, obs: '',
+        contraparteId: r.oficinaId, contraparte: r.oficinaId ? r.quem : '' });
+    }
+    Object.assign(r, { status: 'fechada', fechadaEm: today(), valorPago: valor });
+    return { enviadas: env, boas, defeito: def, faltando: falt, valor, noFinanceiro: !!(pg && valor > 0) };
+  },
+  reabrirRemessa: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = remessasDemo.find(x => x.id === id); if (!r) throw fromServerMessage('Remessa não encontrada.');
+    if (r.status !== 'fechada') throw fromServerMessage('A remessa já está aberta.');
+    const l = fin.lancamentos.find(x => x.id === r.finId); if (l) l.apagado = true;
+    Object.assign(r, { status: 'aberta', fechadaEm: null, valorPago: null, finId: null }); return null;
+  },
+  lancarPor: ([t, por, o]: unknown[]) => {
+    const u = userOf(String(t));
+    if (u.perfil !== 'admin') throw fromServerMessage('Apenas o administrador lança em nome de outra pessoa.');
+    const quem = quemDemo(por as Record<string, string>);
+    const r = o as LancamentoInput;
+    let total = 0;
+    for (const i of r.itens) if (Number(i.qtd) > 0) { lancDe(quem, r.etapa, r.modelo, r.cor, i.tamanho, Number(i.qtd), today()); total += Number(i.qtd); }
+    if (!total) throw fromServerMessage('Informe a quantidade em pelo menos um tamanho.');
+    return { total, avisos: [] };
+  },
+});
+type RemessaInputMock = { id?: string; quem: Record<string, string>; etapa: string; dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number; ordemId?: string | null; obs: string; itens: { modelo: string; cor: string; tamanho: string; qtd: number }[] };

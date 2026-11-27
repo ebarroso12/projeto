@@ -1,5 +1,18 @@
 [
   {
+    "versao": "1.9.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Oficinas e remessas: cadastro de oficinas (cortador, costureira, facção) com valor por peça e PIX",
+      "Ordem de corte: bobina usada (peso/metragem) × peças cortadas por tamanho, com rendimento e perda de tecido",
+      "Remessa para costura com prazo, comprovante para imprimir/assinar e envio pelo WhatsApp",
+      "Retorno em uma ou várias vezes: peças boas (entram na produção no nome da oficina) e com defeito; não aceita voltar mais do que foi enviado",
+      "Acerto por remessa: boas × valor − faltando × desconto, com pagamento lançado no Financeiro",
+      "Painel 'quem está com o quê' e aviso diário de remessa atrasada",
+      "Lançar em nome de quem não usa celular (funcionário ou oficina)"
+    ]
+  },
+  {
     "versao": "1.8.0",
     "data": "2026-11-27",
     "novidades": [

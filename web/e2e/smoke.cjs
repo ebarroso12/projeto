@@ -375,6 +375,63 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByText('WhatsApp salvo.').waitFor();
   ok(true, 'dono salva o WhatsApp da página');
 
+  // Oficinas e remessas: cadastro da oficina, ordem de corte (bobina), remessa, retorno e acerto com pagamento
+  await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
+  await page.getByRole('tab', { name: 'Oficinas' }).click();
+  await page.getByRole('button', { name: 'Nova oficina' }).click();
+  const dof = page.locator('dialog[open]');
+  await dof.getByLabel(/Nome da oficina/).fill('Ateliê da Rosa');
+  await dof.getByLabel('Telefone / WhatsApp').fill('(16) 99111-2222');
+  await dof.getByLabel('O que faz').fill('Costura');
+  await dof.getByLabel('Valor por peça (R$)').fill('3');
+  await dof.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Oficina salva.').waitFor();
+  ok(await until(() => page.getByRole('button', { name: /^Ateliê da Rosa/ }).isVisible()), 'cadastra oficina');
+  await page.locator('.sidebar').getByRole('link', { name: 'Oficinas e remessas' }).click();
+  await page.getByText('Quem está com o quê', { exact: true }).first().waitFor();
+  ok(await page.getByText('Costura da Maria').first().isVisible(), 'painel mostra quem está com as peças');
+  await page.getByRole('button', { name: 'Ordem de corte' }).click();
+  const doc = page.locator('dialog[open]');
+  await doc.getByLabel('Quem cortou').selectOption({ label: 'Corte do João · Corte' });
+  await doc.getByLabel('Modelo', { exact: true }).selectOption('Calça Jeans');
+  await doc.getByLabel('Cor', { exact: true }).selectOption('Azul Marinho');
+  await doc.getByLabel('Bobina / tecido (opcional)').selectOption({ label: 'Tecido tactel' });
+  await doc.getByLabel(/Quanto foi usado/).fill('40');
+  await doc.getByLabel('Corte, tamanho P', { exact: true }).fill('20');
+  await doc.getByLabel('Corte, tamanho M', { exact: true }).fill('30');
+  await doc.getByRole('button', { name: 'Registrar corte' }).click();
+  await page.getByText(/Ordem de corte #\d+: 50 peça/).waitFor();
+  ok(true, 'ordem de corte registra a bobina e o que foi cortado');
+  await page.getByRole('button', { name: 'Nova remessa' }).click();
+  const drm = page.locator('dialog[open]');
+  await drm.getByLabel('Para quem vai').selectOption({ label: 'Ateliê da Rosa · Costura' });
+  ok(await drm.getByLabel('Valor por peça (R$)').inputValue() === '3', 'valor por peça vem do cadastro da oficina');
+  await drm.getByLabel('Peças de uma ordem de corte (opcional)').selectOption({ index: 1 });
+  await drm.getByLabel('Desconto por peça faltando (R$)').fill('5');
+  await drm.getByRole('button', { name: 'Registrar envio' }).click();
+  await page.getByText(/Remessa #\d+ registrada: 50 peça/).waitFor();
+  await page.getByRole('tab', { name: /^Remessas/ }).click();
+  await page.getByRole('button', { name: /Ateliê da Rosa/ }).first().click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Registrar retorno' }).click();
+  const drt = page.locator('dialog[open]');
+  await drt.getByLabel('Boas Calça Jeans Azul Marinho P').fill('18');
+  await drt.getByLabel('Defeito Calça Jeans Azul Marinho P').fill('1');
+  await drt.getByLabel('Boas Calça Jeans Azul Marinho M').fill('30');
+  await drt.getByRole('button', { name: 'Registrar retorno' }).click();
+  await page.getByText('Retorno registrado. As peças boas entraram na produção.').waitFor();
+  ok(await until(() => page.locator('dialog[open]').getByText('Ainda com a oficina').isVisible()), 'remessa mostra o que ainda está com a oficina');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Acertar' }).click();
+  const dac = page.locator('dialog[open]');
+  ok(await dac.getByText(/48 × R\$\s3,00 − 1 faltando × R\$\s5,00 = R\$\s139,00/).isVisible(), 'acerto: 48 boas × 3 − 1 faltando × 5 = R$ 139');
+  await dac.getByRole('button', { name: 'Fechar e acertar' }).click();
+  await page.getByText(/acertada: R\$\s139,00 lançado no Financeiro/).waitFor();
+  ok(true, 'acerto lança o pagamento da oficina no Financeiro');
+  await shot(page, '20-oficinas-remessas');
+  // lançar em nome de quem não usa celular
+  await page.locator('.sidebar').getByRole('link', { name: 'Lançar' }).click();
+  await page.getByLabel('Quem fez').selectOption({ label: 'Ateliê da Rosa (oficina)' });
+  ok(true, 'lançar em nome de uma oficina disponível para o administrador');
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();
