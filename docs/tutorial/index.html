@@ -94,7 +94,9 @@ nav.indice a.completa .feito { color: var(--ok); font-weight: 700; }
 nav.indice a.atual { background: var(--papel); box-shadow: 0 0 0 1px var(--linha); font-weight: 600; }
 ol.passos > li.marcavel { cursor: pointer; border-radius: 10px; padding-top: 2px; padding-bottom: 2px; transition: background .15s; }
 ol.passos > li.marcavel:hover { background: var(--codigo); }
-ol.passos > li.marcavel:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+ol.passos > li .marca { position: absolute; left: 0; top: 1px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent; cursor: pointer; padding: 0; }
+ol.passos > li .marca:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+.onde.erro { color: #d33; }
 ol.passos > li.feito::before { content: "✓"; background: var(--ok); }
 ol.passos > li.feito { color: var(--suave); }
 .marcar-dica { font-size: 13px; color: var(--suave); }
@@ -102,8 +104,8 @@ ol.passos > li.feito { color: var(--suave); }
 .guia-topo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
 .guia-trilha { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
 .guia-trilha button, .guia-modo, .guia-nav button, .opcoes button { font: inherit; font-size: 14px; border-radius: 999px; border: 1px solid var(--linha); background: var(--papel); color: var(--tinta); padding: 7px 14px; cursor: pointer; white-space: nowrap; }
-.guia-trilha button[aria-selected="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
-.guia-trilha button.visto:not([aria-selected="true"]) { border-color: var(--ok); }
+.guia-trilha button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.guia-trilha button.visto:not([aria-pressed="true"]) { border-color: var(--ok); }
 .guia-passo { display: grid; gap: 14px; }
 .guia.passo-a-passo .guia-passo:not(.ativo) { display: none; }
 .guia:not(.passo-a-passo) .guia-nav, .guia:not(.passo-a-passo) .guia-trilha { display: none; }
@@ -132,7 +134,7 @@ section.sem-resultado { display: none; }
 
 <header class="capa">
   <div class="capa-in">
-    <span class="selo">Manual de uso · versão 1.9</span>
+    <span class="selo">Manual de uso · versão 1.10</span>
     <h1>Fábrica: <em>do corte ao lucro</em>, passo a passo</h1>
     <p>Como montar a empresa no app, organizar a equipe, controlar corte e costura com oficinas sem perder peças, acompanhar pedidos, estoque, produção, financeiro e resultado.</p>
     <p>Endereço do app: <span class="linkapp">fabricapremium.vercel.app</span> · dúvida na hora? Toque na <b>Dani</b>, no canto da tela do app.</p>
@@ -222,18 +224,18 @@ section.sem-resultado { display: none; }
 
       <div class="guia" id="guia-oficinas">
         <div class="guia-topo">
-          <div class="guia-trilha" role="tablist" aria-label="Passos do fluxo de oficinas">
-            <button type="button" role="tab" data-ir="0">1 · Corte</button>
-            <button type="button" role="tab" data-ir="1">2 · Remessa</button>
-            <button type="button" role="tab" data-ir="2">3 · Retorno</button>
-            <button type="button" role="tab" data-ir="3">4 · Acerto</button>
-            <button type="button" role="tab" data-ir="4">5 · Acompanhar</button>
+          <div class="guia-trilha" role="group" aria-label="Escolher o passo do fluxo de oficinas">
+            <button type="button" data-ir="0" aria-controls="guia-passo-0" aria-pressed="false">1 · Corte</button>
+            <button type="button" data-ir="1" aria-controls="guia-passo-1" aria-pressed="false">2 · Remessa</button>
+            <button type="button" data-ir="2" aria-controls="guia-passo-2" aria-pressed="false">3 · Retorno</button>
+            <button type="button" data-ir="3" aria-controls="guia-passo-3" aria-pressed="false">4 · Acerto</button>
+            <button type="button" data-ir="4" aria-controls="guia-passo-4" aria-pressed="false">5 · Acompanhar</button>
           </div>
           <button type="button" class="guia-modo" id="guia-modo">Ver tudo de uma vez</button>
         </div>
 
-        <div class="guia-passo" role="tabpanel">
-          <h3>Passo 1 · Ordem de corte: a bobina e o que foi cortado</h3>
+        <div class="guia-passo" id="guia-passo-0" role="region" aria-labelledby="guia-titulo-0">
+          <h3 id="guia-titulo-0">Passo 1 · Ordem de corte: a bobina e o que foi cortado</h3>
           <ol class="passos">
             <li>Toque em <b>Ordem de corte</b>.</li>
             <li>Escolha <b>quem cortou</b> (oficina ou funcionário), o <b>modelo</b> e a <b>cor</b>.</li>
@@ -258,8 +260,8 @@ section.sem-resultado { display: none; }
           <figure><img src="img/ordens.webp" alt="Lista de ordens de corte com peças cortadas, esperadas e percentual de perda" width="1280" height="800" loading="lazy"><figcaption>Aba Ordens de corte: a perda aparece em vermelho quando passa de 5%.</figcaption></figure>
         </div>
 
-        <div class="guia-passo" role="tabpanel">
-          <h3>Passo 2 · Remessa: mandar as peças para a costureira</h3>
+        <div class="guia-passo" id="guia-passo-1" role="region" aria-labelledby="guia-titulo-1">
+          <h3 id="guia-titulo-1">Passo 2 · Remessa: mandar as peças para a costureira</h3>
           <ol class="passos">
             <li>Toque em <b>Nova remessa</b> e escolha <b>para quem vai</b>. O <b>valor por peça</b> vem do cadastro da oficina.</li>
             <li>Informe o <b>prazo de devolução</b> e, se quiser, o <b>desconto por peça faltando</b> (cobrado no acerto).</li>
@@ -269,8 +271,8 @@ section.sem-resultado { display: none; }
           <figure><img src="img/remessa-form.webp" alt="Formulário de nova remessa com oficina, etapa, datas, valor por peça, desconto e itens" width="1080" height="776" loading="lazy"><figcaption>Nova remessa a partir de uma ordem de corte.</figcaption></figure>
         </div>
 
-        <div class="guia-passo" role="tabpanel">
-          <h3>Passo 3 · Retorno: conferir o que voltou</h3>
+        <div class="guia-passo" id="guia-passo-2" role="region" aria-labelledby="guia-titulo-2">
+          <h3 id="guia-titulo-2">Passo 3 · Retorno: conferir o que voltou</h3>
           <ol class="passos">
             <li>Abra a remessa e toque em <b>Registrar retorno</b>.</li>
             <li>Para cada tamanho, digite as peças <b>boas</b> e as <b>com defeito</b>. Se voltou tudo certo, use <b>Voltou tudo bom</b>.</li>
@@ -279,8 +281,8 @@ section.sem-resultado { display: none; }
           <figure class="estreita"><img src="img/retorno.webp" alt="Janela de retorno com faltam voltar, boas e com defeito por tamanho" width="720" height="488" loading="lazy"><figcaption>As peças boas entram como Costura no nome da oficina.</figcaption></figure>
         </div>
 
-        <div class="guia-passo" role="tabpanel">
-          <h3>Passo 4 · Acerto: fechar a conta e pagar</h3>
+        <div class="guia-passo" id="guia-passo-3" role="region" aria-labelledby="guia-titulo-3">
+          <h3 id="guia-titulo-3">Passo 4 · Acerto: fechar a conta e pagar</h3>
           <ol class="passos">
             <li>Abra a remessa e toque em <b>Acertar</b>.</li>
             <li>Confira enviadas, boas, com defeito e faltando, e o valor calculado.</li>
@@ -306,8 +308,8 @@ section.sem-resultado { display: none; }
           <figure class="estreita"><img src="img/acerto.webp" alt="Janela de acerto da remessa com enviadas, boas, defeito, faltando e lançamento no Financeiro" width="480" height="564" loading="lazy"></figure>
         </div>
 
-        <div class="guia-passo" role="tabpanel">
-          <h3>Passo 5 · Quem está com o quê</h3>
+        <div class="guia-passo" id="guia-passo-4" role="region" aria-labelledby="guia-titulo-4">
+          <h3 id="guia-titulo-4">Passo 5 · Quem está com o quê</h3>
           <p>A primeira aba mostra, por oficina, quantas peças ainda estão com ela, quantas remessas passaram do prazo e quanto há para acertar. Todo dia às 8h, quem tem a função recebe aviso das remessas atrasadas.</p>
           <figure><img src="img/oficinas.webp" alt="Painel quem está com o quê, com peças por oficina e remessa atrasada em vermelho" width="1280" height="800" loading="lazy"></figure>
           <div class="box atencao"><b>Errou alguma coisa?</b>
@@ -481,34 +483,61 @@ section.sem-resultado { display: none; }
       </dl>
     </section>
 
-    <p class="rodape">Manual do Fábrica · versão 1.9 · as telas são do modo demonstração, com dados de exemplo.</p>
+    <p class="rodape">Manual do Fábrica · versão 1.10 · as telas são do modo demonstração, com dados de exemplo.</p>
   </main>
 </div>
 
 <script>
 (() => {
+  // ---------------- armazenamento do aparelho: lê só listas válidas (dado antigo ou editado não derruba a página)
   const salvar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento */ } };
-  const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const lerLista = (k, valido) => {
+    try {
+      const v = JSON.parse(localStorage.getItem(k) || '[]');
+      return Array.isArray(v) ? v.filter(valido) : [];
+    } catch (e) { return []; }
+  };
   const brl = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const num = (n, c = 0) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+  /** número como a pessoa digitou: sem casas extras e sem arredondar (até 3 casas) */
+  const dig = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+  const $ = id => document.getElementById(id);
 
   // ---------------- passos marcáveis e progresso
-  const feitos = new Set(ler('fab-manual-feitos', []));
   const secoes = [...document.querySelectorAll('main section')];
   const passos = [];
-  secoes.forEach(sec => sec.querySelectorAll('ol.passos > li').forEach((li, i) => {
-    const id = `${sec.id}-${[...sec.querySelectorAll('ol.passos')].indexOf(li.parentElement)}-${i}`;
-    li.dataset.id = id; li.classList.add('marcavel'); li.tabIndex = 0; li.setAttribute('role', 'checkbox');
-    passos.push(li);
-  }));
-  secoes.forEach(sec => { if (sec.querySelector('ol.passos')) { const p = document.createElement('p'); p.className = 'marcar-dica'; p.textContent = 'Toque em cada passo para marcar como feito.'; sec.querySelector('ol.passos').before(p); } });
+  secoes.forEach(sec => {
+    const listas = [...sec.querySelectorAll('ol.passos')];
+    listas.forEach((ol, k) => [...ol.children].forEach((li, i) => {
+      li.dataset.id = `${sec.id}-${k}-${i}`;
+      li.classList.add('marcavel');
+      // botão real para teclado e leitor de tela; o item continua sendo item da lista (ordem dos passos preservada)
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'marca'; b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = `<span class="sr-only">Marcar o passo ${i + 1} como feito</span>`;
+      li.prepend(b);
+      passos.push(li);
+    }));
+    if (listas.length) {
+      const dica = document.createElement('p');
+      dica.className = 'marcar-dica';
+      dica.textContent = 'Toque em cada passo para marcar como feito.';
+      (sec.querySelector('.guia') || listas[0]).before(dica);   // no fluxo guiado, a dica fica antes do guia (vale para todos os passos)
+    }
+  });
+  const ids = new Set(passos.map(li => li.dataset.id));
+  const feitos = new Set(lerLista('fab-manual-feitos', x => typeof x === 'string' && ids.has(x)));
   const atualizar = () => {
-    passos.forEach(li => { const f = feitos.has(li.dataset.id); li.classList.toggle('feito', f); li.setAttribute('aria-checked', String(f)); });
+    passos.forEach(li => {
+      const f = feitos.has(li.dataset.id);
+      li.classList.toggle('feito', f);
+      li.querySelector('.marca').setAttribute('aria-pressed', String(f));
+    });
     const total = passos.length, ok = passos.filter(li => feitos.has(li.dataset.id)).length;
-    document.getElementById('prog-barra').style.width = `${total ? (ok / total) * 100 : 0}%`;
-    document.getElementById('prog-texto').textContent = ok === total && total ? 'Manual concluído! Todos os passos feitos.' : `${ok} de ${total} passos feitos`;
+    $('prog-barra').style.width = `${total ? (ok / total) * 100 : 0}%`;
+    $('prog-texto').textContent = ok === total && total ? 'Manual concluído! Todos os passos feitos.' : `${ok} de ${total} passos feitos`;
     document.querySelectorAll('nav.indice a').forEach(a => {
-      const sec = document.getElementById(a.getAttribute('href').slice(1));
+      const sec = $(a.getAttribute('href').slice(1));
       const meus = passos.filter(li => sec && sec.contains(li));
       let sp = a.querySelector('.feito');
       if (!meus.length) { if (sp) sp.remove(); return; }
@@ -519,12 +548,9 @@ section.sem-resultado { display: none; }
     });
     salvar('fab-manual-feitos', [...feitos]);
   };
-  const alternar = li => { const id = li.dataset.id; feitos.has(id) ? feitos.delete(id) : feitos.add(id); atualizar(); };
-  passos.forEach(li => {
-    li.addEventListener('click', e => { if (e.target.closest('a')) return; alternar(li); });
-    li.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); alternar(li); } });
-  });
-  document.getElementById('prog-zerar').addEventListener('click', () => { feitos.clear(); atualizar(); });
+  const alternar = li => { const id = li.dataset.id; if (feitos.has(id)) feitos.delete(id); else feitos.add(id); atualizar(); };
+  passos.forEach(li => li.addEventListener('click', e => { if (e.target.closest('a')) return; alternar(li); }));
+  $('prog-zerar').addEventListener('click', () => { feitos.clear(); atualizar(); });
   atualizar();
 
   // ---------------- índice acompanha a leitura
@@ -536,100 +562,145 @@ section.sem-resultado { display: none; }
     secoes.forEach(s => obs.observe(s));
   }
 
-  // ---------------- busca
-  const busca = document.getElementById('busca'), res = document.getElementById('busca-res');
-  const sem = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const tirarMarcas = () => document.querySelectorAll('mark').forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
-  const marcar = (raiz, termo) => {
-    const w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement.closest('script,style,button,input') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
-    const nos = []; while (w.nextNode()) nos.push(w.currentNode);
-    nos.forEach(n => {
-      const i = sem(n.textContent).indexOf(termo);
-      if (i < 0) return;
-      const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + termo.length);
-      const m = document.createElement('mark'); r.surroundContents(m);
-    });
-  };
-  let t;
-  busca.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => {
-    tirarMarcas(); document.normalize();
-    const q = sem(busca.value.trim());
-    const guia = document.getElementById('guia-oficinas');
-    if (q.length < 2) { secoes.forEach(s => s.classList.remove('sem-resultado')); res.textContent = ''; return; }
-    if (guia.classList.contains('passo-a-passo')) document.getElementById('guia-modo').click();
-    let n = 0;
-    secoes.forEach(s => { const tem = sem(s.textContent).includes(q); s.classList.toggle('sem-resultado', !tem); if (tem) { n++; marcar(s, q); } });
-    res.textContent = n ? `${n} seção(ões) com “${busca.value.trim()}”` : 'Nada encontrado. Tente outra palavra ou pergunte à Dani no app.';
-  }, 200); });
-
   // ---------------- modo guiado do fluxo de oficinas
-  const guia = document.getElementById('guia-oficinas');
-  const etapas = [...guia.querySelectorAll('.guia-passo')], abas = [...guia.querySelectorAll('.guia-trilha button')];
-  const vistos = new Set(ler('fab-manual-guia', [0]));
+  const guia = $('guia-oficinas');
+  const etapas = [...guia.querySelectorAll('.guia-passo')], botoes = [...guia.querySelectorAll('.guia-trilha button')];
+  const vistos = new Set(lerLista('fab-manual-guia', x => Number.isInteger(x) && x >= 0 && x < etapas.length));
   let atual = 0;
   const mostrar = i => {
     atual = Math.max(0, Math.min(etapas.length - 1, i)); vistos.add(atual); salvar('fab-manual-guia', [...vistos]);
     etapas.forEach((e, k) => e.classList.toggle('ativo', k === atual));
-    abas.forEach((b, k) => { b.setAttribute('aria-selected', String(k === atual)); b.classList.toggle('visto', vistos.has(k)); });
-    document.getElementById('guia-pos').textContent = `Passo ${atual + 1} de ${etapas.length}`;
-    document.getElementById('guia-ant').disabled = atual === 0;
-    const prox = document.getElementById('guia-prox');
-    prox.textContent = atual === etapas.length - 1 ? 'Ir para o teste rápido ↓' : 'Próximo passo →';
+    botoes.forEach((b, k) => { b.setAttribute('aria-pressed', String(k === atual)); b.classList.toggle('visto', vistos.has(k)); });
+    $('guia-pos').textContent = `Passo ${atual + 1} de ${etapas.length}`;
+    $('guia-ant').disabled = atual === 0;
+    $('guia-prox').textContent = atual === etapas.length - 1 ? 'Ir para o teste rápido ↓' : 'Próximo passo →';
   };
-  guia.classList.add('passo-a-passo');
-  abas.forEach((b, k) => b.addEventListener('click', () => mostrar(k)));
-  document.getElementById('guia-ant').addEventListener('click', () => { mostrar(atual - 1); guia.scrollIntoView({ block: 'start' }); });
-  document.getElementById('guia-prox').addEventListener('click', () => {
-    if (atual === etapas.length - 1) { document.getElementById('quiz').scrollIntoView({ block: 'start' }); return; }
+  const passoAPasso = () => guia.classList.contains('passo-a-passo');
+  const definirModo = passo => {
+    guia.classList.toggle('passo-a-passo', passo);
+    $('guia-modo').textContent = passo ? 'Ver tudo de uma vez' : 'Ver passo a passo';
+    if (passo) mostrar(atual);
+  };
+  botoes.forEach((b, k) => b.addEventListener('click', () => mostrar(k)));
+  // setas do teclado entre os passos (e Home/End)
+  guia.querySelector('.guia-trilha').addEventListener('keydown', e => {
+    const i = botoes.indexOf(document.activeElement);
+    if (i < 0) return;
+    const alvo = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? botoes.length - 1 : null;
+    if (alvo === null) return;
+    e.preventDefault();
+    const k = (alvo + botoes.length) % botoes.length;
+    botoes[k].focus(); mostrar(k);
+  });
+  $('guia-ant').addEventListener('click', () => { mostrar(atual - 1); guia.scrollIntoView({ block: 'start' }); });
+  $('guia-prox').addEventListener('click', () => {
+    if (atual === etapas.length - 1) { $('quiz').scrollIntoView({ block: 'start' }); return; }
     mostrar(atual + 1); guia.scrollIntoView({ block: 'start' });
   });
-  document.getElementById('guia-modo').addEventListener('click', e => {
-    const passo = guia.classList.toggle('passo-a-passo');
-    e.target.textContent = passo ? 'Ver tudo de uma vez' : 'Ver passo a passo';
-  });
+  $('guia-modo').addEventListener('click', () => { buscaAbriuGuia = false; definirModo(!passoAPasso()); });
+  definirModo(true);
   mostrar(0);
 
-  // ---------------- simuladores
-  const v = id => Math.max(0, parseFloat(document.getElementById(id).value.replace(',', '.')) || 0);
+  // ---------------- busca (só no texto visível; destaque mapeado letra a letra)
+  const busca = $('busca'), res = $('busca-res');
+  const sem = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const ignorar = el => !!el.closest('script, style, button, input, [hidden], .marcar-dica, .sr-only');
+  const nosDeTexto = raiz => {
+    const w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, { acceptNode: n => (ignorar(n.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    const nos = []; while (w.nextNode()) nos.push(w.currentNode);
+    return nos;
+  };
+  /** texto normalizado + posição de cada letra normalizada no texto original */
+  const mapear = txt => {
+    let norm = ''; const pos = [];
+    for (let i = 0; i < txt.length; i++) {
+      const c = sem(txt[i]);
+      for (let k = 0; k < c.length; k++) { norm += c[k]; pos.push(i); }
+    }
+    return { norm, pos };
+  };
+  const tirarMarcas = () => { document.querySelectorAll('main mark').forEach(m => m.replaceWith(document.createTextNode(m.textContent))); document.querySelector('main').normalize(); };
+  const marcar = (no, termo) => {
+    const { norm, pos } = mapear(no.textContent);
+    const k = norm.indexOf(termo);
+    if (k < 0) return;
+    const ini = pos[k], fim = pos[k + termo.length - 1] + 1;
+    if (ini === undefined || !(fim <= no.textContent.length)) return;
+    try {
+      const r = document.createRange(); r.setStart(no, ini); r.setEnd(no, fim);
+      r.surroundContents(document.createElement('mark'));
+    } catch (e) { /* um destaque que não coube não interrompe a busca */ }
+  };
+  let buscaAbriuGuia = false, t;
+  busca.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => {
+    tirarMarcas();
+    const q = sem(busca.value.trim());
+    if (q.length < 2) {
+      secoes.forEach(s => s.classList.remove('sem-resultado'));
+      res.textContent = '';
+      if (buscaAbriuGuia) { buscaAbriuGuia = false; definirModo(true); }   // volta ao passo em que a pessoa estava
+      return;
+    }
+    if (passoAPasso()) { buscaAbriuGuia = true; definirModo(false); }       // na busca, todos os passos ficam visíveis
+    let n = 0;
+    secoes.forEach(s => {
+      const nos = nosDeTexto(s);
+      const tem = nos.some(no => sem(no.textContent).includes(q)) || sem(s.querySelector('h2')?.textContent || '').includes(q);
+      s.classList.toggle('sem-resultado', !tem);
+      if (tem) { n++; nos.forEach(no => marcar(no, q)); }
+    });
+    res.textContent = n ? `${n} seção(ões) com “${busca.value.trim()}”` : 'Nada encontrado. Tente outra palavra ou pergunte à Dani no app.';
+  }, 200); });
+
+  // ---------------- simuladores (mesmas regras do app)
+  const v = id => { const x = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(x) && x > 0 ? x : 0; };
+  const pintar = (id, texto, classe = '') => { const el = $(id); el.textContent = texto; el.className = classe; };
   const rendimento = () => {
-    const usado = v('r-usado'), consumo = v('r-consumo'), cortadas = v('r-cortadas');
-    const esperadas = consumo > 0 ? Math.floor(usado / consumo + 1e-9) : 0;
+    const usado = v('r-usado'), consumo = v('r-consumo'), cortadas = Math.floor(v('r-cortadas'));
+    pintar('r-real', usado > 0 && cortadas > 0 ? `${dig(Math.round((usado / cortadas) * 1000) / 1000)} kg` : '—');
+    if (!(usado > 0) || !(consumo > 0)) {   // como no app: sem tecido usado ou sem regra de consumo, não há peças esperadas
+      pintar('r-esperadas', '—'); pintar('r-perda', '—');
+      $('r-texto').textContent = !(usado > 0) ? 'Informe quanto tecido foi usado no corte.' : 'Informe o consumo por peça (regra do tecido em Matéria-prima).';
+      return;
+    }
+    const esperadas = Math.floor(usado / consumo + 1e-9);
     const perda = esperadas ? Math.round(((esperadas - cortadas) / esperadas) * 1000) / 10 : 0;
-    document.getElementById('r-esperadas').textContent = num(esperadas);
-    const pe = document.getElementById('r-perda');
-    pe.textContent = perda > 0 ? `${num(perda, 1)}%` : perda < 0 ? `rendeu ${num(-perda, 1)}% a mais` : 'sem perda';
-    pe.className = perda > 5 ? 'vermelho' : perda > 0 ? '' : 'verde';
-    document.getElementById('r-real').textContent = cortadas ? `${num(usado / cortadas, 3)} kg` : '—';
-    document.getElementById('r-texto').textContent = consumo > 0
-      ? `${num(usado, 1)} kg ÷ ${num(consumo, 2)} kg por peça = ${num(esperadas)} peças esperadas. Foram cortadas ${num(cortadas)}${perda > 0 ? `: perda de ${num(perda, 1)}%.` : '.'}`
-      : 'Informe o consumo por peça (regra do tecido em Matéria-prima).';
+    pintar('r-esperadas', num(esperadas));
+    pintar('r-perda', perda > 0 ? `${num(perda, 1)}%` : perda < 0 ? `rendeu ${num(-perda, 1)}% a mais` : 'sem perda', perda > 5 ? 'vermelho' : perda > 0 ? '' : 'verde');
+    $('r-texto').textContent = `${dig(usado)} kg ÷ ${dig(consumo)} kg por peça = ${num(esperadas)} peças esperadas. Foram cortadas ${num(cortadas)}${perda > 0 ? `: perda de ${num(perda, 1)}%.` : '.'}`;
   };
   const acerto = () => {
-    const env = v('a-enviadas'), boas = v('a-boas'), def = v('a-defeito'), val = v('a-valor'), des = v('a-desconto');
-    const t = document.getElementById('a-texto');
-    if (boas + def > env) { t.textContent = 'Voltaram mais peças do que foram enviadas: o app não aceita esse retorno.'; t.style.color = '#d33'; return; }
-    t.style.color = '';
-    const falt = env - boas - def, bruto = boas * val, desc = falt * des, pagar = Math.max(0, bruto - desc);
-    document.getElementById('a-faltando').textContent = num(falt);
-    document.getElementById('a-bruto').textContent = brl(bruto);
-    document.getElementById('a-desc').textContent = brl(desc);
-    document.getElementById('a-pagar').textContent = brl(pagar);
-    t.textContent = `${num(boas)} boas × ${brl(val)}${falt && des ? ` − ${num(falt)} faltando × ${brl(des)}` : ''} = ${brl(pagar)}. Peça com defeito não é paga nem descontada.`;
+    const env = Math.floor(v('a-enviadas')), boas = Math.floor(v('a-boas')), def = Math.floor(v('a-defeito')), val = v('a-valor'), des = v('a-desconto');
+    const tx = $('a-texto');
+    if (boas + def > env) {   // como no app: retorno maior que o envio não é aceito; nada de números velhos na tela
+      ['a-faltando', 'a-bruto', 'a-desc', 'a-pagar'].forEach(id => pintar(id, '—'));
+      tx.textContent = 'Voltaram mais peças do que foram enviadas: o app não aceita esse retorno.';
+      tx.classList.add('erro');
+      return;
+    }
+    tx.classList.remove('erro');
+    const falt = env - boas - def, bruto = boas * val, desc = falt * des, pagar = Math.max(0, Math.round((bruto - desc) * 100) / 100);
+    pintar('a-faltando', num(falt), falt ? 'vermelho' : '');
+    pintar('a-bruto', brl(bruto));
+    pintar('a-desc', brl(desc));
+    pintar('a-pagar', brl(pagar), 'verde');
+    tx.textContent = `${num(boas)} boas × ${brl(val)}${falt && des ? ` − ${num(falt)} faltando × ${brl(des)}` : ''} = ${brl(pagar)}. Peça com defeito não é paga nem descontada.`;
   };
-  ['r-usado', 'r-consumo', 'r-cortadas'].forEach(id => document.getElementById(id).addEventListener('input', rendimento));
-  ['a-enviadas', 'a-boas', 'a-defeito', 'a-valor', 'a-desconto'].forEach(id => document.getElementById(id).addEventListener('input', acerto));
+  ['r-usado', 'r-consumo', 'r-cortadas'].forEach(id => $(id).addEventListener('input', rendimento));
+  ['a-enviadas', 'a-boas', 'a-defeito', 'a-valor', 'a-desconto'].forEach(id => $(id).addEventListener('input', acerto));
   rendimento(); acerto();
 
   // ---------------- teste rápido
   const qs = [...document.querySelectorAll('#quiz .q')];
   const placar = () => {
     const resp = qs.filter(q => q.dataset.resp), certas = resp.filter(q => q.dataset.resp === q.dataset.certa).length;
-    document.getElementById('quiz-placar').textContent = resp.length === qs.length ? `Você acertou ${certas} de ${qs.length}.${certas === qs.length ? ' Pronto para usar as remessas!' : ' Releia os passos e tente de novo.'}` : '';
+    $('quiz-placar').textContent = resp.length === qs.length ? `Você acertou ${certas} de ${qs.length}.${certas === qs.length ? ' Pronto para usar as remessas!' : ' Releia os passos e tente de novo.'}` : '';
   };
   qs.forEach(q => q.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     q.dataset.resp = b.dataset.op;
-    q.querySelectorAll('button').forEach(x => x.classList.remove('certa', 'errada'));
+    q.querySelectorAll('button').forEach(x => { x.classList.remove('certa', 'errada'); x.removeAttribute('aria-pressed'); });
     b.classList.add(b.dataset.op === q.dataset.certa ? 'certa' : 'errada');
+    b.setAttribute('aria-pressed', 'true');
     q.querySelector(`button[data-op="${q.dataset.certa}"]`).classList.add('certa');
     q.querySelector('.explica').hidden = false;
     placar();
