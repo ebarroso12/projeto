@@ -1093,3 +1093,118 @@ Object.assign(handlers, {
     }).sort((x, y) => y.produzidas - x.produzidas);
   },
 });
+
+// ---------------------------------------------------------------- matéria-prima (demonstração; mesma regra do banco)
+interface MMaterial { id: string; nome: string; unidade: string; minimo: number; inicio: string; ativo: boolean; obs: string; regras: { etapa: string; modelo: string; qtdPorPeca: number }[] }
+interface MMov { id: string; materialId: string; tipo: 'entrada' | 'saida' | 'ajuste'; qtd: number; data: string; valor: number | null; fornecedor: string; finId: string | null; obs: string; por: string }
+const inicioMat = isoDay(addDays(new Date(), -45));
+const materiaisDemo: MMaterial[] = [
+  { id: 'm1', nome: 'Malha piquet', unidade: 'kg', minimo: 120, inicio: inicioMat, ativo: true, obs: '', regras: [{ etapa: 'Corte', modelo: 'Camisa Polo', qtdPorPeca: 0.22 }] },
+  { id: 'm2', nome: 'Tecido tactel', unidade: 'm', minimo: 200, inicio: inicioMat, ativo: true, obs: '', regras: [{ etapa: 'Corte', modelo: 'Bermuda Tactel', qtdPorPeca: 0.6 }, { etapa: 'Corte', modelo: 'Jaqueta Corta-vento', qtdPorPeca: 1.4 }] },
+  { id: 'm3', nome: 'Linha de costura', unidade: 'cone', minimo: 30, inicio: inicioMat, ativo: true, obs: 'Cone 4.000 m', regras: [{ etapa: 'Costura', modelo: '', qtdPorPeca: 0.01 }] },
+  { id: 'm4', nome: 'Zíper 15 cm', unidade: 'un', minimo: 300, inicio: inicioMat, ativo: true, obs: '', regras: [{ etapa: 'Costura', modelo: 'Jaqueta Corta-vento', qtdPorPeca: 1 }, { etapa: 'Costura', modelo: 'Calça Jeans', qtdPorPeca: 1 }] },
+  { id: 'm5', nome: 'Etiqueta bordada', unidade: 'un', minimo: 500, inicio: inicioMat, ativo: true, obs: '', regras: [{ etapa: 'Conferência', modelo: '', qtdPorPeca: 1 }] },
+];
+const movsDemo: MMov[] = [
+  { id: 'mv1', materialId: 'm1', tipo: 'entrada', qtd: 900, data: inicioMat, valor: 31500, fornecedor: 'Tecelagem Sul', finId: null, obs: '', por: 'Edson' },
+  { id: 'mv2', materialId: 'm2', tipo: 'entrada', qtd: 1800, data: inicioMat, valor: 16200, fornecedor: 'Tecelagem Sul', finId: null, obs: '', por: 'Edson' },
+  { id: 'mv3', materialId: 'm3', tipo: 'entrada', qtd: 80, data: inicioMat, valor: 1440, fornecedor: 'Aviamentos Franca', finId: null, obs: '', por: 'Edson' },
+  { id: 'mv4', materialId: 'm4', tipo: 'entrada', qtd: 2500, data: inicioMat, valor: 1750, fornecedor: 'Aviamentos Franca', finId: null, obs: '', por: 'Edson' },
+  { id: 'mv5', materialId: 'm5', tipo: 'entrada', qtd: 6000, data: inicioMat, valor: 900, fornecedor: 'Aviamentos Franca', finId: null, obs: '', por: 'Edson' },
+  { id: 'mv6', materialId: 'm1', tipo: 'saida', qtd: 12, data: isoDay(addDays(new Date(), -10)), valor: null, fornecedor: '', finId: null, obs: 'Perda no enfesto', por: 'Bruno Lima' },
+];
+function consumoMat(m: MMaterial, ini: string, fim: string) {
+  let t = 0;
+  for (const l of state.lancs) {
+    if (l.data < (ini > m.inicio ? ini : m.inicio) || l.data > fim) continue;
+    const esp = m.regras.find(r => r.etapa === l.etapa && r.modelo === l.modelo);
+    const ger = m.regras.find(r => r.etapa === l.etapa && r.modelo === '');
+    const r = esp ?? ger;
+    if (r) t += l.qtd * r.qtdPorPeca;
+  }
+  return Math.round(t * 1000) / 1000;
+}
+function materialJson(m: MMaterial) {
+  const mv = movsDemo.filter(x => x.materialId === m.id);
+  const soma = (tipo: string) => mv.filter(x => x.tipo === tipo).reduce((s, x) => s + x.qtd, 0);
+  const hoje = today(), consumo = consumoMat(m, m.inicio, hoje);
+  const comValor = mv.filter(x => x.tipo === 'entrada' && x.valor !== null);
+  const qv = comValor.reduce((s, x) => s + x.qtd, 0);
+  return {
+    ...m, entradas: soma('entrada'), saidas: soma('saida'), ajustes: soma('ajuste'), consumo, consumo30: consumoMat(m, isoDay(addDays(new Date(), -29)), hoje),
+    saldo: Math.round((soma('entrada') - soma('saida') + soma('ajuste') - consumo) * 1000) / 1000,
+    custoMedio: qv ? Math.round((comValor.reduce((s, x) => s + (x.valor ?? 0), 0) / qv) * 10000) / 10000 : null,
+    ultimaEntrada: mv.filter(x => x.tipo === 'entrada').map(x => x.data).sort().pop() ?? null,
+  };
+}
+Object.assign(ROTAS_MOCK, Object.fromEntries(['materiais', 'salvarMaterial', 'apagarMaterial', 'movimentarMaterial', 'movsMaterial', 'apagarMovMaterial', 'materialOpcoes'].map(f => [f, 'materiais'])));
+Object.assign(handlers, {
+  materiais: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return materiaisDemo.map(materialJson).sort((a, b) => Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome)); },
+  salvarMaterial: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = o as MMaterial;
+    if (!String(r.nome ?? '').trim()) throw fromServerMessage('Informe o nome do material.');
+    if (!String(r.unidade ?? '').trim()) throw fromServerMessage('Informe a unidade (kg, m, un…).');
+    if (materiaisDemo.some(m => m.id !== r.id && m.nome.toLowerCase() === r.nome.trim().toLowerCase())) throw fromServerMessage('Já existe um material com esse nome.');
+    if ((r.regras ?? []).some(g => !(Number(g.qtdPorPeca) > 0))) throw fromServerMessage('Consumo por peça precisa ser maior que zero.');
+    const ex = materiaisDemo.find(m => m.id === r.id);
+    const base = { nome: r.nome.trim(), unidade: r.unidade.trim(), minimo: Number(r.minimo) || 0, obs: r.obs ?? '', regras: (r.regras ?? []).map(g => ({ ...g, qtdPorPeca: Number(g.qtdPorPeca) })) };
+    if (ex) { Object.assign(ex, base, { ativo: r.ativo ?? ex.ativo, inicio: r.inicio || ex.inicio }); return ex.id; }
+    const id = `m${Date.now()}`;
+    materiaisDemo.push({ id, ativo: true, inicio: r.inicio || today(), ...base });
+    return id;
+  },
+  apagarMaterial: ([t, id]: unknown[]) => { requireAdmin(userOf(String(t))); const i = materiaisDemo.findIndex(m => m.id === id); if (i < 0) throw fromServerMessage('Material não encontrado.'); materiaisDemo.splice(i, 1); return null; },
+  movimentarMaterial: ([t, o]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const r = o as Record<string, unknown>;
+    const m = materiaisDemo.find(x => x.id === r.materialId);
+    if (!m) throw fromServerMessage('Material não encontrado.');
+    let qtd = Number(r.qtd);
+    if (r.tipo === 'ajuste') {
+      qtd = Math.round((Number(r.contado) - materialJson(m).saldo) * 1000) / 1000;
+      if (!Number.isFinite(qtd)) throw fromServerMessage('Informe a quantidade contada.');
+      if (qtd === 0) throw fromServerMessage('O saldo contado é igual ao do sistema: nada a ajustar.');
+    } else if (!(qtd > 0)) throw fromServerMessage('Informe uma quantidade maior que zero.');
+    const forn = r.fornecedorId ? registrosDemo.find(x => x.id === r.fornecedorId && x.tipo === 'fornecedor') : undefined;
+    let finId: string | null = null;
+    if (r.contaId) {
+      if (r.tipo !== 'entrada') throw fromServerMessage('Só a entrada (compra) é lançada no Financeiro.');
+      if (!(Number(r.valor) > 0)) throw fromServerMessage('Informe o valor da compra para lançar no Financeiro.');
+      conta(r.contaId);
+      finId = uid();
+      fin.lancamentos.push({ id: finId, tipo: 'saida', data: r.data || today(), descricao: `Compra: ${m.nome} (${qtd} ${m.unidade})`, valor: Number(r.valor), contaId: r.contaId, cartaoId: null,
+        forma: '', categoria: 'Matéria-prima', responsavel: '', centro: '', parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null,
+        origemId: null, obs: '', contraparteId: forn ? forn.id : null, contraparte: forn ? String(forn.nome) : '' });
+    }
+    const id = `mv${Date.now()}`;
+    movsDemo.push({ id, materialId: m.id, tipo: r.tipo as MMov['tipo'], qtd, data: String(r.data || today()), valor: r.tipo === 'entrada' && r.valor !== undefined && r.valor !== null && r.valor !== '' ? Number(r.valor) : null,
+      fornecedor: forn ? String(forn.nome) : '', finId, obs: String(r.obs ?? ''), por: u.nome });
+    return id;
+  },
+  movsMaterial: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const m = materiaisDemo.find(x => x.id === id);
+    if (!m) throw fromServerMessage('Material não encontrado.');
+    const meses = Array.from({ length: 6 }, (_, k) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - k)); return isoDay(d).slice(0, 7); });
+    return {
+      movimentos: movsDemo.filter(x => x.materialId === m.id).sort((a, b) => b.data.localeCompare(a.data)).map(x => ({ ...x, noFinanceiro: !!x.finId })),
+      consumoMensal: meses.map(mes => ({ mes, qtd: consumoMat(m, `${mes}-01`, `${mes}-31`) })),
+    };
+  },
+  apagarMovMaterial: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const i = movsDemo.findIndex(x => x.id === id);
+    if (i < 0) throw fromServerMessage('Movimento não encontrado.');
+    if (movsDemo[i]!.finId && fin.lancamentos.some(l => l.id === movsDemo[i]!.finId && !l.apagado)) throw fromServerMessage('Esta compra está no Financeiro: exclua o lançamento lá antes.');
+    movsDemo.splice(i, 1);
+    return null;
+  },
+  materialOpcoes: ([t]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    return {
+      fornecedores: registrosDemo.filter(r => r.tipo === 'fornecedor' && r.ativo !== false).map(r => ({ id: r.id, nome: r.nome })),
+      contas: funcoesDe(u).financeiro ? fin.contas.filter(c => c.ativa).map(c => ({ id: c.id, nome: c.nome })) : [],
+    };
+  },
+});

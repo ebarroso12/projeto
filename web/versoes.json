@@ -1,5 +1,18 @@
 [
   {
+    "versao": "1.7.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Pedidos de clientes: itens por modelo, cor e tamanho, andamento automático por etapa a partir do Lançar, fila de produção e alerta de atraso",
+      "Entrega do pedido lança no Financeiro: conta a receber em parcelas ou recebimento à vista",
+      "Contas a receber: vendas a prazo, parcelas, recebimento e aviso de clientes em atraso (também na ficha do cliente)",
+      "Produtividade: peças por pessoa, por dia e por hora; valor por peça por etapa e modelo; pagamento por produção lançado no Financeiro",
+      "Resultado: lucro por modelo (preço − material − mão de obra) e o que foi vendido em pedidos",
+      "Matéria-prima: estoque com baixa automática pela produção, compras com custo médio, contagem e aviso de compra",
+      "Todos os campos de senha com olho; números longos cabem nos cartões no celular"
+    ]
+  },
+  {
     "versao": "1.6.1",
     "data": "2026-11-27",
     "novidades": [

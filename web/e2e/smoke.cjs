@@ -317,6 +317,42 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => page.getByText('Lucro estimado').isVisible()) && await page.getByRole('table', { name: 'Lucro por modelo' }).getByText('Camisa Polo').isVisible(), 'lucro por modelo com preço, custo e mão de obra');
   await shot(page, '17-lucro-modelos');
 
+  // Matéria-prima: estoque com baixa pela produção, entrada com compra no Financeiro e contagem
+  await page.locator('.sidebar').getByRole('link', { name: 'Matéria-prima' }).click();
+  await page.getByRole('table', { name: 'Matéria-prima' }).waitFor();
+  ok(await page.getByText('Precisam de compra').isVisible() && await page.getByRole('button', { name: /^Malha piquet/ }).isVisible(), 'estoque lista materiais com situação');
+  await page.getByRole('button', { name: 'Novo material' }).click();
+  const dm = page.locator('dialog[open]');
+  await dm.getByLabel('Material').fill('Elástico 3 cm');
+  await dm.getByLabel('Unidade').fill('m');
+  await dm.getByLabel(/Estoque mínimo/).fill('100');
+  await dm.getByRole('button', { name: 'Adicionar regra de consumo' }).click();
+  await dm.getByLabel('Etapa').selectOption('Costura');
+  await dm.getByLabel('Modelo').selectOption('Bermuda Tactel');
+  await dm.getByLabel('m por peça').fill('0,8');
+  await dm.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Material salvo.').waitFor();
+  const linhaEl = page.locator('tr', { hasText: 'Elástico 3 cm' });
+  ok(await until(() => linhaEl.getByText('Sem estoque').isVisible()), 'material novo começa sem estoque');
+  await linhaEl.getByRole('button', { name: 'Entrada' }).click();
+  const de2 = page.locator('dialog[open]');
+  await de2.getByLabel('Quantidade (m)').fill('500');
+  await de2.getByLabel('Valor total da compra (R$)').fill('250');
+  await de2.getByLabel('Fornecedor').selectOption({ label: 'Aviamentos Franca' });
+  await de2.getByLabel('Lançar a compra no Financeiro').selectOption({ index: 1 });
+  await de2.getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByText('Movimento registrado.').waitFor();
+  ok(await until(() => linhaEl.getByText(/R\$\s0,50/).isVisible()) && !(await linhaEl.getByText('Sem estoque').count()), 'entrada soma ao saldo (menos o consumo de hoje) e calcula o custo médio');
+  await linhaEl.getByRole('button', { name: 'Contagem' }).click();
+  await page.locator('dialog[open]').getByLabel(/Quanto há no estoque/).fill('480');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByText('Estoque ajustado pela contagem.').waitFor();
+  ok(await until(() => linhaEl.getByText('480 m').isVisible()), 'contagem ajusta o saldo');
+  await page.getByRole('button', { name: /^Elástico 3 cm/ }).click();
+  ok(await until(() => page.locator('dialog[open]').getByText('Ajuste de contagem').isVisible()) && await page.locator('dialog[open]').getByText(/no Financeiro/).isVisible(), 'histórico mostra a compra (no Financeiro) e o ajuste');
+  await shot(page, '18-materia-prima');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Fechar' }).last().click();
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();

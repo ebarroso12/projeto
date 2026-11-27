@@ -14,7 +14,7 @@ import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import { ApiError, fromServerMessage } from './transport';
@@ -191,6 +191,13 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     finFecharProducao: async (ini, fim, contaId, data, logins) => num(await rpc('fin_fechar_producao', { p_ini: ini, p_fim: fim, p_conta: contaId, p_data: data, p_logins: logins })),
     finDesfazerFechamento: async id => { await rpc('fin_desfazer_fechamento', { p_id: id }); },
     dreLucroModelos: async (ini, fim) => parseLucroModelos(await rpc('dre_lucro_modelos', { p_ini: ini, p_fim: fim })),
+    materiais: async () => parseMateriais(await rpc('fab_materiais')),
+    salvarMaterial: async o => str(await rpc('fab_salvar_material', { p: o })),
+    apagarMaterial: async id => { await rpc('fab_apagar_material', { p_id: id }); },
+    movimentarMaterial: async o => str(await rpc('fab_movimentar_material', { p: o })),
+    movsMaterial: async id => parseHistoricoMaterial(await rpc('fab_movs_material', { p_id: id })),
+    apagarMovMaterial: async id => { await rpc('fab_apagar_mov_material', { p_id: id }); },
+    materialOpcoes: async () => parseMaterialOpcoes(await rpc('fab_material_opcoes')),
     finDados: async () => parseFin(await rpc('fin_dados')),
     finSalvarLancamento: async o => str(await rpc('fin_salvar_lancamento', { p: o })),
     finContrapartes: async () => parseContrapartes(await rpc('fin_contrapartes')),

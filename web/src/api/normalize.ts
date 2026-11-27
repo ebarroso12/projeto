@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, LucroModelo, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -302,3 +302,26 @@ export const parseLucroModelos = (v: unknown): LucroModelo[] =>
     modelo: str(r.modelo), produzidas: num(r.produzidas), maoDeObra: num(r.maoDeObra), maoDeObraPeca: num(r.maoDeObraPeca),
     preco: numOrNull(r.preco), custo: numOrNull(r.custo), cadastrado: bool(r.cadastrado), entreguesPecas: num(r.entreguesPecas), entreguesValor: num(r.entreguesValor),
   }));
+
+export const parseMateriais = (v: unknown): Material[] =>
+  (Array.isArray(v) ? v : []).map(rec).map(r => ({
+    id: str(r.id), nome: str(r.nome), unidade: str(r.unidade), minimo: num(r.minimo), inicio: str(r.inicio), ativo: bool(r.ativo, true), obs: str(r.obs),
+    entradas: num(r.entradas), saidas: num(r.saidas), ajustes: num(r.ajustes), consumo: num(r.consumo), consumo30: num(r.consumo30), saldo: num(r.saldo),
+    custoMedio: numOrNull(r.custoMedio), ultimaEntrada: strOrNull(r.ultimaEntrada),
+    regras: (Array.isArray(r.regras) ? r.regras : []).map(rec).map(g => ({ etapa: str(g.etapa), modelo: str(g.modelo), qtdPorPeca: num(g.qtdPorPeca) })),
+  }));
+export function parseHistoricoMaterial(v: unknown): HistoricoMaterial {
+  const r = rec(v);
+  return {
+    movimentos: (Array.isArray(r.movimentos) ? r.movimentos : []).map(rec).map(m => ({
+      id: str(m.id), tipo: (['entrada', 'saida', 'ajuste'].includes(str(m.tipo)) ? str(m.tipo) : 'ajuste') as MovMaterial['tipo'],
+      qtd: num(m.qtd), data: str(m.data), valor: numOrNull(m.valor), fornecedor: str(m.fornecedor), noFinanceiro: bool(m.noFinanceiro), obs: str(m.obs), por: str(m.por),
+    })),
+    consumoMensal: (Array.isArray(r.consumoMensal) ? r.consumoMensal : []).map(rec).map(c => ({ mes: str(c.mes), qtd: num(c.qtd) })),
+  };
+}
+export function parseMaterialOpcoes(v: unknown): MaterialOpcoes {
+  const r = rec(v);
+  const l = (x: unknown) => (Array.isArray(x) ? x : []).map(rec).map(o => ({ id: str(o.id), nome: str(o.nome) }));
+  return { fornecedores: l(r.fornecedores), contas: l(r.contas) };
+}

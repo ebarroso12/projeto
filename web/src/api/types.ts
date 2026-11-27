@@ -262,3 +262,18 @@ export interface LucroModelo {
   modelo: string; produzidas: number; maoDeObra: number; maoDeObraPeca: number;
   preco: number | null; custo: number | null; cadastrado: boolean; entreguesPecas: number; entreguesValor: number;
 }
+
+// =====================================================================
+// Estoque de matéria-prima
+// =====================================================================
+export interface RegraConsumo { etapa: string; modelo: string; qtdPorPeca: number }
+export interface Material {
+  id: string; nome: string; unidade: string; minimo: number; inicio: string; ativo: boolean; obs: string;
+  entradas: number; saidas: number; ajustes: number; consumo: number; consumo30: number; saldo: number;
+  custoMedio: number | null; ultimaEntrada: string | null; regras: RegraConsumo[];
+}
+export interface MaterialInput { id?: string; nome: string; unidade: string; minimo: number; inicio?: string; ativo?: boolean; obs: string; regras: RegraConsumo[] }
+export interface MovMaterial { id: string; tipo: 'entrada' | 'saida' | 'ajuste'; qtd: number; data: string; valor: number | null; fornecedor: string; noFinanceiro: boolean; obs: string; por: string }
+export interface MovMaterialInput { materialId: string; tipo: 'entrada' | 'saida' | 'ajuste'; qtd?: number; contado?: number; data: string; valor?: number | null; fornecedorId?: string | null; contaId?: string | null; obs: string }
+export interface HistoricoMaterial { movimentos: MovMaterial[]; consumoMensal: { mes: string; qtd: number }[] }
+export interface MaterialOpcoes { fornecedores: { id: string; nome: string }[]; contas: { id: string; nome: string }[] }

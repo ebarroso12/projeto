@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, PedidoInput, PedidoReceber, PedidoStatus, ValorPeca, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, MaterialInput, MovMaterialInput, PedidoInput, PedidoReceber, PedidoStatus, ValorPeca, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -119,6 +119,15 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     finFecharProducao: async (ini: string, fim: string, contaId: string, data: string, logins: string[]) => num(await call('finFecharProducao', tok(), ini, fim, contaId, data, logins)),
     finDesfazerFechamento: async (id: string) => { await call('finDesfazerFechamento', tok(), id); },
     dreLucroModelos: async (ini: string, fim: string) => parseLucroModelos(await call('dreLucroModelos', tok(), ini, fim)),
+
+    // ----- matéria-prima -----
+    materiais: async () => parseMateriais(await call('materiais', tok())),
+    salvarMaterial: async (o: MaterialInput) => str(await call('salvarMaterial', tok(), o)),
+    apagarMaterial: async (id: string) => { await call('apagarMaterial', tok(), id); },
+    movimentarMaterial: async (o: MovMaterialInput) => str(await call('movimentarMaterial', tok(), o)),
+    movsMaterial: async (id: string) => parseHistoricoMaterial(await call('movsMaterial', tok(), id)),
+    apagarMovMaterial: async (id: string) => { await call('apagarMovMaterial', tok(), id); },
+    materialOpcoes: async () => parseMaterialOpcoes(await call('materialOpcoes', tok())),
 
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),

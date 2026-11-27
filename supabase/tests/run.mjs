@@ -748,6 +748,51 @@ ok(fails_with(await rpc(ana, `dre_lucro_modelos('2026-01-01', '2026-01-31')`), '
 await q(`delete from fab.fechamentos_producao`); await q(`delete from fab.valores_peca`);
 await q(`delete from fab.lancamentos where dia between '2026-01-01' and '2026-02-28'`); await q(`delete from fab.ponto where dia between '2026-01-01' and '2026-01-31'`);
 await q(`delete from fab.fin_lancamentos where descricao like 'Produção %'`);
+// ============ 27. estoque de matéria-prima ============
+console.log('\n--- matéria-prima ---');
+const fornM = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'fornecedor', nome: 'Malharia Teste' })})`)).data;
+let rm = await rpc(admin, `fab_salvar_material(${j({ nome: 'Malha moletom', unidade: 'm', minimo: 50, inicio: '2026-03-01',
+  regras: [{ etapa: 'Corte', modelo: '', qtdPorPeca: 0.5 }, { etapa: 'Corte', modelo: 'Calça Jeans', qtdPorPeca: 1.2 }] })})`);
+const mat = rm.data;
+ok(rm.ok, 'cadastra material com regras de consumo (geral e por modelo)');
+ok(fails_with(await rpc(admin, `fab_salvar_material(${j({ nome: 'malha MOLETOM', unidade: 'm' })})`), 'Já existe'), 'nome repetido recusado');
+ok(fails_with(await rpc(admin, `fab_salvar_material(${j({ nome: 'X', unidade: 'm', regras: [{ etapa: 'Corte', qtdPorPeca: 0 }] })})`), 'maior que zero'), 'consumo zero recusado');
+ok((await rpc(admin, `fab_movimentar_material(${j({ materialId: mat, tipo: 'entrada', qtd: 300, data: '2026-03-02', valor: 1500, fornecedorId: fornM, contaId: conta })})`)).ok, 'entrada (compra) lançada também no Financeiro');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const compra = fin.lancamentos.find(l => l.descricao === 'Compra: Malha moletom (300 m)');
+ok(compra && compra.tipo === 'saida' && compra.valor === 1500 && compra.categoria === 'Matéria-prima' && compra.contraparteId === fornM, 'compra vira saída do fornecedor no Financeiro');
+const L27 = (etapa, qtd, dia, modelo = 'Camisa Polo') =>
+  q(`insert into fab.lancamentos (empresa_id, user_id, etapa, modelo, cor, tamanho, qtd, dia) values ($1, $2, $3, $4, 'Preto', 'M', $5, $6::date)`, [empA, admin, etapa, modelo, qtd, dia]);
+const base27 = (await rpc(admin, 'fab_materiais()')).data.find(x => x.id === mat).consumo;   // produção de outras seções (hoje) também conta
+await L27('Corte', 100, '2026-03-05'); await L27('Corte', 50, '2026-03-06', 'Calça Jeans'); await L27('Costura', 100, '2026-03-06'); await L27('Corte', 999, '2026-02-20');
+let mats = (await rpc(admin, 'fab_materiais()')).data;
+let mm = mats.find(x => x.id === mat);
+ok(mm.consumo === base27 + 110 && mm.saldo === 190 - base27, 'consumo da produção: 100 × 0,5 + 50 calças × 1,2 (regra do modelo); costura e antes do início não contam');
+ok(mm.custoMedio === 5 && mm.ultimaEntrada === '2026-03-02', 'custo médio por metro e última entrada');
+ok((await rpc(admin, `fab_movimentar_material(${j({ materialId: mat, tipo: 'saida', qtd: 20, data: '2026-03-07', obs: 'perda' })})`)).ok, 'saída manual (perda)');
+ok(fails_with(await rpc(admin, `fab_movimentar_material(${j({ materialId: mat, tipo: 'saida', qtd: 5, contaId: conta })})`), 'Só a entrada'), 'só a compra vai para o Financeiro');
+ok(fails_with(await rpc(admin, `fab_movimentar_material(${j({ materialId: mat, tipo: 'entrada', qtd: 5, valor: 0, contaId: conta })})`), 'valor da compra'), 'compra sem valor não vai para o Financeiro');
+ok((await rpc(admin, `fab_movimentar_material(${j({ materialId: mat, tipo: 'ajuste', contado: 160, data: '2026-03-08' })})`)).ok, 'ajuste por contagem');
+mm = (await rpc(admin, 'fab_materiais()')).data.find(x => x.id === mat);
+ok(mm.saldo === 160 && mm.ajustes === 160 - (280 - (base27 + 110)), 'saldo vira o contado (ajuste = contado − calculado)');
+ok(fails_with(await rpc(admin, `fab_movimentar_material(${j({ materialId: mat, tipo: 'ajuste', contado: 160 })})`), 'nada a ajustar'), 'ajuste igual ao saldo recusado');
+await q(`update fab.lancamentos set apagado_em = now() where dia = '2026-03-06' and modelo = 'Calça Jeans'`);
+mm = (await rpc(admin, 'fab_materiais()')).data.find(x => x.id === mat);
+ok(mm.saldo === 220, 'apagar produção devolve o consumo ao estoque (+60)');
+const histM = (await rpc(admin, `fab_movs_material('${mat}')`)).data;
+ok(histM.movimentos.length === 3 && histM.movimentos[0].tipo === 'ajuste' && histM.consumoMensal.length === 6, 'histórico de movimentos e consumo mensal');
+const movCompra = histM.movimentos.find(m => m.tipo === 'entrada');
+ok(fails_with(await rpc(admin, `fab_apagar_mov_material('${movCompra.id}')`), 'Financeiro'), 'compra no Financeiro não é apagada aqui');
+const op = (await rpc(admin, 'fab_material_opcoes()')).data;
+ok(op.fornecedores.some(f => f.id === fornM) && op.contas.length >= 1, 'opções: fornecedores e contas');
+ok(fails_with(await rpc(ana, 'fab_materiais()'), 'FUNCAO_BLOQUEADA'), 'funcionário sem a função Materiais não vê');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ materiais: true })})`);
+ok((await rpc(carla, 'fab_materiais()')).ok && (await rpc(carla, 'fab_material_opcoes()')).data.contas.length === 0, 'com Materiais liberado vê o estoque; sem Financeiro não recebe as contas');
+ok(fails_with(await rpc(carla, `fab_movimentar_material(${j({ materialId: mat, tipo: 'entrada', qtd: 1, valor: 10, contaId: conta })})`), 'acesso ao Financeiro'), 'sem Financeiro não lança a compra');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ materiais: false })})`);
+ok((await rpc(adminB, 'fab_materiais()')).data.length === 0 && fails_with(await rpc(adminB, `fab_movs_material('${mat}')`), 'não encontrado'), 'outra empresa não vê o estoque');
+ok((await rpc(admin, `fab_apagar_material('${mat}')`)).ok, 'exclui o material');
+await q(`delete from fab.lancamentos where dia between '2026-02-01' and '2026-03-31'`); await q(`delete from fab.fin_lancamentos where id = '${compra.id}'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 
