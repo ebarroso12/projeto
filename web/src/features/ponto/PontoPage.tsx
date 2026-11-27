@@ -36,12 +36,31 @@ export default function PontoPage() {
     if (await confirm({ title: `Marcar ${nome}`, message: `Confirmar ${nome.toLowerCase()} agora, às ${hora}?`, confirmLabel: `Marcar ${nome}` })) bater.mutate(tipo);
   };
 
+  // anel: andamento do expediente (da entrada até o fim previsto); depois do fim, vira hora extra
+  const ini = p.entrada ? hmToMin(p.entrada) : 0, fim = hmToMin(horaFim), agora = p.saida ? hmToMin(p.saida) : nowMin(now);
+  const total = Math.max(1, fim - ini), feito = p.entrada ? Math.max(0, agora - ini) : 0;
+  const frac = p.entrada ? Math.min(1, feito / total) : 0;
+  const extra = p.entrada && agora > fim ? agora - fim : 0;
+  const falta = p.entrada && !p.saida && agora < fim ? fim - agora : 0;
+  const hm = (m: number) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+  const R = 108, C = 2 * Math.PI * R;
+  const estado = !p.entrada ? 'Ainda não marcou entrada' : p.saida ? `Trabalhou ${hm(feito)} hoje` : extra ? `Hora extra: ${hm(extra)}` : `Faltam ${hm(falta)} para as ${horaFim}`;
+
   return (
     <div className="narrow">
       <PageHeader title="Ponto" subtitle={dataBR(hoje)} />
       <Card>
         <div className="stack">
-          <div className="clock" aria-live="off" aria-label={`Agora são ${hora}`}>{hora}</div>
+          <div className={`ponto-ring${extra ? ' extra' : ''}${p.saida ? ' fechado' : ''}`} aria-live="off" aria-label={`Agora são ${hora}. ${estado}`}>
+            <svg viewBox="0 0 260 260" width="260" height="260" aria-hidden="true">
+              <circle cx="130" cy="130" r={R} className="ring-track" />
+              {frac > 0 && <circle cx="130" cy="130" r={R} className="ring-fill" strokeDasharray={`${frac * C} ${C}`} transform="rotate(-90 130 130)" />}
+            </svg>
+            <div className="ring-center">
+              <div className="clock">{hora}</div>
+              <div className="ring-estado">{estado}</div>
+            </div>
+          </div>
 
           {exigirWifi && (
             <div style={{ textAlign: 'center' }}>
@@ -52,12 +71,12 @@ export default function PontoPage() {
           )}
 
           <div className="punch-grid">
-            <div className="punch-box"><small className="muted">Entrada</small><b>{p.entrada || '--:--'}</b></div>
-            <div className="punch-box"><small className="muted">Saída</small><b>{p.saida || '--:--'}</b></div>
+            <div className={`punch-box${p.entrada ? ' ok' : ''}`}><small className="muted">Entrada</small><b>{p.entrada || '--:--'}</b></div>
+            <div className={`punch-box${p.saida ? ' ok' : ''}`}><small className="muted">Saída</small><b>{p.saida || '--:--'}</b></div>
           </div>
 
-          <Button variant="success" size="lg" block disabled={!podeEntrar} loading={bater.isPending && bater.variables === 'entrada'} onClick={() => void marcar('entrada')}>Marcar ENTRADA</Button>
-          <Button variant="danger" size="lg" block disabled={!podeSair} loading={bater.isPending && bater.variables === 'saida'} onClick={() => void marcar('saida')}>Marcar SAÍDA</Button>
+          <Button variant={podeEntrar ? 'success' : 'secondary'} size="lg" block disabled={!podeEntrar} loading={bater.isPending && bater.variables === 'entrada'} onClick={() => void marcar('entrada')}>Marcar ENTRADA</Button>
+          <Button variant={podeSair ? 'danger' : 'secondary'} size="lg" block disabled={!podeSair} loading={bater.isPending && bater.variables === 'saida'} onClick={() => void marcar('saida')}>Marcar SAÍDA</Button>
 
           {p.saida && p.extra && <Banner tone="info">Hora extra hoje: <b>{p.extra}</b></Banner>}
           {p.entrada && !p.saida && passouDoFim && <Banner tone="warn">Passou das {horaFim}: contando <b>hora extra</b>. Marque a SAÍDA quando for embora.</Banner>}

@@ -77,3 +77,12 @@ export function dataCompleta(d?: string | null): string {
   const p = d.slice(0, 10).split('-');
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
 }
+
+/** "Bom dia" / "Boa tarde" / "Boa noite" pela hora local. */
+export function saudacao(d = new Date()): string {
+  const h = d.getHours();
+  return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+}
+export const primeiroNome = (nome: string) => nome.trim().split(/\s+/)[0] ?? nome;
+/** "Edson Barroso" -> "EB". */
+export const iniciais = (nome: string) => nome.trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';

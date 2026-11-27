@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '../ui/Button';
@@ -7,7 +7,8 @@ import { TextField } from '../ui/Field';
 import { Icon } from '../ui/Icon';
 import { PageArt } from '../ui/primitives';
 import { useToast } from '../ui/Toast';
-import { longDate } from '../lib/format';
+import { iniciais, longDate } from '../lib/format';
+import { Comando, type Acao } from './Comando';
 import { MIN_SENHA } from '../lib/rules';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useApi, useAuth } from './auth';
@@ -72,7 +73,8 @@ function UserMenu({ onPassword }: { onPassword: () => void }) {
 
 export function AppShell() {
   const boot = useBoot();
-  const { demo } = useAuth();
+  const { demo, signOut } = useAuth();
+  const [cmd, setCmd] = useState(false);
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
   const [pwd, setPwd] = useState(false);
@@ -81,6 +83,12 @@ export function AppShell() {
   const current = features.find(f => pathname.startsWith(f.path));
   usePresenca(current?.label ?? '', !boot.eu.leitura);
   const pendentes = usePendentes(boot.eu.admin && !boot.eu.leitura);
+  const pageInfo = useMemo(() => ({ art: current ? `marca/${current.id}.webp` : undefined, grupo: current?.group }), [current]);
+  const acoes: Acao[] = useMemo(() => [
+    { id: 'tema', label: theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro', dica: 'Aparência', icon: theme === 'dark' ? 'sun' : 'moon', run: toggle },
+    ...(boot.eu.leitura ? [] : [{ id: 'senha', label: 'Trocar minha senha', dica: 'Conta', icon: 'key' as const, run: () => setPwd(true) }]),
+    { id: 'sair', label: 'Sair do sistema', dica: 'Conta', icon: 'logout', run: () => signOut() },
+  ], [theme, toggle, boot.eu.leitura, signOut]);
   const contar = (f: (typeof items)[number]) => (f.id === 'acessos' ? pendentes.length : f.badge?.(boot) ?? 0);
 
   useEffect(() => { document.title = `${current?.title ?? 'Fábrica'} · Fábrica`; }, [current]);
@@ -109,7 +117,13 @@ export function AppShell() {
             );
           })}
         </nav>
-        <div className="sidebar-foot">{boot.eu.nome}<br /><small>{boot.eu.setor}</small></div>
+        <div className="sidebar-foot">
+          <div className="user-card">
+            <span className="avatar" aria-hidden="true">{iniciais(boot.eu.nome)}</span>
+            <span className="user-txt"><b>{boot.eu.nome}</b><small>{boot.eu.admin ? 'Administrador' : boot.eu.leitura ? 'Só acompanhamento' : boot.eu.setor}</small></span>
+            <button type="button" className="user-out" onClick={() => signOut()} aria-label="Sair" title="Sair"><Icon name="logout" size={16} /></button>
+          </div>
+        </div>
       </aside>
 
       <div className="main">
@@ -119,6 +133,9 @@ export function AppShell() {
             <span className="topbar-date">{longDate()}</span>
           </div>
           <div className="topbar-right">
+            <button type="button" className="cmd-trigger" onClick={() => setCmd(true)} aria-label="Busca rápida (Ctrl+K)">
+              <Icon name="search" size={16} /><span>Buscar ou ir para…</span><kbd>Ctrl K</kbd>
+            </button>
             <Button variant="ghost" iconOnly onClick={toggle} aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}>
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
             </Button>
@@ -127,7 +144,7 @@ export function AppShell() {
         </header>
         <main className="page" id="conteudo">
           <PendentesBanner pendentes={pendentes} />
-          <PageArt.Provider value={current ? `marca/${current.id}.webp` : undefined}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
+          <PageArt.Provider value={pageInfo}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
         </main>
       </div>
 
@@ -158,6 +175,7 @@ export function AppShell() {
       </Dialog>
 
       <ChangePassword open={pwd} onClose={() => setPwd(false)} />
+      <Comando features={items} acoes={acoes} aberto={cmd} setAberto={setCmd} />
     </div>
   );
 }

@@ -5,10 +5,12 @@ import type { Api } from './api/client';
 import { createApi } from './api/client';
 import { httpTransport } from './api/transport';
 import '@fontsource-variable/inter'; // fonte embutida no app (sem depender de servidor externo)
+import '@fontsource-variable/plus-jakarta-sans'; // títulos e números de destaque
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/layout.css';
 import './styles/components.css';
+import './styles/polish.css';
 
 declare global {
   interface Window {

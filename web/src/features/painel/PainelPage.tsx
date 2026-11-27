@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Painel, Presenca, Saldo } from '../../api/types';
 import { useApi } from '../../app/auth';
 import { useBoot } from '../../app/boot';
-import { formatNumber } from '../../lib/format';
+import { formatNumber, primeiroNome, saudacao } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { Icon } from '../../ui/Icon';
@@ -72,10 +72,11 @@ function PainelView({ p }: { p: Painel }) {
 
 export default function PainelPage() {
   const api = useApi();
+  const { eu } = useBoot();
   const q = useQuery({ queryKey: ['painel'], queryFn: () => api.painel(), refetchInterval: 60_000 });
   return (
     <>
-      <PageHeader title="Painel" subtitle="Produção e presença de hoje · atualiza sozinho a cada minuto"
+      <PageHeader title={eu.leitura ? 'Painel' : `${saudacao()}, ${primeiroNome(eu.nome)}`} subtitle="Produção e presença de hoje · atualiza sozinho a cada minuto"
         actions={<Button icon={<Icon name="refresh" size={16} />} loading={q.isFetching && !q.isPending} onClick={() => void q.refetch()}>Atualizar</Button>} />
       <QueryView query={q}>{p => <PainelView p={p} />}</QueryView>
     </>
