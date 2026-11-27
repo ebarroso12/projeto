@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Funções do Fábrica</title>
+<style>
+  :root { --bg: #f6f7fb; --card: #fff; --txt: #14172b; --mut: #5b6078; --linha: #e4e6ef; --cor: #0b2466; --destaque: #f7931e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1220; --card: #181c2e; --txt: #eceef7; --mut: #a3a8c3; --linha: #2a2f47; --cor: #9fb4ff; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 40px; }
+  h1 { margin: 0; font-size: 26px; color: var(--cor); }
+  .sub { color: var(--mut); margin: 4px 0 20px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  section { background: var(--card); border: 1px solid var(--linha); border-radius: 14px; padding: 14px 16px; }
+  h2 { margin: 0 0 8px; font-size: 16px; color: var(--cor); }
+  ul { margin: 0; padding-left: 18px; }
+  li { margin: 3px 0; }
+  .novo { border-color: var(--destaque); }
+  .tag { font-size: 11px; font-weight: 700; color: #fff; background: var(--destaque); border-radius: 99px; padding: 1px 8px; margin-left: 6px; vertical-align: middle; }
+  footer { color: var(--mut); font-size: 13px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fábrica · funções do app</h1>
+  <p class="sub">Versão 1.12.0 · fabricapremium.vercel.app</p>
+  <div class="grade">
+    <section class="novo">
+      <h2>Oficinas e remessas <span class="tag">novo</span></h2>
+      <ul>
+        <li>Ordem de corte: bobina usada, peças por tamanho, perda de tecido</li>
+        <li>Remessa para costureira/oficina, prazo e valor por peça</li>
+        <li>Retorno com <b>contagem às cegas</b></li>
+        <li><b>Link da costureira</b>: confirma ou contesta pelo celular</li>
+        <li><b>Balanço</b> por ordem: cortado → enviado → voltou → sumiu</li>
+        <li>Aviso na hora acima do limite de perda</li>
+        <li>Acerto com desconto e pagamento no Financeiro</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Produção</h2>
+      <ul>
+        <li>Lançar produção por etapa (corte, costura, conferência)</li>
+        <li>Lançar em nome de quem não usa celular</li>
+        <li>Em falta no estoque</li>
+        <li>Produtividade e pagamento por peça</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Equipe</h2>
+      <ul>
+        <li>Ponto (entrada/saída, Wi-Fi da fábrica)</li>
+        <li>Funções liberadas por pessoa</li>
+        <li>Liberação de aparelhos e Atividade (quem fez o quê)</li>
+        <li>Mensagens com confirmação de leitura</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Vendas e materiais</h2>
+      <ul>
+        <li>Pedidos de clientes ligados à produção</li>
+        <li>Matéria-prima: estoque, consumo por peça, contagem</li>
+        <li>Cadastros: produtos, clientes, fornecedores, oficinas</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Financeiro</h2>
+      <ul>
+        <li>Entradas, saídas, contas a pagar e a receber</li>
+        <li>Cartões, faturas e metas</li>
+        <li>Resultado (DRE) e lucro por modelo</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Acompanhar</h2>
+      <ul>
+        <li>Painel do dia e Dashboard do mês</li>
+        <li>Relatório e Relatório do mês em PDF</li>
+        <li>Resumo diário às 8h no celular</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Ajuda</h2>
+      <ul>
+        <li>Dani: assistente com IA (Gemini)</li>
+        <li>Manual interativo dentro do app</li>
+        <li>App instalável (Android e iPhone)</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Segurança e dono</h2>
+      <ul>
+        <li>Cópia de segurança completa + lembrete semanal</li>
+        <li>Várias empresas, links de teste e PRO</li>
+        <li>Página de apresentação e painel do dono</li>
+      </ul>
+    </section>
+  </div>
+  <footer>Passo a passo de cada função: menu do seu nome → Manual do app.</footer>
+</main>
+</body>
+</html>
