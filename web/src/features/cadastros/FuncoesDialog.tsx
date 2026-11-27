@@ -23,20 +23,21 @@ export function FuncoesDialog({ login, onClose }: { login: string; onClose: () =
   const q = useQuery({ queryKey: ['funcoes', login], queryFn: () => api.funcoesPessoa(login) });
   const [f, setF] = useState<Record<string, boolean>>({});
   useEffect(() => { if (q.data) setF(q.data.funcoes); }, [q.data]);
-  const salvar = useAction(() => api.salvarFuncoes(login, f), {
+  const salvar = useAction(() => api.salvarFuncoes(login, f), { // envia o mapa completo; o servidor também mescla
     success: 'Funções salvas. Valem na próxima ação da pessoa.', invalidate: [['funcoes', login], ['usuarios']], onSuccess: onClose,
   });
 
   return (
     <Dialog open onClose={onClose} title={q.data ? `Funções de ${q.data.nome}` : 'Funções'} variant="drawer"
-      footer={q.data && !q.data.eu ? <>
+      footer={q.data && !q.data.eu && !q.data.protegido ? <>
         <Button onClick={() => setF({ ...q.data.padrao, empresas: q.data.funcoes.empresas })}>Voltar ao padrão</Button>
         <Button variant="primary" loading={salvar.isPending} onClick={() => salvar.mutate()}>Salvar</Button>
       </> : <Button onClick={onClose}>Fechar</Button>}>
       <QueryView query={q}>
         {d => (
           <div className="stack" style={{ gap: 12 }}>
-            {d.eu ? <Banner tone="warn">Estas são as suas funções. Para mudá-las, peça a outro administrador.</Banner>
+            {d.protegido ? <Banner tone="warn">Esta é a conta do responsável pelo sistema: só ele pode mudar as próprias funções.</Banner>
+              : d.eu ? <Banner tone="warn">Estas são as suas funções. Para mudá-las, peça a outro administrador.</Banner>
               : <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
                   {d.perfil === 'admin' ? 'Administrador' : 'Funcionário'}: ligue o que a pessoa pode usar. O que estiver desligado some do menu e é recusado pelo servidor.
                 </p>}
@@ -48,7 +49,7 @@ export function FuncoesDialog({ login, onClose }: { login: string; onClose: () =
                     <span className="fn-ic"><Icon name={x.icon} size={17} /></span>
                     <span className="fn-txt"><b>{x.label} {mudou && <Badge tone="info">alterado</Badge>}{x.id === 'empresas' && <Badge tone="brand">só o dono libera</Badge>}</b><small>{DESCRICAO[x.id]}</small></span>
                     <button type="button" role="switch" aria-checked={on} aria-label={`${x.label}: ${on ? 'liberado' : 'bloqueado'}`} className="switch"
-                      disabled={d.eu} onClick={() => setF(s => ({ ...s, [x.id]: !on }))}><span /></button>
+                      disabled={d.eu || d.protegido} onClick={() => setF(s => ({ ...s, [x.id]: !on }))}><span /></button>
                   </li>
                 );
               })}

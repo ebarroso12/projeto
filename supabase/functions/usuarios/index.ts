@@ -100,13 +100,14 @@ Deno.serve(async (req: Request) => {
   // ----- demais ações: administrador da própria empresa -----
   const { data: emp, error: nao } = await comoUsuario.rpc('fab_minha_empresa');
   if (nao || !emp) return negado(nao?.message, 'Apenas o administrador pode fazer isto.');
-  const empresa = emp as { id: string; codigo: string };
+  const empresa = emp as { id: string; codigo: string; eu: string; admin: boolean; principal: boolean };
 
   if (b.action === 'criar') {
     const login = norm(b.login);
     const erro = validarLogin(login, b.senha);
     if (erro) return fail(erro);
     if (!['admin', 'funcionario'].includes(String(b.perfil))) return fail('Perfil inválido.');
+    if (b.perfil === 'admin' && !empresa.admin) return fail('Só um administrador pode criar outro administrador.', 403);
     const r = await criarPessoa(admin, empresa, { ...b, login });
     return r ? fail(r) : json({ ok: true });
   }
@@ -115,8 +116,12 @@ Deno.serve(async (req: Request) => {
     const login = norm(b.login);
     const erro = validarLogin(login, b.senha);
     if (erro) return fail(erro);
-    const { data: id } = await admin.rpc('fab_id_por_login', { p_empresa: empresa.id, p_login: login });
-    if (!id) return fail('Pessoa não encontrada.', 404);
+    const { data: alvo } = await admin.rpc('fab_perfil_por_login', { p_empresa: empresa.id, p_login: login });
+    const a = alvo as { id: string; perfil: string; principal: boolean } | null;
+    if (!a?.id) return fail('Pessoa não encontrada.', 404);
+    if (a.perfil === 'admin' && !empresa.admin) return fail('Só um administrador pode trocar a senha de outro administrador.', 403);
+    if (a.principal && a.id !== empresa.eu) return fail('Só o responsável pelo sistema pode trocar a própria senha.', 403);
+    const id = a.id;
     const { error } = await admin.auth.admin.updateUserById(id as string, { password: String(b.senha) });
     if (error) return fail(error.message);
     return json({ ok: true });

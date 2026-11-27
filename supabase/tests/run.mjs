@@ -74,7 +74,7 @@ const carla = await mkUser(empA, 'carla', 'Carla Dias', 'Conferente', 'funcionar
 const ghost = await mkUser(empA, 'ghost', 'Inativo', 'Costureira', 'funcionario', false, false);
 const adminB = await mkUser(empB, 'admin', 'Beatriz', 'Administração', 'admin', true);   // mesmo login, outra empresa
 const joaoB = await mkUser(empB, 'joao', 'João', 'Cortador');
-await q(`insert into fab.donos (user_id) values ($1)`, [admin]);
+await q(`insert into fab.donos (user_id, principal) values ($1, true)`, [admin]);
 // a liberação de acesso tem testes próprios (seção 16); nas demais seções ela fica desligada
 await q(`update fab.configuracao set exigir_liberacao = false`);
 
@@ -474,6 +474,63 @@ ok((await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ empresas: false })})`)
 ok((await rpc(adminB, `fab_salvar_funcoes('joao', ${j({ empresas: true })})`)).ok && fails_with(await rpc(joaoB, 'fab_empresas()'), 'responsável pelo sistema'), 'admin que não é dono não consegue liberar Empresas');
 ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.tipo === 'funcoes_alteradas' && e.alvo === 'Carla Dias'), 'mudança de funções fica na atividade');
 await rpc(admin, `fab_salvar_funcoes('carla', ${j({ financeiro: false, lancar: true })})`);
+
+// ============ 20. correções de segurança das funções ============
+console.log('\n--- segurança das funções ---');
+// (1) funcionário com Cadastros não vira admin, não cria/mexe em admin, não gerencia funções
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ cadastros: true })})`);
+ok(fails_with(await rpc(carla, `fab_atualizar_perfil('carla','Carla Dias','Conferente','admin',true,true)`), 'Só um administrador pode tornar'), '(1) funcionária com Cadastros não se torna admin');
+ok(fails_with(await rpc(carla, `fab_atualizar_perfil('ana','Ana','Costureira','admin',true,false)`), 'Só um administrador pode tornar'), '(1) nem torna outra pessoa admin');
+ok(fails_with(await rpc(carla, `fab_atualizar_perfil('gerente','Gerente','Adm','admin',false,true)`), 'outro administrador'), '(1) nem desativa um admin');
+ok(fails_with(await rpc(carla, `fab_salvar_funcoes('ana', ${j({ financeiro: true })})`), 'Apenas o administrador'), '(1) nem gerencia funções de ninguém');
+ok((await rpc(carla, `fab_atualizar_perfil('ana','Ana Souza','Costureira','funcionario',true,false)`)).ok, '(1) mas edita funcionários normalmente');
+const me = (await rpc(carla, 'fab_minha_empresa()')).data;
+ok(me.admin === false && me.eu === carla, '(1) função de borda sabe que quem chama não é admin');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ cadastros: false })})`);
+// (2) ninguém tranca a empresa sem admin com Cadastros e Acessos (empresa B: Beatriz e B2, ambos admins)
+const e2 = await mkUser(empB, 'admb2', 'Admin B2', 'Administração', 'admin', true);
+ok((await rpc(e2, `fab_salvar_funcoes('admin', ${j({ cadastros: false, acessos: false })})`)).ok, '(2) B2 tira Cadastros/Acessos da Beatriz (B2 ainda é gestor)');
+ok(fails_with(await rpc(adminB, `fab_salvar_funcoes('admb2', ${j({ cadastros: false, acessos: false })})`), 'FUNCAO_BLOQUEADA'), '(2) Beatriz não consegue revidar e trancar a empresa');
+ok(fails_with(await rpc(e2, `fab_salvar_funcoes('admb2', ${j({ cadastros: false })})`), 'próprias funções'), '(2) o último gestor não tira as próprias funções');
+await q(`update fab.perfis set funcoes = '{"cadastros": false}' where id = $1`, [e2]);
+await q(`update fab.perfis set funcoes = '{}' where id = $1`, [adminB]);
+ok(fails_with(await rpc(e2, `fab_bloquear_pessoa('admin', true)`), 'Precisa existir pelo menos um administrador ativo com Cadastros e Acessos'), '(2) bloquear o único gestor é recusado');
+await q(`update fab.perfis set funcoes = '{"acessos": false}' where id = $1`, [e2]);
+ok(fails_with(await rpc(e2, `fab_atualizar_perfil('admin','Beatriz','Administração','admin',false,true)`), 'Precisa existir pelo menos um administrador ativo com Cadastros e Acessos'), '(2) desativar o único gestor pelo cadastro é recusado');
+await q(`update fab.perfis set funcoes = '{}' where empresa_id = $1`, [empB]);
+await q(`update fab.perfis set ativo = false where id = $1`, [e2]);
+// (3) cópia de segurança e atividade sem Financeiro/Resultado
+await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ financeiro: false, resultado: false })})`);
+const bk = (await rpc(adm2, 'fab_exportar()')).data;
+ok(bk.parcial === true && !Object.keys(bk.tabelas).some(t => t.startsWith('fin_') || t.startsWith('dre_')), '(3) backup sem Financeiro/Resultado não leva fin_/dre_');
+ok(!bk.tabelas.eventos.some(e => String(e.alvo).startsWith('fin_') || String(e.alvo).startsWith('dre_')), '(3) nem os eventos do Financeiro/Resultado');
+ok(!(await rpc(adm2, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.alvo.startsWith('fin_')), '(3) Atividade esconde eventos do Financeiro');
+ok((await rpc(admin, 'fab_exportar()')).data.parcial === false, '(3) quem tem tudo leva o backup completo');
+// (4) responsável principal protegido
+await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ empresas: true })})`);
+ok(fails_with(await rpc(adm2, `fab_salvar_funcoes('admin', ${j({ empresas: false })})`), 'responsável pelo sistema'), '(4) co-responsável não remove o dono principal');
+ok(fails_with(await rpc(adm2, `fab_bloquear_pessoa('admin', true)`), 'responsável pelo sistema'), '(4) nem bloqueia o dono principal');
+ok(fails_with(await rpc(adm2, `fab_atualizar_perfil('admin','Edson','Adm','funcionario',true,true)`), 'responsável pelo sistema'), '(4) nem rebaixa o dono principal');
+ok((await rpc(adm2, `fab_funcoes_pessoa('admin')`)).data.protegido === true, '(4) tela mostra a conta do dono como protegida');
+ok((await rpc(adm2, `fab_salvar_funcoes('ana', ${j({ empresas: true })})`)).ok && fails_with(await rpc(ana, 'fab_empresas()'), 'responsável pelo sistema'), '(4) co-responsável não distribui Empresas');
+ok((await q(`select count(*)::int n from fab.donos where principal`))[0].n >= 1, '(4) dono principal continua');
+await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ empresas: false })})`);
+// (5) funcionário com Acessos não age sobre admin
+await rpc(admin, `fab_salvar_funcoes('bruno', ${j({ acessos: true })})`);
+ok(fails_with(await rpc(bruno, `fab_bloquear_pessoa('gerente', true)`), 'outro administrador'), '(5) funcionário com Acessos não bloqueia admin');
+const sG = (await q(`insert into fab.sessoes (empresa_id, user_id, session_id, status) values ($1,$2,'s-gerente-x','aprovada') returning id`, [empA, adm2]))[0].id;
+ok(fails_with(await rpc(bruno, `fab_encerrar_sessao('${sG}')`), 'outro administrador'), '(5) nem derruba a sessão de um admin');
+ok((await rpc(bruno, `fab_bloquear_pessoa('doris_inexistente', true)`)).ok === false, '(5) ok');
+// (6) salvar funções mescla
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ financeiro: true })})`);
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ acessos: true })})`);
+const fc = (await q(`select funcoes from fab.perfis where id = $1`, [carla]))[0].funcoes;
+ok(fc.financeiro === true && fc.acessos === true, '(6) salvar só uma função não zera as outras');
+// (9) limpeza do estado
+await q(`update fab.perfis set funcoes = '{}' where empresa_id = $1`, [empA]);
+await q(`delete from fab.donos where not principal`);
+await q(`update fab.perfis set ativo = false where id = $1`, [adm2]);
+ok((await q(`select count(*)::int n from fab.perfis where empresa_id = $1 and funcoes <> '{}'`, [empA]))[0].n === 0, '(9) estado limpo para as amostras do app');
 
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {

@@ -35,7 +35,7 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (201 verificações)
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (227 verificações)
 cd web && npm install && npm run typecheck && npm test      # app: 52 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
 node web/e2e/smoke.cjs                         # 64 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)

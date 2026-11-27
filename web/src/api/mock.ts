@@ -129,7 +129,19 @@ const userOf = (token: string): MUser => {
   return u;
 };
 const newSession = (u: MUser) => { const t = `t_${u.login}_${Math.random().toString(36).slice(2)}`; state.sessions.set(t, u.login); return t; };
-const requireAdmin = (u: MUser) => { if (u.perfil !== 'admin') throw fromServerMessage('Apenas o administrador pode fazer isto.'); };
+/** Função do sistema da chamada atual (igual ao servidor: fin* = financeiro, dre* = resultado…). */
+let funcaoAtual: string | null = null;
+const funcaoDaChamada = (fn: string): string | null =>
+  fn.startsWith('fin') ? 'financeiro' : fn.startsWith('dre') ? 'resultado'
+  : ['listarUsuarios', 'salvarUsuario', 'salvarListas', 'criarChave', 'revogarChaves', 'exportar', 'funcoesPessoa', 'salvarFuncoes', 'verWifi', 'salvarWifi'].includes(fn) ? 'cadastros'
+  : ['acessos', 'acessosPendentes', 'decidirAcesso', 'encerrarSessao', 'revogarAparelho', 'configAcesso', 'bloquearPessoa'].includes(fn) ? 'acessos'
+  : fn === 'relatorio' ? 'relatorio' : fn === 'painel' ? 'painel' : null;
+/** Administrador passa; não-admin só passa se a função desta chamada foi liberada para ele. */
+const requireAdmin = (u: MUser) => {
+  if (u.perfil === 'admin') return;
+  if (funcaoAtual && extras[u.login]?.[funcaoAtual] === true) return;
+  throw fromServerMessage('Apenas o administrador pode fazer isto.');
+};
 const today = () => isoDay(new Date());
 
 function saldoRows() {
@@ -560,7 +572,8 @@ export function createMockTransport(latencyMs = 120): Transport {
     await new Promise(r => setTimeout(r, latencyMs));
     const h = handlers[fn];
     if (!h) throw new ApiError('SERVIDOR', `Função desconhecida: ${fn}`);
-    return structuredClone(h(args));
+    funcaoAtual = funcaoDaChamada(fn);
+    try { return structuredClone(h(args)); } finally { funcaoAtual = null; }
   };
 }
 
@@ -721,7 +734,7 @@ Object.assign(handlers, {
     const u = userOf(String(t)); requireAdmin(u);
     const alvo = state.users.find(x => x.login === login);
     if (!alvo) throw fromServerMessage('Pessoa não encontrada.');
-    return { nome: alvo.nome, perfil: alvo.perfil, eu: alvo.login === u.login, possoEmpresas: u.login === 'admin', funcoes: funcoesDe(alvo),
+    return { nome: alvo.nome, perfil: alvo.perfil, eu: alvo.login === u.login, protegido: alvo.login === 'admin' && u.login !== 'admin', possoEmpresas: u.login === 'admin', funcoes: funcoesDe(alvo),
       padrao: Object.fromEntries(FUNCOES.map(f => [f, f === 'empresas' ? false : padraoDe(alvo, f)])) };
   },
   salvarFuncoes: ([t, login, funcoes]: unknown[]) => {
@@ -729,7 +742,9 @@ Object.assign(handlers, {
     const alvo = state.users.find(x => x.login === login);
     if (!alvo) throw fromServerMessage('Pessoa não encontrada.');
     if (alvo.login === u.login) throw fromServerMessage('Você não pode mudar as suas próprias funções.');
-    const f = funcoes as Record<string, boolean>;
+    if (u.perfil !== 'admin') throw fromServerMessage('Apenas o administrador pode fazer isto.');
+    if (alvo.login === 'admin') throw fromServerMessage('Só o responsável pelo sistema pode mudar as funções dele.');
+    const f = { ...funcoesDe(alvo), ...(funcoes as Record<string, boolean>) };
     extras[alvo.login] = Object.fromEntries(Object.entries(f).filter(([k, v]) => (k === 'empresas' ? u.login === 'admin' && v : v !== padraoDe(alvo, k))));
     acessoDemo.eventos.unshift({ id: Date.now(), quem: u.nome, tipo: 'funcoes_alteradas', alvo: alvo.nome, detalhe: { funcoes: funcoesDe(alvo) }, em: agoraIso(0) });
     return null;

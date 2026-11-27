@@ -1,5 +1,14 @@
 [
   {
+    "versao": "1.4.1",
+    "data": "2026-11-27",
+    "novidades": [
+      "Segurança: quem recebe Cadastros ou Acessos sem ser administrador não mexe em administradores nem vira administrador",
+      "Sempre sobra um administrador com Cadastros e Acessos; a conta do responsável pelo sistema fica protegida",
+      "Cópia de segurança e Atividade respeitam Financeiro/Resultado desligados; salvar funções não apaga as outras"
+    ]
+  },
+  {
     "versao": "1.4.0",
     "data": "2026-11-27",
     "novidades": [
@@ -29,11 +38,16 @@
   {
     "versao": "1.1.0",
     "data": "2026-11-26",
-    "novidades": ["Dashboard mensal com gráficos", "Identidade visual Fábrica (azul-marinho e laranja)"]
+    "novidades": [
+      "Dashboard mensal com gráficos",
+      "Identidade visual Fábrica (azul-marinho e laranja)"
+    ]
   },
   {
     "versao": "1.0.0",
     "data": "2026-11-26",
-    "novidades": ["Multiempresa, Financeiro e Resultado (DRE)"]
+    "novidades": [
+      "Multiempresa, Financeiro e Resultado (DRE)"
+    ]
   }
 ]

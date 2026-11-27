@@ -36,7 +36,7 @@ const eu = (r: R): Eu => ({
 export const parseFuncoesPessoa = (v: unknown): FuncoesPessoa => {
   const r = rec(v);
   const mapa = (x: unknown) => Object.fromEntries(Object.entries(rec(x)).map(([k, b]) => [k, bool(b)]));
-  return { nome: str(r.nome), perfil: str(r.perfil), eu: bool(r.eu), possoEmpresas: bool(r.possoEmpresas), funcoes: mapa(r.funcoes), padrao: mapa(r.padrao) };
+  return { nome: str(r.nome), perfil: str(r.perfil), eu: bool(r.eu), protegido: bool(r.protegido), possoEmpresas: bool(r.possoEmpresas), funcoes: mapa(r.funcoes), padrao: mapa(r.padrao) };
 };
 
 export const parseFalta = (r: R): Falta => ({

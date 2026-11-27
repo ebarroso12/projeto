@@ -9,10 +9,10 @@ export interface Eu {
   leitura: boolean;   // usuário "só ver"
   podeFalta: boolean; // pode colocar itens em falta
   demo: boolean;
-  financeiro: boolean; // vê Financeiro e Resultado
-  dono: boolean;
+  financeiro: boolean; // pode usar o Financeiro
+  dono: boolean;       // responsável pelo sistema (gerencia empresas)
   /** Funções liberadas para a pessoa (servidor Supabase); ausente = regras padrão por perfil. */
-  funcoes?: Record<string, boolean>;       // responsável pelo sistema (gerencia empresas)
+  funcoes?: Record<string, boolean>;
 }
 
 export interface Ponto { entrada: string; saida: string; extra: string }
@@ -201,4 +201,4 @@ export interface AcessosDados {
   eventos: EventoAcesso[]; aparelhos: AparelhoConfiavel[]; metricas: MetricaPessoa[];
 }
 
-export interface FuncoesPessoa { nome: string; perfil: string; eu: boolean; possoEmpresas: boolean; funcoes: Record<string, boolean>; padrao: Record<string, boolean> }
+export interface FuncoesPessoa { nome: string; perfil: string; eu: boolean; protegido: boolean; possoEmpresas: boolean; funcoes: Record<string, boolean>; padrao: Record<string, boolean> }
