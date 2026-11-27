@@ -698,6 +698,56 @@ ok(fails_with(await rpc(adminB, `fab_status_pedido('${pd1.id}', 'cancelado', nul
 ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.alvo === 'pedidos'), 'pedidos ficam na auditoria');
 await q(`delete from fab.pedidos`); await q(`delete from fab.lancamentos where modelo = 'Calça Jeans' and cor = 'Branco'`);
 await q(`delete from fab.fin_lancamentos where id = '${recP.id}'`);
+// ============ 26. produtividade, pagamento por produção e lucro por modelo ============
+console.log('\n--- produtividade e lucro ---');
+const L26 = (user, etapa, qtd, dia, modelo = 'Camisa Polo') =>
+  q(`insert into fab.lancamentos (empresa_id, user_id, etapa, modelo, cor, tamanho, qtd, dia) values ($1, $2, $3, $4, 'Preto', 'M', $5, $6::date)`, [empA, user, etapa, modelo, qtd, dia]);
+await L26(ana, 'Costura', 100, '2026-01-05'); await L26(ana, 'Costura', 80, '2026-01-06'); await L26(ana, 'Costura', 20, '2026-01-06', 'Calça Jeans');
+await L26(bruno, 'Corte', 300, '2026-01-05'); await L26(carla, 'Conferência', 150, '2026-01-07'); await L26(carla, 'Conferência', 40, '2026-01-07', 'Calça Jeans');
+await L26(ana, 'Costura', 999, '2026-02-01');   // fora do período
+await q(`insert into fab.ponto (empresa_id, user_id, dia, entrada, saida) values ($1, $2, '2026-01-05', '08:00', '17:00'), ($1, $2, '2026-01-06', '08:00', '12:30')`, [empA, ana]);
+ok(fails_with(await rpc(admin, `fab_salvar_valores_peca(${j([{ etapa: 'Bordado', valor: 1 }])})`), 'Etapa inválida'), 'etapa inválida recusada');
+ok(fails_with(await rpc(admin, `fab_salvar_valores_peca(${j([{ etapa: 'Costura', modelo: 'Bermuda', valor: 1 }])})`), 'Modelo inválido'), 'modelo fora da lista recusado');
+ok((await rpc(admin, `fab_salvar_valores_peca(${j([{ etapa: 'Corte', valor: 0.3 }, { etapa: 'Costura', valor: 1.5 }, { etapa: 'Costura', modelo: 'Calça Jeans', valor: 3 }, { etapa: 'Conferência', valor: 0.2 }])})`)).ok, 'salva valores por peça (geral e por modelo)');
+let pv = (await rpc(admin, `fab_produtividade('2026-01-01', '2026-01-31')`)).data;
+const pAna = pv.pessoas.find(x => x.login === 'ana'), pBruno = pv.pessoas.find(x => x.login === 'bruno');
+ok(pAna.pecas === 200 && pAna.porEtapa.Costura === 200 && pAna.diasProducao === 2, 'peças da costureira no período (fora do período não conta)');
+eq(pAna.valor, 330, 'valor: 180 × 1,50 + 20 calças × 3,00 (valor específico do modelo)');
+ok(pAna.diasPonto === 2 && pAna.minutosPonto === 810, 'dias e minutos no ponto (9h + 4h30)');
+ok(pBruno.valor === 90 && pv.pessoas[0].login === 'bruno', 'cortador: 300 × 0,30; lista em ordem de peças');
+ok(pv.porDia.length === 3 && pv.valores.length === 4, 'produção por dia e tabela de valores');
+ok(fails_with(await rpc(ana, `fab_produtividade('2026-01-01', '2026-01-31')`), 'FUNCAO_BLOQUEADA'), 'funcionário sem Produtividade não vê');
+ok(fails_with(await rpc(admin, `fab_produtividade('2026-02-01', '2026-01-01')`), 'Período inválido'), 'período invertido recusado');
+// fechamento
+let nf = await rpc(admin, `fin_fechar_producao('2026-01-01', '2026-01-31', '${conta}', '2026-02-05', array['ana','bruno','carla'])`);
+ok(nf.ok && nf.data === 3, 'fecha o período: 3 pagamentos');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const pgAna = fin.lancamentos.find(l => l.descricao === 'Produção 01/01 a 31/01 · Ana Souza');
+ok(pgAna && pgAna.tipo === 'saida' && pgAna.valor === 330 && pgAna.categoria === 'Folha de pagamento' && pgAna.responsavel === 'Ana Souza', 'saída no Financeiro com o valor da produção');
+ok(fails_with(await rpc(admin, `fin_fechar_producao('2026-01-15', '2026-02-10', '${conta}', '2026-02-05', array['ana'])`), 'já tem pagamento'), 'não paga o mesmo período duas vezes (sobreposição)');
+pv = (await rpc(admin, `fab_produtividade('2026-01-01', '2026-01-31')`)).data;
+ok(pv.pessoas.find(x => x.login === 'ana').fechado && pv.fechamentos.length === 3, 'tela mostra quem já foi pago');
+ok(fails_with(await rpc(adminB, `fin_desfazer_fechamento('${pv.fechamentos[0].id}')`), 'não encontrado'), 'outra empresa não desfaz');
+const fAna = pv.fechamentos.find(f => f.nome === 'Ana Souza');
+ok((await rpc(admin, `fin_desfazer_fechamento('${fAna.id}')`)).ok, 'desfaz o pagamento da Ana');
+fin = (await rpc(admin, 'fin_dados()')).data;
+ok(!fin.lancamentos.some(l => l.id === pgAna.id), 'saída sai do Financeiro');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ financeiro: true })})`);
+ok(fails_with(await rpc(carla, `fin_fechar_producao('2026-01-01', '2026-01-31', '${conta}', '2026-02-05', array['ana'])`), 'acesso à Produtividade'), 'fechar exige também a Produtividade');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ financeiro: false })})`);
+ok(fails_with(await rpc(admin, `fin_fechar_producao('2026-03-01', '2026-03-31', '${conta}', '2026-04-05', array['ana'])`), 'Ninguém com valor'), 'sem produção no período não lança nada');
+// lucro por modelo
+await rpc(admin, `fab_salvar_registro(${j({ tipo: 'produto', nome: 'Camisa Polo', dados: { preco: '80', custo: '30' } })})`);
+const lm = (await rpc(admin, `dre_lucro_modelos('2026-01-01', '2026-01-31')`)).data;
+const polo = lm.find(x => x.modelo === 'Camisa Polo'), calca = lm.find(x => x.modelo === 'Calça Jeans');
+ok(polo.produzidas === 150 && polo.preco === 80 && polo.custo === 30 && polo.cadastrado, 'lucro: peças conferidas, preço e custo do cadastro');
+eq(polo.maoDeObra, 90 + 270 + 30, 'mão de obra do modelo no período: corte 300×0,30 + costura 180×1,50 + conferência 150×0,20');
+eq(polo.maoDeObraPeca, 2, 'mão de obra por peça: 0,30 + 1,50 + 0,20');
+ok(calca.produzidas === 40 && !calca.cadastrado && calca.maoDeObraPeca === 3.5, 'modelo sem cadastro de produto aparece sem preço');
+ok(fails_with(await rpc(ana, `dre_lucro_modelos('2026-01-01', '2026-01-31')`), 'FUNCAO_BLOQUEADA'), 'lucro exige a função Resultado');
+await q(`delete from fab.fechamentos_producao`); await q(`delete from fab.valores_peca`);
+await q(`delete from fab.lancamentos where dia between '2026-01-01' and '2026-02-28'`); await q(`delete from fab.ponto where dia between '2026-01-01' and '2026-01-31'`);
+await q(`delete from fab.fin_lancamentos where descricao like 'Produção %'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

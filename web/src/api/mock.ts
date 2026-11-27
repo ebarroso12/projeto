@@ -992,3 +992,104 @@ Object.assign(handlers, {
     return null;
   },
 });
+
+// ---------------------------------------------------------------- produtividade, pagamento por produção e lucro (demonstração)
+const valoresPecaDemo: { etapa: string; modelo: string; valor: number }[] = [
+  { etapa: 'Corte', modelo: '', valor: 0.35 }, { etapa: 'Costura', modelo: '', valor: 1.6 }, { etapa: 'Costura', modelo: 'Jaqueta Corta-vento', valor: 3.2 },
+  { etapa: 'Conferência', modelo: '', valor: 0.25 },
+];
+const fechamentosDemo: { id: string; login: string; ini: string; fim: string; pecas: number; valor: number; finId: string | null }[] = [];
+const valorPecaDe = (etapa: string, modelo: string) =>
+  valoresPecaDemo.find(v => v.etapa === etapa && v.modelo === modelo)?.valor ?? valoresPecaDemo.find(v => v.etapa === etapa && v.modelo === '')?.valor ?? 0;
+const sobrepoe = (a: { ini: string; fim: string }, ini: string, fim: string) => !(a.fim < ini || a.ini > fim);
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+function producaoDemo(ini: string, fim: string) {
+  const doPeriodo = state.lancs.filter(l => l.data >= ini && l.data <= fim);
+  const logins = [...new Set(doPeriodo.map(l => l.login))];
+  return logins.map(login => {
+    const u = state.users.find(x => x.login === login)!;
+    const meus = doPeriodo.filter(l => l.login === login);
+    const porEtapa: Record<string, number> = {};
+    for (const l of meus) porEtapa[l.etapa] = (porEtapa[l.etapa] ?? 0) + l.qtd;
+    const pontos = state.pontos.filter(p => p.login === login && p.data >= ini && p.data <= fim);
+    const min = (h: string) => { const [a, b] = h.split(':').map(Number); return a! * 60 + b!; };
+    const f = fechamentosDemo.find(x => x.login === login && sobrepoe(x, ini, fim));
+    return {
+      login, nome: u.nome, setor: u.setor, ativo: u.ativo, porEtapa, pecas: meus.reduce((s, l) => s + l.qtd, 0),
+      valor: r2(meus.reduce((s, l) => s + l.qtd * valorPecaDe(l.etapa, l.modelo), 0)),
+      diasProducao: new Set(meus.map(l => l.data)).size, diasPonto: pontos.length,
+      minutosPonto: pontos.reduce((s, p) => s + (p.saida && p.entrada ? Math.max(0, min(p.saida) - min(p.entrada)) : 0), 0),
+      fechado: f ? { id: f.id, ini: f.ini, fim: f.fim, valor: f.valor } : null,
+    };
+  }).sort((a, b) => b.pecas - a.pecas);
+}
+
+Object.assign(ROTAS_MOCK, { produtividade: 'produtividade', salvarValoresPeca: 'produtividade' });
+Object.assign(handlers, {
+  produtividade: ([t, ini, fim]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const a = String(ini), b = String(fim);
+    const dias = new Map<string, number>();
+    for (const l of state.lancs) if (l.data >= a && l.data <= b) dias.set(l.data, (dias.get(l.data) ?? 0) + l.qtd);
+    return {
+      pessoas: producaoDemo(a, b),
+      porDia: [...dias.entries()].sort().map(([dia, pecas]) => ({ dia, pecas })),
+      valores: valoresPecaDemo,
+      fechamentos: fechamentosDemo.filter(f => sobrepoe(f, a, b)).map(f => ({ id: f.id, nome: state.users.find(u => u.login === f.login)?.nome ?? f.login, ini: f.ini, fim: f.fim, pecas: f.pecas, valor: f.valor, pago: !!f.finId })),
+    };
+  },
+  salvarValoresPeca: ([t, lista]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const l = (lista as { etapa: string; modelo: string; valor: number }[]) ?? [];
+    for (const v of l) if (!(Number(v.valor) >= 0)) throw fromServerMessage('Valor inválido.');
+    valoresPecaDemo.splice(0, valoresPecaDemo.length, ...l.map(v => ({ etapa: v.etapa, modelo: v.modelo ?? '', valor: Number(v.valor) })));
+    return null;
+  },
+  finFecharProducao: ([t, ini, fim, contaId, data, logins]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    if (u.perfil !== 'admin' && extras[u.login]?.produtividade !== true) throw fromServerMessage('Você não tem acesso à Produtividade.');
+    conta(contaId);
+    const a = String(ini), b = String(fim);
+    let n = 0;
+    for (const p of producaoDemo(a, b).filter(x => (logins as string[]).includes(x.login))) {
+      if (fechamentosDemo.some(f => f.login === p.login && sobrepoe(f, a, b))) throw fromServerMessage(`${p.nome} já tem pagamento de produção neste período.`);
+      if (!(p.valor > 0)) continue;
+      const finId = uid();
+      fin.lancamentos.push({ id: finId, tipo: 'saida', data, descricao: `Produção ${a.slice(8, 10)}/${a.slice(5, 7)} a ${b.slice(8, 10)}/${b.slice(5, 7)} · ${p.nome}`, valor: p.valor,
+        contaId, cartaoId: null, forma: '', categoria: 'Folha de pagamento', responsavel: p.nome, centro: '', parcelas: null, valorParcela: null, diaVencimento: null,
+        parcelasPagas: 0, vencimentoFatura: null, origemId: null, obs: '', contraparteId: null, contraparte: '' });
+      fechamentosDemo.push({ id: uid(), login: p.login, ini: a, fim: b, pecas: p.pecas, valor: p.valor, finId });
+      n++;
+    }
+    if (!n) throw fromServerMessage('Ninguém com valor a receber no período (confira os valores por peça).');
+    return n;
+  },
+  finDesfazerFechamento: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const i = fechamentosDemo.findIndex(f => f.id === id);
+    if (i < 0) throw fromServerMessage('Fechamento não encontrado.');
+    const l = fin.lancamentos.find(x => x.id === fechamentosDemo[i]!.finId);
+    if (l) l.apagado = true;
+    fechamentosDemo.splice(i, 1);
+    return null;
+  },
+  dreLucroModelos: ([t, ini, fim]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const a = String(ini), b = String(fim);
+    const modelos = [...new Set(state.lancs.filter(l => l.data >= a && l.data <= b).map(l => l.modelo))];
+    return modelos.map(modelo => {
+      const ls = state.lancs.filter(l => l.modelo === modelo && l.data >= a && l.data <= b);
+      const prod = registrosDemo.find(r => r.tipo === 'produto' && r.nome === modelo);
+      const d = (prod?.dados ?? {}) as Record<string, string>;
+      const entregues = pedidosDemo.filter(p => p.status === 'entregue' && p.entregueEm && p.entregueEm >= a && p.entregueEm <= b).flatMap(p => p.itens).filter(i => i.modelo === modelo);
+      return {
+        modelo, produzidas: ls.filter(l => l.etapa === 'Conferência').reduce((s, l) => s + l.qtd, 0),
+        maoDeObra: r2(ls.reduce((s, l) => s + l.qtd * valorPecaDe(l.etapa, l.modelo), 0)),
+        maoDeObraPeca: r2(['Corte', 'Costura', 'Conferência'].reduce((s, e) => s + valorPecaDe(e, modelo), 0)),
+        preco: prod ? Number(d.preco) : null, custo: prod ? Number(d.custo) : null, cadastrado: !!prod,
+        entreguesPecas: entregues.reduce((s, i) => s + i.qtd, 0), entreguesValor: r2(entregues.reduce((s, i) => s + i.qtd * i.preco, 0)),
+      };
+    }).sort((x, y) => y.produzidas - x.produzidas);
+  },
+});

@@ -14,7 +14,7 @@ import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import { ApiError, fromServerMessage } from './transport';
@@ -186,6 +186,11 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     salvarPedido: async o => { const r = rec(await rpc('fab_salvar_pedido', { p: o })); return { id: str(r.id), numero: num(r.numero) }; },
     statusPedido: async (id, status, receber = null) => { await rpc('fab_status_pedido', { p_id: id, p_status: status, p_receber: receber }); },
     apagarPedido: async id => { await rpc('fab_apagar_pedido', { p_id: id }); },
+    produtividade: async (ini, fim) => parseProdutividade(await rpc('fab_produtividade', { p_ini: ini, p_fim: fim })),
+    salvarValoresPeca: async valores => { await rpc('fab_salvar_valores_peca', { p: valores }); },
+    finFecharProducao: async (ini, fim, contaId, data, logins) => num(await rpc('fin_fechar_producao', { p_ini: ini, p_fim: fim, p_conta: contaId, p_data: data, p_logins: logins })),
+    finDesfazerFechamento: async id => { await rpc('fin_desfazer_fechamento', { p_id: id }); },
+    dreLucroModelos: async (ini, fim) => parseLucroModelos(await rpc('dre_lucro_modelos', { p_ini: ini, p_fim: fim })),
     finDados: async () => parseFin(await rpc('fin_dados')),
     finSalvarLancamento: async o => str(await rpc('fin_salvar_lancamento', { p: o })),
     finContrapartes: async () => parseContrapartes(await rpc('fin_contrapartes')),

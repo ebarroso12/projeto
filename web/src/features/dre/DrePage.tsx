@@ -12,10 +12,11 @@ import { QueryView } from '../../ui/QueryView';
 import { Badge, Banner, Card, EmptyState, PageHeader, Segmented, Stat } from '../../ui/primitives';
 import { MesPicker } from '../financeiro/shared';
 import { parseValor, valorTexto } from '../financeiro/LancamentoForm';
+import { LucroModelos } from './LucroModelos';
 import { GRUPOS, calcularDre, nomeMes, pendencias, type DreResultado } from './calc';
 
 const KEY = ['dre'];
-type Aba = 'geral' | 'preencher' | 'detalhada' | 'historico' | 'categorias';
+type Aba = 'geral' | 'preencher' | 'detalhada' | 'lucro' | 'historico' | 'categorias';
 
 const pct = (n: number) => (Number.isFinite(n) ? `${(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '—');
 const ativas = (d: DreDados) => d.categorias.filter(c => c.ativa).sort((a, b) => a.ordem - b.ordem);
@@ -311,13 +312,14 @@ export default function DrePage() {
           <div className="stack">
             <div style={{ overflowX: 'auto' }} className="no-print">
               <Segmented<Aba> label="Seções do resultado" value={aba} onChange={setAba} options={[
-                { value: 'geral', label: 'Visão geral' }, { value: 'preencher', label: 'Preencher mês' }, { value: 'detalhada', label: 'DRE detalhada' },
+                { value: 'geral', label: 'Visão geral' }, { value: 'preencher', label: 'Preencher mês' }, { value: 'detalhada', label: 'DRE detalhada' }, { value: 'lucro', label: 'Lucro por modelo' },
                 { value: 'historico', label: 'Histórico' }, { value: 'categorias', label: 'Categorias' },
               ]} />
             </div>
             {aba === 'geral' && <VisaoGeral d={d} mes={mes} irPara={setAba} />}
             {aba === 'preencher' && <Preencher key={mes} d={d} mes={mes} onSalvo={() => setAba('geral')} />}
             {aba === 'detalhada' && <Detalhada d={d} mes={mes} />}
+            {aba === 'lucro' && <LucroModelos mes={mes} />}
             {aba === 'historico' && <Historico d={d} abrir={m => { setMes(m); setAba('detalhada'); }} />}
             {aba === 'categorias' && <Categorias d={d} />}
           </div>

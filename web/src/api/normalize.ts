@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, LucroModelo, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -278,3 +278,27 @@ export function parsePedidoOpcoes(v: unknown): PedidoOpcoes {
     precos: Object.fromEntries(Object.entries(rec(r.precos)).map(([k, x]) => [k, num(x)])),
   };
 }
+
+export function parseProdutividade(v: unknown): Produtividade {
+  const r = rec(v);
+  const arr = (x: unknown) => (Array.isArray(x) ? x : []).map(rec);
+  return {
+    pessoas: arr(r.pessoas).map(p => {
+      const f = p.fechado ? rec(p.fechado) : null;
+      return {
+        login: str(p.login), nome: str(p.nome), setor: str(p.setor), ativo: bool(p.ativo, true),
+        porEtapa: Object.fromEntries(Object.entries(rec(p.porEtapa)).map(([k, x]) => [k, num(x)])),
+        pecas: num(p.pecas), valor: num(p.valor), diasProducao: num(p.diasProducao), diasPonto: num(p.diasPonto), minutosPonto: num(p.minutosPonto),
+        fechado: f ? { id: str(f.id), ini: str(f.ini), fim: str(f.fim), valor: num(f.valor) } : null,
+      };
+    }),
+    porDia: arr(r.porDia).map(d => ({ dia: str(d.dia), pecas: num(d.pecas) })),
+    valores: arr(r.valores).map(x => ({ etapa: str(x.etapa), modelo: str(x.modelo), valor: num(x.valor) })),
+    fechamentos: arr(r.fechamentos).map(f => ({ id: str(f.id), nome: str(f.nome), ini: str(f.ini), fim: str(f.fim), pecas: num(f.pecas), valor: num(f.valor), pago: bool(f.pago) })),
+  };
+}
+export const parseLucroModelos = (v: unknown): LucroModelo[] =>
+  (Array.isArray(v) ? v : []).map(rec).map(r => ({
+    modelo: str(r.modelo), produzidas: num(r.produzidas), maoDeObra: num(r.maoDeObra), maoDeObraPeca: num(r.maoDeObraPeca),
+    preco: numOrNull(r.preco), custo: numOrNull(r.custo), cadastrado: bool(r.cadastrado), entreguesPecas: num(r.entreguesPecas), entreguesValor: num(r.entreguesValor),
+  }));

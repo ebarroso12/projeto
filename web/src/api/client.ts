@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, PedidoInput, PedidoReceber, PedidoStatus, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, PedidoInput, PedidoReceber, PedidoStatus, ValorPeca, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -112,6 +112,13 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     salvarPedido: async (o: PedidoInput) => { const r = rec(await call('salvarPedido', tok(), o)); return { id: str(r.id), numero: num(r.numero) }; },
     statusPedido: async (id: string, status: PedidoStatus, receber: PedidoReceber = null) => { await call('statusPedido', tok(), id, status, receber); },
     apagarPedido: async (id: string) => { await call('apagarPedido', tok(), id); },
+
+    // ----- produtividade e lucro -----
+    produtividade: async (ini: string, fim: string) => parseProdutividade(await call('produtividade', tok(), ini, fim)),
+    salvarValoresPeca: async (valores: ValorPeca[]) => { await call('salvarValoresPeca', tok(), valores); },
+    finFecharProducao: async (ini: string, fim: string, contaId: string, data: string, logins: string[]) => num(await call('finFecharProducao', tok(), ini, fim, contaId, data, logins)),
+    finDesfazerFechamento: async (id: string) => { await call('finDesfazerFechamento', tok(), id); },
+    dreLucroModelos: async (ini: string, fim: string) => parseLucroModelos(await call('dreLucroModelos', tok(), ini, fim)),
 
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),

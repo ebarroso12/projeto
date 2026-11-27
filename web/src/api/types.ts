@@ -246,3 +246,19 @@ export interface PedidoInput {
 export interface PedidoOpcoes { clientes: { id: string; nome: string; prazo: string }[]; precos: Record<string, number> }
 /** Ao entregar: nada, entrada à vista, ou conta a receber em parcelas. */
 export type PedidoReceber = null | { contaId: string; avista: true } | { contaId: string; parcelas: number; diaVencimento: number };
+
+// =====================================================================
+// Produtividade, pagamento por produção e lucro por modelo
+// =====================================================================
+export interface ValorPeca { etapa: string; modelo: string; valor: number }
+export interface ProdPessoa {
+  login: string; nome: string; setor: string; ativo: boolean; porEtapa: Record<string, number>;
+  pecas: number; valor: number; diasProducao: number; diasPonto: number; minutosPonto: number;
+  fechado: { id: string; ini: string; fim: string; valor: number } | null;
+}
+export interface FechamentoProducao { id: string; nome: string; ini: string; fim: string; pecas: number; valor: number; pago: boolean }
+export interface Produtividade { pessoas: ProdPessoa[]; porDia: { dia: string; pecas: number }[]; valores: ValorPeca[]; fechamentos: FechamentoProducao[] }
+export interface LucroModelo {
+  modelo: string; produzidas: number; maoDeObra: number; maoDeObraPeca: number;
+  preco: number | null; custo: number | null; cadastrado: boolean; entreguesPecas: number; entreguesValor: number;
+}

@@ -30,6 +30,7 @@ export const features: Feature[] = [
   { id: 'lancar', path: '/lancar', label: 'Lançar', title: 'Lançar produção', group: 'Operação', icon: 'edit', allowed: eu => !eu.leitura, Page: lazyPage(() => import('../features/lancar/LancarPage')) },
   { id: 'ponto', path: '/ponto', label: 'Ponto', title: 'Ponto', group: 'Operação', icon: 'clock', allowed: eu => !eu.leitura, Page: lazyPage(() => import('../features/ponto/PontoPage')) },
   { id: 'pedidos', path: '/pedidos', label: 'Pedidos', title: 'Pedidos de clientes', group: 'Gestão', icon: 'box', allowed: eu => eu.admin && !eu.leitura, Page: lazyPage(() => import('../features/pedidos/PedidosPage')) },
+  { id: 'produtividade', path: '/produtividade', label: 'Produtividade', title: 'Produtividade e pagamento', group: 'Gestão', icon: 'activity', allowed: eu => eu.admin && !eu.leitura, Page: lazyPage(() => import('../features/produtividade/ProdutividadePage')) },
   { id: 'financeiro', path: '/financeiro', label: 'Financeiro', title: 'Financeiro', group: 'Gestão', icon: 'wallet', allowed: eu => eu.financeiro, Page: lazyPage(() => import('../features/financeiro/FinanceiroPage')) },
   { id: 'resultado', path: '/resultado', label: 'Resultado', title: 'Resultado da empresa', group: 'Gestão', icon: 'trend', allowed: eu => eu.financeiro, Page: lazyPage(() => import('../features/dre/DrePage')) },
   { id: 'cadastros', path: '/cadastros', label: 'Cadastros', title: 'Cadastros', group: 'Administração', icon: 'users', allowed: eu => eu.admin, Page: lazyPage(() => import('../features/cadastros/CadastrosPage')) },
@@ -37,8 +38,8 @@ export const features: Feature[] = [
   { id: 'empresas', path: '/empresas', label: 'Empresas', title: 'Empresas clientes', group: 'Administração', icon: 'building', allowed: eu => eu.dono, Page: lazyPage(() => import('../features/empresas/EmpresasPage')) },
 ];
 
-const ORDER_GESTAO = ['painel', 'dashboard', 'relatorio', 'falta', 'pedidos', 'financeiro', 'resultado', 'lancar', 'ponto', 'cadastros', 'acessos', 'empresas'];
-const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'pedidos', 'dashboard', 'painel', 'relatorio', 'financeiro', 'resultado', 'cadastros', 'acessos', 'empresas'];
+const ORDER_GESTAO = ['painel', 'dashboard', 'relatorio', 'falta', 'pedidos', 'produtividade', 'financeiro', 'resultado', 'lancar', 'ponto', 'cadastros', 'acessos', 'empresas'];
+const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'pedidos', 'produtividade', 'dashboard', 'painel', 'relatorio', 'financeiro', 'resultado', 'cadastros', 'acessos', 'empresas'];
 
 /** Módulos que o usuário pode ver, já na ordem do menu. */
 /** A pessoa pode usar a função? Usa a liberação do servidor quando existe; senão, a regra padrão do módulo. */

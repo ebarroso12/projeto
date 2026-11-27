@@ -296,6 +296,27 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: 'A receber' }).click();
   ok(await until(() => page.getByText(new RegExp(nome.replace('·', '.') + ' · parcela 1/2')).first().isVisible()), 'entrega gerou a conta a receber em 2x');
 
+  // Produtividade: ranking, valor por peça e pagamento por produção lançado no Financeiro
+  await page.locator('.sidebar').getByRole('link', { name: 'Produtividade' }).click();
+  await page.getByRole('heading', { name: 'Por pessoa' }).waitFor();
+  ok(await page.getByRole('table', { name: 'Produtividade por pessoa' }).getByText('Ana Souza').isVisible(), 'produtividade lista as pessoas');
+  await page.getByRole('tab', { name: 'Valor por peça' }).click();
+  await page.getByLabel('Corte (R$/peça)').fill('0,40');
+  await page.getByRole('button', { name: 'Salvar valores' }).click();
+  await page.getByText('Valores por peça salvos.').waitFor();
+  ok(true, 'salva valor por peça');
+  await page.getByRole('tab', { name: 'Por pessoa' }).click();
+  await page.getByRole('button', { name: 'Pagar produção' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Lançar pagamentos' }).click();
+  await page.getByText(/pagamento\(s\) lançado\(s\) no Financeiro/).waitFor();
+  ok(await until(() => page.getByText('pago').first().isVisible()), 'pagamento por produção lançado e marcado como pago');
+  await shot(page, '16-produtividade');
+  // Resultado: lucro por modelo
+  await page.locator('.sidebar').getByRole('link', { name: 'Resultado' }).click();
+  await page.getByRole('tab', { name: 'Lucro por modelo' }).click();
+  ok(await until(() => page.getByText('Lucro estimado').isVisible()) && await page.getByRole('table', { name: 'Lucro por modelo' }).getByText('Camisa Polo').isVisible(), 'lucro por modelo com preço, custo e mão de obra');
+  await shot(page, '17-lucro-modelos');
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();
@@ -323,7 +344,7 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => page.getByText('Receita líquida').first().isVisible()), 'preenche o mês e volta à visão geral');
   await shot(page, '15-resultado');
   await page.getByRole('tab', { name: 'DRE detalhada' }).click();
-  ok(await page.getByText('= Resultado final').isVisible(), 'DRE detalhada mostra resultado final');
+  ok(await until(() => page.getByText('= Resultado final').isVisible()), 'DRE detalhada mostra resultado final');
   await shot(page, '16-dre-detalhada');
 
   // Empresas (dono do sistema)
