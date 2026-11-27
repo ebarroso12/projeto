@@ -881,6 +881,7 @@ ok(oc30.ok && ordem.pecas === 90 && ordem.numero >= 1, 'ordem de corte: 90 peça
 ok((await saldoMat()) === s0 - 25, 'bobina baixa pela quantidade real usada (25 kg), sem baixar de novo pela regra');
 let rem30 = (await rpc(admin, 'fab_remessas(120)')).data;
 const oJ = rem30.ordens.find(o => o.id === ordem.id);
+ok(oJ.oficinaId === ofJoao && oJ.login === null, 'ordem informa quem cortou pelo identificador (não só pelo nome)');
 ok(oJ.quem === 'Corte do João' && oJ.consumoPeca === 0.25 && oJ.materialQtd === 25 && oJ.itens.P === 40 && oJ.itens.M === 50, 'ordem mostra rendimento: esperado 100 peças (25 ÷ 0,25), cortadas 90');
 const lancCorte = await q(`select user_id, oficina_nome, origem, qtd from fab.lancamentos where ordem_id = $1 and apagado_em is null order by tamanho`, [ordem.id]);
 ok(lancCorte.length === 2 && lancCorte.every(l => l.user_id === null && l.oficina_nome === 'Corte do João' && l.origem === 'ordem'), 'corte entra na produção no nome da oficina');

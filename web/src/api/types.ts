@@ -293,7 +293,7 @@ export interface VitrineAdmin {
 /** Quem fez: funcionário (login) ou oficina de fora (id do cadastro). */
 export type QuemFez = { login: string } | { oficinaId: string };
 export interface OrdemCorte {
-  id: string; numero: number; data: string; quem: string; modelo: string; cor: string; obs: string;
+  id: string; numero: number; data: string; quem: string; oficinaId: string | null; login: string | null; modelo: string; cor: string; obs: string;
   material: string | null; unidade: string | null; materialQtd: number | null; consumoPeca: number | null;
   itens: Record<string, number>; remetido: number;
 }

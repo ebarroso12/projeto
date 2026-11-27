@@ -155,60 +155,79 @@ export function balancoOrdem(o: OrdemCorte, remessas: Remessa[], limite: number)
 // =====================================================================
 // Ranking de oficinas e cortadores (para decidir para quem mandar o próximo lote)
 // =====================================================================
+/** Quem é a oficina/pessoa (pelo identificador; o nome é só para mostrar): homônimos não se misturam e renomear não divide. */
+const chaveQuem = (x: { oficinaId: string | null; login: string | null; quem: string }) => (x.oficinaId ? `o:${x.oficinaId}` : x.login ? `p:${x.login}` : `n:${x.quem}`);
+
 export interface LinhaRankingOficina {
-  quem: string; remessas: number; acertadas: number; enviadas: number; boas: number; defeito: number;
+  chave: string; quem: string; remessas: number; acertadas: number; enviadas: number; boas: number; defeito: number;
   /** peças que faltaram em remessas já acertadas */ falta: number; comOficina: number;
+  /** falta: sobre o enviado nas acertadas; defeito: sobre o enviado (mesma base do Balanço) */
   faltaPct: number | null; defeitoPct: number | null; atrasoMedio: number | null; atrasadas: number;
-  /** quanto custou cada peça boa nas remessas acertadas (valor pago ÷ boas) */ custoPecaBoa: number | null;
+  /** custo de cada peça boa recebida: valor combinado de tudo o que foi enviado ÷ peças boas (sobe quando a oficina perde ou estraga) */
+  custoPecaBoa: number | null;
   /** todas as contestações no período; abertas = ainda sem resolução */ contestacoes: number; abertas: number; atencao: string[];
 }
 export function rankingOficinas(lista: Remessa[], hoje: string, limite: number): LinhaRankingOficina[] {
-  const m = new Map<string, LinhaRankingOficina & { envFechadas: number; somaAtraso: number; comPrazo: number; pago: number; boasFechadas: number }>();
+  type Acc = LinhaRankingOficina & { envFechadas: number; somaAtraso: number; medidas: number; valorEnviado: number; boasFechadas: number; ultimoEnvio: string };
+  const m = new Map<string, Acc>();
   for (const r of lista) {
-    const l = m.get(r.quem) ?? { quem: r.quem, remessas: 0, acertadas: 0, enviadas: 0, boas: 0, defeito: 0, falta: 0, comOficina: 0, faltaPct: null, defeitoPct: null,
-      atrasoMedio: null, atrasadas: 0, custoPecaBoa: null, contestacoes: 0, abertas: 0, atencao: [], envFechadas: 0, somaAtraso: 0, comPrazo: 0, pago: 0, boasFechadas: 0 };
+    const chave = chaveQuem(r);
+    const l: Acc = m.get(chave) ?? { chave, quem: r.quem, remessas: 0, acertadas: 0, enviadas: 0, boas: 0, defeito: 0, falta: 0, comOficina: 0, faltaPct: null, defeitoPct: null,
+      atrasoMedio: null, atrasadas: 0, custoPecaBoa: null, contestacoes: 0, abertas: 0, atencao: [], envFechadas: 0, somaAtraso: 0, medidas: 0, valorEnviado: 0, boasFechadas: 0, ultimoEnvio: '' };
+    if (r.dataEnvio >= l.ultimoEnvio) { l.quem = r.quem; l.ultimoEnvio = r.dataEnvio; }   // nome mais recente
     const c = contaRemessa(r, hoje);
     l.remessas++; l.enviadas += c.enviadas; l.boas += c.boas; l.defeito += c.defeito;
-    if (r.status === 'fechada') { l.acertadas++; l.falta += c.pendentes; l.envFechadas += c.enviadas; l.pago += r.valorPago ?? 0; l.boasFechadas += c.boas; } else l.comOficina += c.pendentes;
-    if (r.prazo) {   // atraso: até a última devolução (ou hoje, se ainda falta peça)
+    if (r.status === 'fechada') { l.acertadas++; l.falta += c.pendentes; l.envFechadas += c.enviadas; l.valorEnviado += c.enviadas * r.valorPeca; l.boasFechadas += c.boas; }
+    else l.comOficina += c.pendentes;
+    if (r.prazo) {
+      // atraso só de remessa terminada (acertada ou tudo devolvido) ou já vencida; aberta dentro do prazo ainda não conta
+      const terminou = r.status === 'fechada' || c.pendentes === 0;
       const ultima = r.retornos.reduce((d, t) => (t.data > d ? t.data : d), '');
-      const fim = r.status === 'aberta' && c.pendentes > 0 ? hoje : ultima || (r.fechadaEm ?? hoje);
-      const a = Math.max(0, dias(r.prazo, fim));
-      l.somaAtraso += a; l.comPrazo++; if (a > 0) l.atrasadas++;
+      if (terminou) {
+        const a = Math.max(0, dias(r.prazo, ultima || (r.fechadaEm ?? hoje)));
+        l.somaAtraso += a; l.medidas++; if (a > 0) l.atrasadas++;
+      } else if (hoje > r.prazo) {
+        const a = dias(r.prazo, hoje);
+        l.somaAtraso += a; l.medidas++; l.atrasadas++;
+      }
     }
-    const resp = [r.confirmacaoEnvio, ...r.retornos.map(t => t.confirmacao)].filter(c => c && !c.confere);
-    l.contestacoes += resp.length; l.abertas += resp.filter(c => !c!.resolvida).length;
-    m.set(r.quem, l);
+    const resp = [r.confirmacaoEnvio, ...r.retornos.map(t => t.confirmacao)].filter(x => x && !x.confere);
+    l.contestacoes += resp.length; l.abertas += resp.filter(x => !x!.resolvida).length;
+    m.set(chave, l);
   }
   const pct1 = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
-  const linhas = [...m.values()].map(({ envFechadas, somaAtraso, comPrazo, pago, boasFechadas, ...l }) => {
-    const faltaPct = pct1(l.falta, envFechadas), defeitoPct = pct1(l.defeito, l.boas + l.defeito);
-    const atrasoMedio = comPrazo ? Math.round((somaAtraso / comPrazo) * 10) / 10 : null;
+  const virg = (n: number) => String(n).replace('.', ',');
+  const linhas = [...m.values()].map(({ envFechadas, somaAtraso, medidas, valorEnviado, boasFechadas, ultimoEnvio: _u, ...l }) => {
+    const faltaPct = pct1(l.falta, envFechadas), defeitoPct = pct1(l.defeito, l.enviadas);
+    const atrasoMedio = medidas ? Math.round((somaAtraso / medidas) * 10) / 10 : null;
     const atencao: string[] = [];
-    if (faltaPct !== null && faltaPct > limite) atencao.push(`falta ${String(faltaPct).replace('.', ',')}%`);
-    if (defeitoPct !== null && defeitoPct > limite) atencao.push(`defeito ${String(defeitoPct).replace('.', ',')}%`);
-    if (atrasoMedio !== null && atrasoMedio >= 2) atencao.push(`atraso médio de ${String(atrasoMedio).replace('.', ',')} dia(s)`);
+    if (faltaPct !== null && faltaPct > limite) atencao.push(`falta ${virg(faltaPct)}%`);
+    if (defeitoPct !== null && defeitoPct > limite) atencao.push(`defeito ${virg(defeitoPct)}%`);
+    if (atrasoMedio !== null && atrasoMedio >= 2) atencao.push(`atraso médio de ${virg(atrasoMedio)} dia(s)`);
     if (l.abertas > 0) atencao.push(`${l.abertas} contestação(ões) em aberto`);
-    return { ...l, faltaPct, defeitoPct, atrasoMedio, custoPecaBoa: boasFechadas > 0 ? r2(pago / boasFechadas) : null, atencao };
+    return { ...l, faltaPct, defeitoPct, atrasoMedio, custoPecaBoa: boasFechadas > 0 ? r2(valorEnviado / boasFechadas) : null, atencao };
   });
-  // melhor primeiro: menos falta, menos defeito, menos atraso; quem ainda não tem nada acertado vai para o fim
+  // ordem: sem alerta e com acerto primeiro; depois menos falta, menos defeito, menos atraso
   const v = (x: number | null) => (x === null ? Infinity : x);
-  return linhas.sort((a, b) => Number(a.acertadas === 0) - Number(b.acertadas === 0) || v(a.faltaPct) - v(b.faltaPct) || v(a.defeitoPct) - v(b.defeitoPct)
+  const grupo = (l: LinhaRankingOficina) => (l.atencao.length ? 2 : l.acertadas === 0 ? 1 : 0);
+  return linhas.sort((a, b) => grupo(a) - grupo(b) || v(a.faltaPct) - v(b.faltaPct) || v(a.defeitoPct) - v(b.defeitoPct)
     || v(a.atrasoMedio) - v(b.atrasoMedio) || a.quem.localeCompare(b.quem));
 }
 
-export interface LinhaRankingCorte { quem: string; ordens: number; cortadas: number; esperadas: number; perdaPct: number | null; semBobina: number; atencao: boolean }
+export interface LinhaRankingCorte { chave: string; quem: string; ordens: number; cortadas: number; esperadas: number; perdaPct: number | null; semBobina: number; atencao: boolean }
 export function rankingCortadores(ordens: OrdemCorte[], limite: number): LinhaRankingCorte[] {
-  const m = new Map<string, { quem: string; ordens: number; cortadas: number; esperadas: number; cortadasMedidas: number; semBobina: number }>();
+  const m = new Map<string, { chave: string; quem: string; data: string; ordens: number; cortadas: number; esperadas: number; cortadasMedidas: number; semBobina: number }>();
   for (const o of ordens) {
-    const rd = rendimento(o);
-    const l = m.get(o.quem) ?? { quem: o.quem, ordens: 0, cortadas: 0, esperadas: 0, cortadasMedidas: 0, semBobina: 0 };
+    const rd = rendimento(o), chave = chaveQuem(o);
+    const l = m.get(chave) ?? { chave, quem: o.quem, data: '', ordens: 0, cortadas: 0, esperadas: 0, cortadasMedidas: 0, semBobina: 0 };
+    if (o.data >= l.data) { l.quem = o.quem; l.data = o.data; }
     l.ordens++; l.cortadas += rd.cortadas;
-    if (rd.esperadas) { l.esperadas += rd.esperadas; l.cortadasMedidas += rd.cortadas; } else l.semBobina++;
-    m.set(o.quem, l);
+    if (rd.esperadas !== null) { l.esperadas += rd.esperadas; l.cortadasMedidas += rd.cortadas; } else l.semBobina++;   // 0 esperadas = bobina informada (rendeu nada)
+    m.set(chave, l);
   }
   return [...m.values()].map(l => {
-    const perdaPct = l.esperadas > 0 ? Math.max(0, Math.round(((l.esperadas - l.cortadasMedidas) / l.esperadas) * 1000) / 10) : null;
-    return { quem: l.quem, ordens: l.ordens, cortadas: l.cortadas, esperadas: l.esperadas, perdaPct, semBobina: l.semBobina, atencao: perdaPct !== null && perdaPct > limite };
-  }).sort((a, b) => (a.perdaPct ?? Infinity) - (b.perdaPct ?? Infinity) || a.quem.localeCompare(b.quem));
+    const medida = l.cortadasMedidas > 0 || l.esperadas > 0;
+    const perdaPct = !medida ? null : l.esperadas > 0 ? Math.max(0, Math.round(((l.esperadas - l.cortadasMedidas) / l.esperadas) * 1000) / 10) : 0;
+    return { chave: l.chave, quem: l.quem, ordens: l.ordens, cortadas: l.cortadas, esperadas: l.esperadas, perdaPct, semBobina: l.semBobina, atencao: perdaPct !== null && perdaPct > limite };
+  }).sort((a, b) => Number(a.atencao) - Number(b.atencao) || (a.perdaPct ?? Infinity) - (b.perdaPct ?? Infinity) || a.quem.localeCompare(b.quem));
 }

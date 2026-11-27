@@ -1245,7 +1245,7 @@ Object.assign(handlers, {
 });
 
 // ---------------------------------------------------------------- oficinas e remessas (demonstração; mesma regra do banco)
-interface MOrdem { id: string; numero: number; data: string; quem: string; login: string; modelo: string; cor: string; obs: string; materialId: string | null; materialQtd: number | null; itens: Record<string, number> }
+interface MOrdem { id: string; numero: number; data: string; quem: string; login: string; oficinaId?: string | null; modelo: string; cor: string; obs: string; materialId: string | null; materialQtd: number | null; itens: Record<string, number> }
 interface MRemessa {
   id: string; numero: number; quem: string; login: string; oficinaId: string | null; etapa: string; dataEnvio: string; prazo: string | null;
   valorPeca: number; descontoFaltante: number; ordemId: string | null; status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null;
@@ -1274,7 +1274,7 @@ const lancDe = (quem: { login: string; nome: string }, etapa: string, modelo: st
 (function seedRemessas() {
   const hoje = new Date();
   const d = (n: number) => isoDay(addDays(hoje, n));
-  ordensDemo.push({ id: 'oc1', numero: 12, data: d(-6), quem: 'Corte do João', login: '', modelo: 'Camisa Polo', cor: 'Branco', obs: '', materialId: 'm1', materialQtd: 30, itens: { P: 40, M: 50, G: 30 } });
+  ordensDemo.push({ id: 'oc1', numero: 12, data: d(-6), quem: 'Corte do João', login: '', oficinaId: 'of3', modelo: 'Camisa Polo', cor: 'Branco', obs: '', materialId: 'm1', materialQtd: 30, itens: { P: 40, M: 50, G: 30 } });
   remessasDemo.push({
     id: 'rm1', numero: 31, quem: 'Costura da Maria', login: '', oficinaId: 'of1', etapa: 'Costura', dataEnvio: d(-5), prazo: d(-1), valorPeca: 2.5, descontoFaltante: 8, ordemId: 'oc1',
     status: 'aberta', fechadaEm: null, valorPago: null, finId: null, obs: '',
@@ -1335,7 +1335,7 @@ Object.assign(handlers, {
       remessas: remessasDemo.map(remessaJson).sort((a, b) => Number(b.status === 'aberta') - Number(a.status === 'aberta') || (a.prazo ?? '9').localeCompare(b.prazo ?? '9') || b.numero - a.numero),
       ordens: [...ordensDemo].sort((a, b) => b.data.localeCompare(a.data)).map(o => {
         const m = materiaisDemo.find(x => x.id === o.materialId);
-        return { ...o, material: m?.nome ?? null, unidade: m?.unidade ?? null, consumoPeca: o.materialId ? consumoPecaDe(o.materialId, o.modelo) : null,
+        return { ...o, login: o.login || null, oficinaId: o.oficinaId ?? null, material: m?.nome ?? null, unidade: m?.unidade ?? null, consumoPeca: o.materialId ? consumoPecaDe(o.materialId, o.modelo) : null,
           remetido: remessasDemo.filter(r => r.ordemId === o.id).flatMap(r => r.itens).reduce((s, i) => s + i.qtd, 0) };
       }),
     };
@@ -1356,7 +1356,7 @@ Object.assign(handlers, {
     const itens = r.itens.filter(i => Number(i.qtd) > 0);
     if (!itens.length) throw fromServerMessage('Informe a quantidade cortada em pelo menos um tamanho.');
     const numero = Math.max(0, ...ordensDemo.map(x => x.numero)) + 1, id = `oc${Date.now()}`, data = r.data || today();
-    ordensDemo.push({ id, numero, data, quem: quem.nome, login: quem.login, modelo: r.modelo, cor: r.cor, obs: r.obs ?? '', materialId: r.materialId || null, materialQtd: r.materialQtd ? Number(r.materialQtd) : null,
+    ordensDemo.push({ id, numero, data, quem: quem.nome, login: quem.login, oficinaId: quem.oficinaId, modelo: r.modelo, cor: r.cor, obs: r.obs ?? '', materialId: r.materialId || null, materialQtd: r.materialQtd ? Number(r.materialQtd) : null,
       itens: Object.fromEntries(itens.map(i => [i.tamanho, Number(i.qtd)])) });
     for (const i of itens) lancDe(quem, 'Corte', r.modelo, r.cor, i.tamanho, Number(i.qtd), data);
     if (r.materialId && r.materialQtd) movsDemo.push({ id: `mv${Date.now()}`, materialId: r.materialId, tipo: 'saida', qtd: Number(r.materialQtd), data, valor: null, fornecedor: '', finId: null, obs: `Ordem de corte #${numero}`, por: u.nome });

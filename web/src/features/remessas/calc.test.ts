@@ -19,7 +19,7 @@ describe('conta da remessa (oficina)', () => {
 });
 
 describe('rendimento da bobina', () => {
-  const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
+  const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', oficinaId: null, login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
     materialQtd: 25, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
   it('esperado pela regra × cortado = perda', () => {
     expect(rendimento(O({}))).toEqual({ cortadas: 90, esperadas: 100, perdaPct: 10, consumoReal: 0.278 });
@@ -76,7 +76,7 @@ describe('resposta da oficina pelo link', () => {
 });
 
 describe('balanço da ordem de corte', () => {
-  const O: OrdemCorte = { id: 'o1', numero: 12, data: '2026-11-20', quem: 'Corte do João', modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
+  const O: OrdemCorte = { id: 'o1', numero: 12, data: '2026-11-20', quem: 'Corte do João', oficinaId: null, login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
     materialQtd: 25, consumoPeca: 0.25, itens: { G: 10, M: 50, P: 40 }, remetido: 90 };
   it('do tecido à peça: na fábrica, com a oficina e sumidas por tamanho', () => {
     const aberta = R({});                                   // P 40 (30+2), M 50 (50): 8 do P com a oficina
@@ -116,34 +116,67 @@ describe('balanço da ordem de corte', () => {
 import { rankingCortadores, rankingOficinas } from './calc';
 describe('ranking de oficinas', () => {
   const H = '2026-11-27';
+  const conf = (resolvida: boolean) => ({ confere: false, em: '', nome: '', obs: '', itens: [], resolvida: resolvida ? { em: '', por: 'Edson', nota: 'ok' } : null });
   const fechada = (o: Partial<Remessa>) => R({ status: 'fechada', fechadaEm: '2026-11-24', ...o });
-  it('falta, defeito, atraso, custo por peça boa e contestações; melhor primeiro', () => {
-    const maria1 = fechada({ id: 'm1', quem: 'Maria', prazo: '2026-11-25', valorPago: 120,   // 90 enviadas, 80 boas, 2 defeito, 8 faltaram
-      retornos: [{ id: 't', data: '2026-11-26', obs: '', boas: 80, defeito: 2, cega: true, itens: [], confirmacao: { confere: false, em: '', nome: '', obs: '', itens: [], resolvida: null } }] });
-    const ana = fechada({ id: 'a1', quem: 'Ana', prazo: '2026-11-25', valorPago: 225, itens: [{ id: 'x', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 90, boas: 90, defeito: 0 }],
-      retornos: [{ id: 't2', data: '2026-11-24', obs: '', boas: 90, defeito: 0, cega: true, itens: [], confirmacao: null }] });
-    const nova = R({ id: 'n1', quem: 'Nova', prazo: '2026-12-10', itens: [{ id: 'y', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 10, boas: 0, defeito: 0 }] });
-    const rk = rankingOficinas([maria1, nova, ana], H, 3);
-    expect(rk.map(l => l.quem)).toEqual(['Ana', 'Maria', 'Nova']);
-    const m = rk[1]!;
-    expect([m.enviadas, m.boas, m.defeito, m.falta, m.faltaPct, m.defeitoPct, m.atrasoMedio, m.custoPecaBoa, m.contestacoes]).toEqual([90, 80, 2, 8, 8.9, 2.4, 1, 1.5, 1]);
-    expect(m.atencao).toEqual(['falta 8,9%', '1 contestação(ões) em aberto']);
-    expect([rk[0]!.faltaPct, rk[0]!.custoPecaBoa, rk[0]!.atrasoMedio, rk[0]!.atencao]).toEqual([0, 2.5, 0, []]);
-    expect([rk[2]!.acertadas, rk[2]!.comOficina, rk[2]!.faltaPct, rk[2]!.custoPecaBoa]).toEqual([0, 10, null, null]);
+  // Maria: 90 enviadas, 80 boas, 2 defeito, 8 faltaram, entregou 1 dia depois do prazo, contestação resolvida
+  const maria = fechada({ id: 'm1', quem: 'Maria', oficinaId: 'of-maria', prazo: '2026-11-25', valorPago: 120,
+    retornos: [{ id: 't', data: '2026-11-26', obs: '', boas: 80, defeito: 2, cega: true, itens: [], confirmacao: conf(true) }] });
+  // Ana: devolveu tudo bom, antes do prazo
+  const ana = fechada({ id: 'a1', quem: 'Ana', oficinaId: 'of-ana', prazo: '2026-11-25', valorPago: 225, itens: [{ id: 'x', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 90, boas: 90, defeito: 0 }],
+    retornos: [{ id: 't2', data: '2026-11-24', obs: '', boas: 90, defeito: 0, cega: true, itens: [], confirmacao: null }] });
+
+  it('custo por peça boa sobe quando a oficina perde peças (não premia quem perde)', () => {
+    const rk = rankingOficinas([maria, ana], H, 10);
+    const m = rk.find(l => l.quem === 'Maria')!, a = rk.find(l => l.quem === 'Ana')!;
+    expect(a.custoPecaBoa).toBe(2.5);          // 90 × 2,50 ÷ 90
+    expect(m.custoPecaBoa).toBe(2.81);         // 90 × 2,50 ÷ 80
+    expect(m.custoPecaBoa!).toBeGreaterThan(a.custoPecaBoa!);
   });
-  it('remessa aberta e atrasada conta o atraso até hoje', () => {
-    const r = R({ quem: 'Lenta', prazo: '2026-11-20' });   // ainda falta peça
-    expect(rankingOficinas([r], '2026-11-27', 3)[0]!.atrasoMedio).toBe(7);
+  it('falta sobre o enviado nas acertadas; defeito sobre o enviado (mesma base do Balanço)', () => {
+    const m = rankingOficinas([maria], H, 10)[0]!;
+    expect([m.faltaPct, m.defeitoPct, m.atrasoMedio, m.contestacoes, m.abertas]).toEqual([8.9, 2.2, 1, 1, 0]);
+    expect(m.atencao).toEqual([]);             // contestação já resolvida não é alerta
+  });
+  it('quem tem alerta fica abaixo de quem não tem; "melhor" é o primeiro sem alerta', () => {
+    const atrasada = fechada({ id: 'z1', quem: 'Zeca', oficinaId: 'of-zeca', prazo: '2026-11-10', valorPago: 225, itens: [{ id: 'z', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 90, boas: 90, defeito: 0 }],
+      retornos: [{ id: 't3', data: '2026-11-20', obs: '', boas: 90, defeito: 0, cega: true, itens: [], confirmacao: conf(false) }] });   // 0% falta, mas 10 dias de atraso e contestação aberta
+    const rk = rankingOficinas([atrasada, maria, ana], H, 10);
+    expect(rk.map(l => l.quem)).toEqual(['Ana', 'Maria', 'Zeca']);
+    expect(rk[2]!.atencao).toEqual(['atraso médio de 10 dia(s)', '1 contestação(ões) em aberto']);
+  });
+  it('atraso: aberta dentro do prazo não conta; aberta vencida conta até hoje', () => {
+    const noPrazo = R({ id: 'p1', quem: 'Maria', oficinaId: 'of-maria', prazo: '2026-12-10' });
+    expect(rankingOficinas([maria, noPrazo, noPrazo], H, 10).find(l => l.quem === 'Maria')!.atrasoMedio).toBe(1);   // 1 dia da acertada, as no prazo não puxam a média
+    const vencida = R({ id: 'v1', quem: 'Lenta', oficinaId: 'of-lenta', prazo: '2026-11-20' });
+    expect(rankingOficinas([vencida], H, 10)[0]!.atrasoMedio).toBe(7);
+  });
+  it('sem acerto, mas com alerta: o alerta aparece', () => {
+    const nova = R({ id: 'n1', quem: 'Nova', oficinaId: 'of-nova', prazo: '2026-11-20', confirmacaoEnvio: conf(false) });
+    const l = rankingOficinas([nova], H, 10)[0]!;
+    expect([l.acertadas, l.atencao]).toEqual([0, ['atraso médio de 7 dia(s)', '1 contestação(ões) em aberto']]);
+  });
+  it('agrupa pela oficina, não pelo nome: homônimas separadas, renomeada junta', () => {
+    const maria2 = fechada({ id: 'm2', quem: 'Maria', oficinaId: 'outra-maria', valorPago: 0 });
+    const renomeada = fechada({ id: 'm3', quem: 'Maria Silva', oficinaId: 'of-maria', dataEnvio: '2026-11-26', valorPago: 0 });
+    const rk = rankingOficinas([maria, maria2, renomeada], H, 10);
+    expect(rk).toHaveLength(2);
+    expect(rk.find(l => l.chave === 'o:of-maria')!.quem).toBe('Maria Silva');   // nome mais recente
+    expect(rk.find(l => l.chave === 'o:of-maria')!.remessas).toBe(2);
   });
 });
 describe('ranking de cortadores', () => {
-  const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
+  const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', oficinaId: 'of-joao', login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
     materialQtd: 25, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
-  it('perda média ponderada pelo tecido, menor perda primeiro', () => {
-    const rk = rankingCortadores([O({}), O({ id: 'o2', itens: { P: 50, M: 48 } }), O({ id: 'o3', quem: 'Rita', itens: { P: 50, M: 50 } }), O({ id: 'o4', quem: 'Rita', materialQtd: null, itens: { P: 5 } })], 3);
+  it('perda média ponderada pelo tecido, sem alerta primeiro', () => {
+    const rk = rankingCortadores([O({}), O({ id: 'o2', itens: { P: 50, M: 48 } }), O({ id: 'o3', quem: 'Rita', oficinaId: null, login: 'rita', itens: { P: 50, M: 50 } }),
+      O({ id: 'o4', quem: 'Rita', oficinaId: null, login: 'rita', materialQtd: null, itens: { P: 5 } })], 3);
     expect(rk.map(l => [l.quem, l.ordens, l.cortadas, l.esperadas, l.perdaPct, l.semBobina, l.atencao])).toEqual([
       ['Rita', 2, 105, 100, 0, 1, false],
       ['João', 2, 188, 200, 6, 0, true],
     ]);
+  });
+  it('bobina pequena (0 peças esperadas) conta como informada, não como "sem bobina"', () => {
+    const l = rankingCortadores([O({ materialQtd: 0.2, itens: { P: 1 } })], 3)[0]!;
+    expect([l.semBobina, l.esperadas, l.perdaPct]).toEqual([0, 0, 0]);
   });
 });
