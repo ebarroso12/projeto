@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Manual do Fábrica</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -500,7 +501,9 @@ section.sem-resultado { display: none; }
   const brl = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const num = (n, c = 0) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
   /** número como a pessoa digitou: sem casas extras e sem arredondar (até 3 casas) */
-  const dig = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+  const dig = n => (n === 0 || Math.abs(n) >= 1
+    ? n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
+    : n.toLocaleString('pt-BR', { maximumSignificantDigits: 3 }));   // 0,0004 não vira 0
   const $ = id => document.getElementById(id);
 
   // ---------------- passos marcáveis e progresso
@@ -514,7 +517,10 @@ section.sem-resultado { display: none; }
       // botão real para teclado e leitor de tela; o item continua sendo item da lista (ordem dos passos preservada)
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'marca'; b.setAttribute('aria-pressed', 'false');
-      b.innerHTML = `<span class="sr-only">Marcar o passo ${i + 1} como feito</span>`;
+      const resumo = li.textContent.replace(/\s+/g, ' ').trim();
+      const sr = document.createElement('span'); sr.className = 'sr-only';
+      sr.textContent = `Marcar como feito: ${resumo.length > 80 ? resumo.slice(0, 77) + '…' : resumo}`;
+      b.appendChild(sr);
       li.prepend(b);
       passos.push(li);
     }));
@@ -585,7 +591,7 @@ section.sem-resultado { display: none; }
   // setas do teclado entre os passos (e Home/End)
   guia.querySelector('.guia-trilha').addEventListener('keydown', e => {
     const i = botoes.indexOf(document.activeElement);
-    if (i < 0) return;
+    if (i < 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;   // não engole atalhos do navegador (Alt+← = voltar)
     const alvo = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? botoes.length - 1 : null;
     if (alvo === null) return;
     e.preventDefault();
@@ -597,60 +603,83 @@ section.sem-resultado { display: none; }
     if (atual === etapas.length - 1) { $('quiz').scrollIntoView({ block: 'start' }); return; }
     mostrar(atual + 1); guia.scrollIntoView({ block: 'start' });
   });
-  $('guia-modo').addEventListener('click', () => { buscaAbriuGuia = false; definirModo(!passoAPasso()); });
+  $('guia-modo').addEventListener('click', () => {
+    buscaAbriuGuia = false;
+    definirModo(!passoAPasso());
+    if (buscaAtiva()) { modoEscolhido = true; rodarBusca(); }   // contagem e destaques passam a refletir o que está visível
+  });
   definirModo(true);
   mostrar(0);
 
-  // ---------------- busca (só no texto visível; destaque mapeado letra a letra)
+  // ---------------- busca (só no texto visível; frases atravessam negritos; destaca todas as ocorrências)
   const busca = $('busca'), res = $('busca-res');
-  const sem = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const ignorar = el => !!el.closest('script, style, button, input, [hidden], .marcar-dica, .sr-only');
+  const sem = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const ignorar = el => !el || !!el.closest('script, style, button, input, [hidden], .marcar-dica, .sr-only')
+    || el.getClientRects().length === 0;   // escondido por CSS (display:none) também não conta
+  const BLOCO = 'p, li, h1, h2, h3, h4, td, th, dt, dd, figcaption, label, summary, blockquote, pre, div, section';
   const nosDeTexto = raiz => {
     const w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, { acceptNode: n => (ignorar(n.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
     const nos = []; while (w.nextNode()) nos.push(w.currentNode);
     return nos;
   };
-  /** texto normalizado + posição de cada letra normalizada no texto original */
-  const mapear = txt => {
-    let norm = ''; const pos = [];
-    for (let i = 0; i < txt.length; i++) {
-      const c = sem(txt[i]);
-      for (let k = 0; k < c.length; k++) { norm += c[k]; pos.push(i); }
-    }
-    return { norm, pos };
+  /** texto da seção normalizado (sem acento, espaços colapsados) + de onde veio cada letra (nó, posição) */
+  const mapear = nos => {
+    let norm = ''; const no = [], pos = []; let blocoAnt = null;
+    const por = (c, n, p) => {
+      if (/\s/.test(c)) { if (!norm.length || norm[norm.length - 1] === ' ') return; c = ' '; }
+      norm += c; no.push(n); pos.push(p);
+    };
+    nos.forEach((t, n) => {
+      const bloco = t.parentElement.closest(BLOCO);
+      if (blocoAnt && bloco !== blocoAnt) por(' ', -1, -1);   // blocos diferentes não se emendam numa palavra só
+      blocoAnt = bloco;
+      const txt = t.textContent;
+      for (let i = 0; i < txt.length; i++) { const c = sem(txt[i]); for (let k = 0; k < c.length; k++) por(c[k], n, i); }
+    });
+    return { norm, no, pos };
   };
   const tirarMarcas = () => { document.querySelectorAll('main mark').forEach(m => m.replaceWith(document.createTextNode(m.textContent))); document.querySelector('main').normalize(); };
-  const marcar = (no, termo) => {
-    const { norm, pos } = mapear(no.textContent);
-    const k = norm.indexOf(termo);
-    if (k < 0) return;
-    const ini = pos[k], fim = pos[k + termo.length - 1] + 1;
-    if (ini === undefined || !(fim <= no.textContent.length)) return;
-    try {
-      const r = document.createRange(); r.setStart(no, ini); r.setEnd(no, fim);
-      r.surroundContents(document.createElement('mark'));
-    } catch (e) { /* um destaque que não coube não interrompe a busca */ }
+  /** todas as ocorrências; cada uma pode cobrir vários nós (ex.: "Toque em <b>Nova remessa</b>") */
+  const destacar = (nos, mapa, q) => {
+    const trechos = new Map();   // nó -> [[ini, fim]]
+    for (let k = mapa.norm.indexOf(q); k >= 0; k = mapa.norm.indexOf(q, k + q.length)) {
+      for (let j = k; j < k + q.length; j++) {
+        const n = mapa.no[j]; if (n < 0) continue;
+        const lista = trechos.get(n) || []; const ult = lista[lista.length - 1];
+        if (ult && ult.k === k) ult.fim = mapa.pos[j] + 1; else lista.push({ k, ini: mapa.pos[j], fim: mapa.pos[j] + 1 });
+        trechos.set(n, lista);
+      }
+    }
+    trechos.forEach((lista, n) => {
+      // do fim para o começo: envolver um trecho não muda a posição dos anteriores no mesmo nó
+      lista.sort((a, b) => b.ini - a.ini).forEach(({ ini, fim }) => {
+        const t = nos[n];
+        if (!(fim <= t.textContent.length) || ini >= fim) return;
+        try { const r = document.createRange(); r.setStart(t, ini); r.setEnd(t, fim); r.surroundContents(document.createElement('mark')); }
+        catch (e) { /* um destaque que não coube não interrompe a busca */ }
+      });
+    });
   };
-  let buscaAbriuGuia = false, t;
-  busca.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => {
+  let buscaAbriuGuia = false, modoEscolhido = false, t;
+  const termo = () => sem(busca.value).replace(/\s+/g, ' ').trim();
+  const buscaAtiva = () => termo().length >= 2;
+  const rodarBusca = () => {
     tirarMarcas();
-    const q = sem(busca.value.trim());
+    const q = termo();
+    secoes.forEach(s => s.classList.remove('sem-resultado'));   // antes de medir o que está visível
     if (q.length < 2) {
-      secoes.forEach(s => s.classList.remove('sem-resultado'));
       res.textContent = '';
-      if (buscaAbriuGuia) { buscaAbriuGuia = false; definirModo(true); }   // volta ao passo em que a pessoa estava
+      if (buscaAbriuGuia) definirModo(true);   // volta ao passo em que a pessoa estava
+      buscaAbriuGuia = false; modoEscolhido = false;
       return;
     }
-    if (passoAPasso()) { buscaAbriuGuia = true; definirModo(false); }       // na busca, todos os passos ficam visíveis
-    let n = 0;
-    secoes.forEach(s => {
-      const nos = nosDeTexto(s);
-      const tem = nos.some(no => sem(no.textContent).includes(q)) || sem(s.querySelector('h2')?.textContent || '').includes(q);
-      s.classList.toggle('sem-resultado', !tem);
-      if (tem) { n++; nos.forEach(no => marcar(no, q)); }
-    });
+    if (passoAPasso() && !modoEscolhido) { buscaAbriuGuia = true; definirModo(false); }   // na busca, todos os passos ficam visíveis
+    const achadas = secoes.map(s => { const nos = nosDeTexto(s); const mapa = mapear(nos); return { s, nos, mapa, tem: mapa.norm.includes(q) }; });
+    achadas.forEach(({ s, nos, mapa, tem }) => { s.classList.toggle('sem-resultado', !tem); if (tem) destacar(nos, mapa, q); });
+    const n = achadas.filter(a => a.tem).length;
     res.textContent = n ? `${n} seção(ões) com “${busca.value.trim()}”` : 'Nada encontrado. Tente outra palavra ou pergunte à Dani no app.';
-  }, 200); });
+  };
+  busca.addEventListener('input', () => { clearTimeout(t); t = setTimeout(rodarBusca, 200); });
 
   // ---------------- simuladores (mesmas regras do app)
   const v = id => { const x = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(x) && x > 0 ? x : 0; };
@@ -664,6 +693,12 @@ section.sem-resultado { display: none; }
       return;
     }
     const esperadas = Math.floor(usado / consumo + 1e-9);
+    if (esperadas === 0) {   // o tecido não dá nem uma peça: perda não se calcula, e corte acima disso é dado errado
+      pintar('r-esperadas', '0');
+      pintar('r-perda', cortadas > 0 ? 'confira os dados' : '—', cortadas > 0 ? 'vermelho' : '');
+      $('r-texto').textContent = `${dig(usado)} kg ÷ ${dig(consumo)} kg por peça não dá nem uma peça inteira.${cortadas > 0 ? ` Foram cortadas ${num(cortadas)}: confira o tecido usado ou o consumo por peça.` : ''}`;
+      return;
+    }
     const perda = esperadas ? Math.round(((esperadas - cortadas) / esperadas) * 1000) / 10 : 0;
     pintar('r-esperadas', num(esperadas));
     pintar('r-perda', perda > 0 ? `${num(perda, 1)}%` : perda < 0 ? `rendeu ${num(-perda, 1)}% a mais` : 'sem perda', perda > 5 ? 'vermelho' : perda > 0 ? '' : 'verde');
