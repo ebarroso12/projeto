@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -158,7 +158,13 @@ const finLancamento = (r: R): FinLancamento => ({
   forma: str(r.forma), categoria: str(r.categoria), responsavel: str(r.responsavel), centro: str(r.centro),
   parcelas: numOrNull(r.parcelas), valorParcela: numOrNull(r.valorParcela), diaVencimento: numOrNull(r.diaVencimento),
   parcelasPagas: num(r.parcelasPagas), vencimentoFatura: strOrNull(r.vencimentoFatura), origemId: strOrNull(r.origemId), obs: str(r.obs),
+  contraparteId: strOrNull(r.contraparteId), contraparte: str(r.contraparte),
 });
+
+export const parseContrapartes = (v: unknown): FinContraparte[] =>
+  (Array.isArray(v) ? v : []).map(rec).map(r => ({
+    id: str(r.id), tipo: (str(r.tipo) === 'fornecedor' ? 'fornecedor' : 'cliente') as FinContraparte['tipo'], nome: str(r.nome), documento: str(r.documento),
+  }));
 
 export function parseFin(v: unknown): FinDados {
   const r = rec(v);

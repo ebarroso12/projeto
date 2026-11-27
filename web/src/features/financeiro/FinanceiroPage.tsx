@@ -11,7 +11,7 @@ import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
 import { Badge, Card, PageHeader, Segmented, Stat } from '../../ui/primitives';
 import { APagarTab, AjustesTab, ContasTab, MetasTab, PlanejamentoTab } from './abas';
-import { compromissos, fluxoMes, gastosPorCategoria, saldoConta, saldoTotal, totalGuardado } from './calc';
+import { compromissos, fluxoMes, gastosPorCategoria, porContraparte, saldoConta, saldoTotal, totalGuardado } from './calc';
 import { LancamentoForm } from './LancamentoForm';
 import { Barras, FIN_KEY, FinProvider, MesPicker, nomeCartao, nomeConta, useFin } from './shared';
 
@@ -26,6 +26,8 @@ function VisaoGeral({ mes }: { mes: string }) {
   const aPagarMes = doMes.reduce((s, c) => s + c.valor, 0);
   const gastos = gastosPorCategoria(d, mes);
   const proximos = comp.filter(c => c.data >= d.hoje).slice(0, 6);
+  const clientes = porContraparte(d, mes, 'entrada');
+  const fornecedores = porContraparte(d, mes, 'saida');
 
   return (
     <div className="stack">
@@ -51,6 +53,14 @@ function VisaoGeral({ mes }: { mes: string }) {
               ))}
             </div>
           )}
+        </Card>
+      </div>
+      <div className="grid-2">
+        <Card title="Quem mais pagou" subtitle={`Entradas de ${nomeDoMes(mes)} por cliente`}>
+          {clientes.length ? <Barras itens={clientes} total={fluxo.entradas} /> : <div className="table-empty">Nenhuma entrada neste mês.</div>}
+        </Card>
+        <Card title="Para quem mais pagamos" subtitle={`Saídas de ${nomeDoMes(mes)} por fornecedor`}>
+          {fornecedores.length ? <Barras itens={fornecedores} total={fluxo.saidas} /> : <div className="table-empty">Nenhuma saída neste mês.</div>}
         </Card>
       </div>
       <Card title="Saldo por conta" flush>
@@ -92,6 +102,7 @@ function Lancamentos({ mes }: { mes: string }) {
         : l.tipo === 'saida' ? <Badge>{l.cartaoId ? 'Cartão' : 'Saída'}</Badge>
         : <Badge tone="info">{l.parcelas}x · {l.cartaoId ? 'cartão' : `${l.parcelasPagas} paga(s)`}</Badge>,
     },
+    { id: 'cp', header: 'Cliente / fornecedor', value: l => l.contraparte, cell: l => l.contraparte || <span className="muted">—</span> },
     { id: 'conta', header: 'Conta / cartão', value: l => (l.cartaoId ? nomeCartao(d, l.cartaoId) : nomeConta(d, l.contaId)), cell: l => (l.cartaoId ? nomeCartao(d, l.cartaoId) : nomeConta(d, l.contaId)) },
     {
       id: 'valor', header: 'Valor', numeric: true, value: l => (l.tipo === 'entrada' ? l.valor : -l.valor),

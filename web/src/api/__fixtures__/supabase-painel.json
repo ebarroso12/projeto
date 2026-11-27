@@ -13,6 +13,17 @@
     },
     {
       "cor": "Preto",
+      "conf": 0,
+      "erro": false,
+      "corte": 9,
+      "modelo": "Camisa Polo",
+      "naConf": 0,
+      "costura": 0,
+      "tamanho": "G",
+      "naCostura": 9
+    },
+    {
+      "cor": "Preto",
       "conf": 20,
       "erro": false,
       "corte": 100,
@@ -23,7 +34,19 @@
       "naCostura": 30
     }
   ],
-  "editados": [],
+  "editados": [
+    {
+      "cor": "Preto",
+      "qtd": 9,
+      "data": "2026-11-27",
+      "hist": "09:42 7→9",
+      "nome": "Bruno Lima",
+      "etapa": "Corte",
+      "modelo": "Camisa Polo",
+      "edicoes": 1,
+      "tamanho": "G"
+    }
+  ],
   "presenca": [
     {
       "nome": "Ana Souza",
@@ -34,10 +57,10 @@
     },
     {
       "nome": "Bruno Lima",
-      "extra": "13:56",
-      "saida": "13:56",
+      "extra": "9:42",
+      "saida": "09:42",
       "setor": "Cortador",
-      "entrada": "13:56"
+      "entrada": "09:42"
     },
     {
       "nome": "Carla Dias",
@@ -48,7 +71,7 @@
     }
   ],
   "prodHoje": {
-    "Corte": 100,
+    "Corte": 109,
     "Costura": 70,
     "Conferência": 25
   }

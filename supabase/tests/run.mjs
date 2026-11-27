@@ -572,6 +572,38 @@ ok(fails_with(await rpc(carla, `fab_apagar_mensagem('${m1}')`), 'Só quem enviou
 ok((await rpc(admin, `fab_apagar_mensagem('${m2}')`)).ok, 'admin apaga mensagem');
 await rpc(admin, `fab_salvar_funcoes('carla', ${j({ mensagens: false })})`);
 ok(fails_with(await rpc(carla, `fab_enviar_mensagem('', '', 'x', false)`), 'FUNCAO_BLOQUEADA'), 'sem a função, gerente volta a não enviar');
+// ============ 22. financeiro ligado a clientes e fornecedores ============
+console.log('\n--- financeiro x clientes/fornecedores ---');
+const idCli2 = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'cliente', nome: 'Loja Centro' })})`)).data;
+const idForn = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'fornecedor', nome: 'Aviamentos Norte' })})`)).data;
+const idProd = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'produto', nome: 'Camiseta Básica' })})`)).data;
+let cps = (await rpc(admin, 'fin_contrapartes()')).data;
+ok(cps.some(x => x.id === idCli2 && x.tipo === 'cliente') && cps.some(x => x.id === idForn && x.tipo === 'fornecedor') && !cps.some(x => x.id === idProd), 'lista clientes e fornecedores (sem produtos)');
+ok(fails_with(await rpc(ana, 'fin_contrapartes()'), 'FUNCAO_BLOQUEADA'), 'funcionário sem Financeiro não vê a lista');
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'entrada', data: '2026-11-12', descricao: 'Venda Loja Centro', valor: 1200, contaId: conta, contraparteId: idCli2 })})`);
+const lCli = r.data;
+ok(r.ok, 'entrada com cliente');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'saida', data: '2026-11-12', descricao: 'x', valor: 1, contaId: conta, contraparteId: idProd })})`), 'Cliente ou fornecedor inválido'), 'produto não serve como contraparte');
+const idCliB = (await rpc(adminB, `fab_salvar_registro(${j({ tipo: 'cliente', nome: 'Cliente da B' })})`)).data;
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'entrada', data: '2026-11-12', descricao: 'x', valor: 1, contaId: conta, contraparteId: idCliB })})`), 'Cliente ou fornecedor inválido'), 'não usa cliente de outra empresa');
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'programada', data: '2026-11-01', descricao: 'Zíperes', valor: 200, contaId: conta, parcelas: 2, valorParcela: 100, diaVencimento: 10, contraparteId: idForn })})`);
+const progForn = r.data;
+ok(r.ok, 'programada com fornecedor');
+ok((await rpc(admin, `fin_pagar_parcela('${progForn}', '2026-11-10', 100, null)`)).ok, 'paga parcela');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const lc = fin.lancamentos.find(l => l.id === lCli);
+ok(lc.contraparteId === idCli2 && lc.contraparte === 'Loja Centro', 'fin_dados devolve o cliente do lançamento');
+ok(fin.lancamentos.some(l => l.origemId === progForn && l.contraparteId === idForn && l.contraparte === 'Aviamentos Norte'), 'parcela paga herda o fornecedor');
+ok((await rpc(admin, `fin_salvar_lancamento(${j({ id: lCli, tipo: 'entrada', data: '2026-11-12', descricao: 'Venda Loja Centro', valor: 1200, contaId: conta })})`)).ok, 'edita tirando o cliente');
+fin = (await rpc(admin, 'fin_dados()')).data;
+ok(fin.lancamentos.find(l => l.id === lCli).contraparteId === null, 'cliente removido do lançamento');
+await rpc(admin, `fin_salvar_lancamento(${j({ id: lCli, tipo: 'entrada', data: '2026-11-12', descricao: 'Venda Loja Centro', valor: 1200, contaId: conta, contraparteId: idCli2 })})`);
+ok((await rpc(admin, `fab_apagar_registro('${idCli2}')`)).ok, 'exclui o cliente do cadastro');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const lc2 = fin.lancamentos.find(l => l.id === lCli);
+ok(lc2.contraparteId === null && lc2.contraparte === 'Loja Centro', 'lançamento mantém o nome do cliente excluído');
+await rpc(admin, `fin_apagar_lancamento('${lCli}')`); await rpc(admin, `fin_apagar_lancamento('${progForn}')`);
+await q(`delete from fab.fin_lancamentos where origem_id = '${progForn}'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG')`);
 

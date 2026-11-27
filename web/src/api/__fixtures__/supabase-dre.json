@@ -1,89 +1,89 @@
 {
-  "hoje": "2026-11-26",
+  "hoje": "2026-11-27",
   "meses": [
     {
       "mes": "2026-10",
       "status": "fechado",
       "valores": {
-        "182b9b35-dfb6-4ca6-a569-c6ce4f3bc0ea": {
+        "0346f2e1-6877-43fc-bb52-3b8d9f3457e1": {
           "marca": "na",
           "valor": null
         },
-        "2e04f60f-475a-4c08-bb3b-53641b4aba0d": {
+        "14b9a8e9-e360-4a05-ac22-4ab44b6965f6": {
           "marca": "na",
           "valor": null
         },
-        "2f7bbaef-4f33-42fb-bd82-91c8f77f0aa7": {
+        "21d744d5-fd95-462f-9b02-b15b920abda1": {
           "marca": "na",
           "valor": null
         },
-        "3392057a-a9c3-4890-bd13-bb2ae63dea9e": {
+        "2c8170f6-01d9-4ac8-8a56-61b837d3f930": {
           "marca": "na",
           "valor": null
         },
-        "41d43ebd-32a8-4853-82a0-dae43cfc761c": {
+        "2f0ebcce-2c9e-4b3d-8bd5-73a229117422": {
           "marca": "na",
           "valor": null
         },
-        "511023b3-d170-45ed-8138-22867475a27e": {
-          "marca": "na",
-          "valor": null
-        },
-        "58d94dcb-c7fb-426e-b6a1-f88932c22256": {
+        "396b9581-8b46-402e-a189-4fab7dd4d15a": {
           "marca": "valor",
           "valor": 5000
         },
-        "727d51f6-6e2d-49ea-9e2e-a8b20042459b": {
+        "6c45d7a2-dc0d-43c2-857d-49d12e6078b3": {
           "marca": "na",
           "valor": null
         },
-        "74b03b10-f8cc-48b3-8d42-4813432662b0": {
+        "6eec3692-c858-4c90-ac25-f8e4baaed5d4": {
+          "marca": "na",
+          "valor": null
+        },
+        "88e78310-cdea-4d86-8c2a-a5638f465379": {
+          "marca": "na",
+          "valor": null
+        },
+        "af3e22f9-78ef-49a9-b260-73db73d35d2b": {
+          "marca": "na",
+          "valor": null
+        },
+        "b2c3ff93-1d82-488c-9d2c-d5c00adef49f": {
           "marca": "valor",
           "valor": 3000
         },
-        "9dccc058-117a-47f4-8349-45b1d2eaeb64": {
-          "marca": "na",
-          "valor": null
-        },
-        "9fb3dd89-4786-4efb-a25a-57c2676a139c": {
-          "marca": "valor",
-          "valor": 20000
-        },
-        "c15867ec-e875-40a1-9285-1d9e126b3cae": {
-          "marca": "na",
-          "valor": null
-        },
-        "c1fe39c8-ab22-4e60-96f5-f6aaee92cae5": {
-          "marca": "na",
-          "valor": null
-        },
-        "db6aee53-27e8-4835-842f-f6c5b0114828": {
+        "cf674b10-dc32-4344-a5fa-94b1c403fef1": {
           "marca": "valor",
           "valor": 50000
         },
-        "e809fc20-482d-4d1e-a2a7-1830f738093f": {
+        "d6850337-8faa-41e2-b6fc-e580851dfaaf": {
           "marca": "na",
           "valor": null
         },
-        "eda327f4-82fe-445e-b9a2-9187c4bfb5b8": {
+        "e47d12c1-b246-45cc-9280-ce79e829bbdf": {
+          "marca": "valor",
+          "valor": 20000
+        },
+        "e96313e3-4c5e-4d4e-8f35-c53b67e15ad9": {
           "marca": "na",
           "valor": null
         },
-        "f7770582-0ef1-4984-9093-12698525e5ea": {
+        "fbadbe4c-3698-4d3a-bccd-2fabf1aa1310": {
           "marca": "na",
           "valor": null
         },
-        "ff6a63f1-ce00-4e0d-93b0-ad7487afb35b": {
+        "fbea89c8-335c-444f-8b3b-f8e53facb249": {
+          "marca": "na",
+          "valor": null
+        },
+        "ff574e3d-f892-4e82-ba64-7f1c12489ad1": {
           "marca": "na",
           "valor": null
         }
       },
-      "atualizadoEm": "2026-11-26T13:56"
+      "atualizadoEm": "2026-11-27T09:42"
     }
   ],
   "categorias": [
     {
-      "id": "db6aee53-27e8-4835-842f-f6c5b0114828",
+      "id": "cf674b10-dc32-4344-a5fa-94b1c403fef1",
       "nome": "Faturamento bruto",
       "nota": "Total de vendas do mês, mesmo que parte ainda não tenha sido recebida",
       "tipo": "plus",
@@ -95,7 +95,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "eda327f4-82fe-445e-b9a2-9187c4bfb5b8",
+      "id": "d6850337-8faa-41e2-b6fc-e580851dfaaf",
       "nome": "Devoluções e descontos",
       "nota": "Vendas canceladas, devoluções e descontos sobre vendas",
       "tipo": "minus",
@@ -107,7 +107,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "58d94dcb-c7fb-426e-b6a1-f88932c22256",
+      "id": "396b9581-8b46-402e-a189-4fab7dd4d15a",
       "nome": "Impostos sobre vendas",
       "nota": "Valor do imposto do mês informado pela contabilidade",
       "tipo": "minus",
@@ -119,7 +119,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "9fb3dd89-4786-4efb-a25a-57c2676a139c",
+      "id": "e47d12c1-b246-45cc-9280-ce79e829bbdf",
       "nome": "CMV / custo dos produtos vendidos",
       "nota": "Custo já calculado dos produtos vendidos, não compras para estoque",
       "tipo": "minus",
@@ -131,7 +131,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "2e04f60f-475a-4c08-bb3b-53641b4aba0d",
+      "id": "14b9a8e9-e360-4a05-ac22-4ab44b6965f6",
       "nome": "Mão de obra direta (se fora do CMV)",
       "nota": "Não preencha se já está incluída no CMV",
       "tipo": "minus",
@@ -143,7 +143,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "c15867ec-e875-40a1-9285-1d9e126b3cae",
+      "id": "6c45d7a2-dc0d-43c2-857d-49d12e6078b3",
       "nome": "Taxas de marketplace",
       "nota": "",
       "tipo": "minus",
@@ -155,7 +155,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "727d51f6-6e2d-49ea-9e2e-a8b20042459b",
+      "id": "21d744d5-fd95-462f-9b02-b15b920abda1",
       "nome": "Anúncios e publicidade",
       "nota": "",
       "tipo": "minus",
@@ -167,7 +167,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "2f7bbaef-4f33-42fb-bd82-91c8f77f0aa7",
+      "id": "af3e22f9-78ef-49a9-b260-73db73d35d2b",
       "nome": "Embalagens de envio",
       "nota": "",
       "tipo": "minus",
@@ -179,7 +179,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "e809fc20-482d-4d1e-a2a7-1830f738093f",
+      "id": "ff574e3d-f892-4e82-ba64-7f1c12489ad1",
       "nome": "Fretes pagos pela empresa",
       "nota": "",
       "tipo": "minus",
@@ -191,7 +191,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "182b9b35-dfb6-4ca6-a569-c6ce4f3bc0ea",
+      "id": "0346f2e1-6877-43fc-bb52-3b8d9f3457e1",
       "nome": "Comissões de vendas",
       "nota": "",
       "tipo": "minus",
@@ -203,7 +203,7 @@
       "variabilidade": "variable"
     },
     {
-      "id": "74b03b10-f8cc-48b3-8d42-4813432662b0",
+      "id": "b2c3ff93-1d82-488c-9d2c-d5c00adef49f",
       "nome": "Aluguel",
       "nota": "",
       "tipo": "minus",
@@ -215,7 +215,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "ff6a63f1-ce00-4e0d-93b0-ad7487afb35b",
+      "id": "2c8170f6-01d9-4ac8-8a56-61b837d3f930",
       "nome": "Contador",
       "nota": "",
       "tipo": "minus",
@@ -227,7 +227,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "511023b3-d170-45ed-8138-22867475a27e",
+      "id": "e96313e3-4c5e-4d4e-8f35-c53b67e15ad9",
       "nome": "Energia e água administrativas",
       "nota": "",
       "tipo": "minus",
@@ -239,7 +239,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "41d43ebd-32a8-4853-82a0-dae43cfc761c",
+      "id": "88e78310-cdea-4d86-8c2a-a5638f465379",
       "nome": "Internet e telefone",
       "nota": "",
       "tipo": "minus",
@@ -251,7 +251,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "3392057a-a9c3-4890-bd13-bb2ae63dea9e",
+      "id": "fbea89c8-335c-444f-8b3b-f8e53facb249",
       "nome": "Pró-labore",
       "nota": "",
       "tipo": "minus",
@@ -263,7 +263,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "c1fe39c8-ab22-4e60-96f5-f6aaee92cae5",
+      "id": "6eec3692-c858-4c90-ac25-f8e4baaed5d4",
       "nome": "Limpeza e escritório",
       "nota": "",
       "tipo": "minus",
@@ -275,7 +275,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "9dccc058-117a-47f4-8349-45b1d2eaeb64",
+      "id": "2f0ebcce-2c9e-4b3d-8bd5-73a229117422",
       "nome": "Juros recebidos",
       "nota": "",
       "tipo": "plus",
@@ -287,7 +287,7 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "f7770582-0ef1-4984-9093-12698525e5ea",
+      "id": "fbadbe4c-3698-4d3a-bccd-2fabf1aa1310",
       "nome": "Dividendos recebidos",
       "nota": "",
       "tipo": "plus",
@@ -299,12 +299,12 @@
       "variabilidade": "fixed"
     },
     {
-      "id": "d7fc6257-5b9b-4d9d-9f26-317d3d8b9803",
+      "id": "090db13b-993a-49ed-bb3a-1d23bf9b7484",
       "nome": "Software de gestão",
       "nota": "",
       "tipo": "minus",
       "ativa": true,
-      "chave": "custom-48fdbe21f4d04250b9c03c694b12959a",
+      "chave": "custom-32f1bb81b14d4092b51f63f8278ee836",
       "grupo": "admin",
       "ordem": 19,
       "essencial": false,

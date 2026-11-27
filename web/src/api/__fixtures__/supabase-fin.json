@@ -1,8 +1,8 @@
 {
-  "hoje": "2026-11-26",
+  "hoje": "2026-11-27",
   "metas": [
     {
-      "id": "fdb48b98-d6f2-48c6-a304-3ce3089158d1",
+      "id": "13ac5169-0be5-4081-a686-018d7999e5b1",
       "nome": "Reserva de emergência",
       "ativa": true,
       "dataAlvo": null,
@@ -11,13 +11,19 @@
   ],
   "contas": [
     {
-      "id": "88051e0d-07a9-43d7-8818-75904f7bf32a",
+      "id": "9b97b326-30c1-425f-a229-70e4f360bbb7",
       "nome": "Caixa",
       "ativa": true,
       "saldoInicial": 0
     },
     {
-      "id": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "id": "36867ec2-6108-4d4b-95eb-9d1c11932fa1",
+      "nome": "Caixa da Carla",
+      "ativa": true,
+      "saldoInicial": 0
+    },
+    {
+      "id": "b3868678-bdc0-4815-8762-d85ad506d86a",
       "nome": "Conta corrente",
       "ativa": true,
       "saldoInicial": 0
@@ -53,17 +59,17 @@
   },
   "cartoes": [
     {
-      "id": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "id": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
       "nome": "Visa Empresa",
       "ativo": true,
       "diaFechamento": 25,
       "diaVencimento": 5
     }
   ],
-  "dataInicio": "2026-11-26",
+  "dataInicio": "2026-11-27",
   "lancamentos": [
     {
-      "id": "11cb691c-e20c-460c-8383-c02e2ed103b7",
+      "id": "55dca037-0852-46fa-94fc-dc5a3f2df837",
       "obs": "",
       "data": "2026-11-26",
       "tipo": "saida",
@@ -71,19 +77,21 @@
       "valor": 300,
       "centro": "",
       "contaId": null,
-      "cartaoId": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "cartaoId": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
       "origemId": null,
       "parcelas": null,
       "categoria": "Matéria-prima",
       "descricao": "Linha e aviamentos",
+      "contraparte": "",
       "responsavel": "",
       "valorParcela": null,
+      "contraparteId": null,
       "diaVencimento": null,
       "parcelasPagas": 0,
       "vencimentoFatura": "2027-01-05"
     },
     {
-      "id": "e5a169d3-034c-4d0a-8eda-c193fcc0c2fb",
+      "id": "c71d7ac7-8b3e-4f26-ab14-f8662119d1ce",
       "obs": "",
       "data": "2026-11-20",
       "tipo": "saida",
@@ -91,73 +99,81 @@
       "valor": 50,
       "centro": "",
       "contaId": null,
-      "cartaoId": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "cartaoId": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
       "origemId": null,
       "parcelas": null,
       "categoria": "",
       "descricao": "Botões",
+      "contraparte": "",
       "responsavel": "",
       "valorParcela": null,
+      "contraparteId": null,
       "diaVencimento": null,
       "parcelasPagas": 0,
       "vencimentoFatura": "2026-12-05"
     },
     {
-      "id": "d0e720f8-4052-4367-8eec-8a596347b6a9",
+      "id": "d9267578-c7cf-48d2-b298-06f7c64a8417",
       "obs": "",
       "data": "2026-11-15",
       "tipo": "saida",
       "forma": "",
       "valor": 1000,
       "centro": "",
-      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
       "cartaoId": null,
-      "origemId": "5190689f-02dd-4d8b-bf97-26fa68ff6743",
+      "origemId": "28cea7d8-fbf5-4952-9ea3-25d414577cfc",
       "parcelas": null,
       "categoria": "",
       "descricao": "Máquina de costura · parcela 1/3",
+      "contraparte": "",
       "responsavel": "",
       "valorParcela": null,
+      "contraparteId": null,
       "diaVencimento": null,
       "parcelasPagas": 0,
       "vencimentoFatura": null
     },
     {
-      "id": "41bd0ad1-5271-43db-bd1e-db22ee6eb3da",
+      "id": "4bc005eb-10a4-4ef4-aad8-67fae6d16e8e",
       "obs": "",
       "data": "2026-11-10",
       "tipo": "entrada",
       "forma": "",
       "valor": 5000,
       "centro": "",
-      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
       "cartaoId": null,
       "origemId": null,
       "parcelas": null,
       "categoria": "Vendas",
       "descricao": "Venda lote 12",
+      "contraparte": "",
       "responsavel": "",
       "valorParcela": null,
+      "contraparteId": null,
       "diaVencimento": null,
       "parcelasPagas": 0,
       "vencimentoFatura": null
     },
     {
-      "id": "5190689f-02dd-4d8b-bf97-26fa68ff6743",
+      "id": "28cea7d8-fbf5-4952-9ea3-25d414577cfc",
       "obs": "",
       "data": "2026-11-01",
       "tipo": "programada",
       "forma": "",
       "valor": 3000,
       "centro": "",
-      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
+      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
       "cartaoId": null,
       "origemId": null,
       "parcelas": 3,
       "categoria": "",
       "descricao": "Máquina de costura",
+      "contraparte": "",
       "responsavel": "",
       "valorParcela": 1000,
+      "contraparteId": null,
       "diaVencimento": 15,
       "parcelasPagas": 1,
       "vencimentoFatura": null
@@ -175,21 +191,21 @@
   ],
   "movimentosMeta": [
     {
-      "id": "4cc5c13e-2a7b-4209-a72f-ff5af7ff1079",
+      "id": "3b65fc27-2c6e-4dba-bc6e-8ba14c19b0ea",
       "data": "2026-11-20",
       "tipo": "deposito",
       "valor": 800,
-      "metaId": "fdb48b98-d6f2-48c6-a304-3ce3089158d1",
-      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61"
+      "metaId": "13ac5169-0be5-4081-a686-018d7999e5b1",
+      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a"
     }
   ],
   "pagamentosFatura": [
     {
-      "id": "984420bc-36bf-4a1a-8dcd-172f68f5a2e5",
+      "id": "dc5fde42-df69-45ac-88c1-f62605e10202",
       "data": "2026-12-05",
       "valor": 50,
-      "contaId": "96ed67e2-7c8e-4032-a4fb-35d350891f61",
-      "cartaoId": "eec8767e-3895-4bf1-84ce-00d34a6d30c4",
+      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
+      "cartaoId": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
       "vencimento": "2026-12-05"
     }
   ]

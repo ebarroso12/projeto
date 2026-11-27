@@ -218,15 +218,18 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.locator('.sidebar').getByRole('link', { name: 'Financeiro' }).click();
   await page.getByText('Saldo em contas').waitFor();
   ok(true, 'financeiro abre com saldo');
+  ok(await page.getByRole('heading', { name: 'Para quem mais pagamos' }).isVisible() && await page.getByText('Atacado Bom Preço').first().isVisible(), 'visão geral por cliente e fornecedor');
   await shot(page, '12-financeiro');
   await page.locator('.page-head').getByRole('button', { name: 'Lançar', exact: true }).click();
   const dlg = page.locator('dialog[open]');
   await dlg.getByLabel('Valor (R$)', { exact: true }).fill('150,00');
   await dlg.getByLabel('Descrição').fill('Linha de costura e2e');
+  await dlg.getByLabel('Fornecedor (opcional)').selectOption({ label: 'Aviamentos Franca' });
   await dlg.getByRole('button', { name: 'Salvar' }).click();
   await page.getByText('Lançamento salvo.').waitFor();
   await page.getByRole('tab', { name: 'Lançamentos' }).click();
   ok(await until(() => page.getByText('Linha de costura e2e').first().isVisible()), 'lançamento financeiro aparece na lista');
+  ok(await page.getByRole('row', { name: /Linha de costura e2e.*Aviamentos Franca/ }).first().isVisible(), 'lançamento mostra o fornecedor');
   await shot(page, '13-financeiro-lancamentos');
   await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: 'A pagar' }).click();
   await page.getByRole('heading', { name: 'Contas a pagar' }).waitFor();

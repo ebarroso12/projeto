@@ -1,5 +1,14 @@
 [
   {
+    "versao": "1.5.1",
+    "data": "2026-11-27",
+    "novidades": [
+      "Financeiro ligado aos Cadastros: escolha o cliente numa entrada e o fornecedor numa saída ou conta a pagar",
+      "Visão geral do Financeiro mostra quem mais pagou (clientes) e para quem mais pagamos (fornecedores) no mês",
+      "Lançamentos ganham a coluna Cliente / fornecedor; parcelas pagas herdam o fornecedor da conta"
+    ]
+  },
+  {
     "versao": "1.5.0",
     "data": "2026-11-27",
     "novidades": [

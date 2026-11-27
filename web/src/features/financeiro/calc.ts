@@ -132,6 +132,21 @@ export function compromissos(d: FinDados, nomeCartao: (id: string) => string): C
 }
 
 /** Gastos efetivados do mês por categoria, do maior para o menor. */
+/**
+ * Total do mês por cliente (entradas) ou por fornecedor (saídas, incluindo compras no cartão e parcelas pagas).
+ * Lançamentos sem cliente/fornecedor somam em "Não informado", que vai sempre por último.
+ */
+export function porContraparte(d: FinDados, mes: string, tipo: 'entrada' | 'saida'): [string, number][] {
+  const NI = 'Não informado';
+  const tot: Record<string, number> = {};
+  for (const l of d.lancamentos) {
+    if (l.tipo !== tipo || !l.data.startsWith(mes)) continue;
+    const k = l.contraparte.trim() || NI;
+    tot[k] = arred((tot[k] ?? 0) + l.valor);
+  }
+  return Object.entries(tot).sort((a, b) => (a[0] === NI ? 1 : b[0] === NI ? -1 : b[1] - a[1]));
+}
+
 export function gastosPorCategoria(d: FinDados, mes: string): [string, number][] {
   return Object.entries(realizadoMes(d, mes).saidas).sort((a, b) => b[1] - a[1]);
 }

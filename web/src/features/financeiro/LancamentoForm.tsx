@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { FinLancamento, FinLancamentoInput, FinTipo } from '../../api/types';
 import { useApi } from '../../app/auth';
 import { useAction } from '../../app/useAction';
@@ -39,6 +40,9 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
   const [valorParcela, setValorParcela] = useState(valorTexto(inicial?.valorParcela));
   const [diaVenc, setDiaVenc] = useState(String(inicial?.diaVencimento ?? ''));
   const [obs, setObs] = useState(inicial?.obs ?? '');
+  const [contraparte, setContraparte] = useState(inicial?.contraparteId ?? '');
+  // clientes e fornecedores ativos (Cadastros) — rota do Financeiro, então quem só tem o Financeiro também vê
+  const cps = useQuery({ queryKey: [...FIN_KEY, 'contrapartes'], queryFn: () => api.finContrapartes(), staleTime: 60_000 });
   const [erro, setErro] = useState('');
 
   const salvar = useAction((o: FinLancamentoInput) => api.finSalvarLancamento(o), {
@@ -53,6 +57,20 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
     ...contasAtivas.map(c => ({ value: `conta:${c.id}`, label: `Conta · ${c.nome}` })),
     ...(tipo === 'entrada' ? [] : cartoesAtivos.map(c => ({ value: `cartao:${c.id}`, label: `Cartão · ${c.nome}` }))),
   ];
+
+  const tipoCp = tipo === 'entrada' ? 'cliente' : 'fornecedor';
+  const listaCp = (cps.data ?? []).filter(c => c.tipo === tipoCp || c.id === contraparte);
+  const opcoesCp = listaCp.map(c => ({ value: c.id, label: c.documento ? `${c.nome} · ${c.documento}` : c.nome }));
+  // cadastro excluído ou inativo: mantém o nome guardado no lançamento como opção
+  if (contraparte && !listaCp.some(c => c.id === contraparte) && inicial?.contraparteId === contraparte && inicial.contraparte) {
+    opcoesCp.push({ value: contraparte, label: `${inicial.contraparte} (inativo)` });
+  }
+  const trocarTipo = (t: FinTipo) => {
+    setTipo(t);
+    if (t === 'entrada' && pagTipo === 'cartao') setPagamento(`conta:${contasAtivas[0]?.id ?? ''}`);
+    const atual = cps.data?.find(c => c.id === contraparte);
+    if (atual && atual.tipo !== (t === 'entrada' ? 'cliente' : 'fornecedor')) setContraparte('');
+  };
 
   const onValor = (v: string) => {
     setValor(v);
@@ -75,6 +93,7 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
       contaId: noCartao ? null : (tipo === 'entrada' || pagTipo === 'conta' ? pagId : null),
       cartaoId: noCartao ? pagId : null,
       categoria, centro, responsavel, forma: noCartao ? 'Cartão de crédito' : forma, obs,
+      contraparteId: contraparte || null,
     };
     if (tipo === 'programada') {
       const p = Number(parcelas), vp = parseValor(valorParcela), dia = Number(diaVenc);
@@ -93,7 +112,7 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
       <div className="tipo-toggle" role="radiogroup" aria-label="Tipo de lançamento">
         {TIPOS.map(t => (
           <button key={t.id} type="button" role="radio" aria-checked={tipo === t.id} className={tipo === t.id ? 'on' : ''}
-            onClick={() => { setTipo(t.id); if (t.id === 'entrada' && pagTipo === 'cartao') setPagamento(`conta:${contasAtivas[0]?.id ?? ''}`); }}>
+            onClick={() => trocarTipo(t.id)}>
             <b>{t.titulo}</b><small>{t.dica}</small>
           </button>
         ))}
@@ -103,6 +122,9 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
         <TextField label={tipo === 'programada' ? 'Valor total (R$)' : 'Valor (R$)'} inputMode="decimal" value={valor} onChange={e => onValor(e.target.value)} placeholder="0,00" />
       </div>
       <TextField label="Descrição" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder={tipo === 'entrada' ? 'Ex.: Venda lote 121' : 'Ex.: Tecido malha 300 kg'} />
+      <SelectField label={tipo === 'entrada' ? 'Cliente (opcional)' : 'Fornecedor (opcional)'} value={contraparte} onChange={e => setContraparte(e.target.value)}
+        options={opcoesCp} placeholder={cps.isLoading ? 'Carregando…' : '—'}
+        hint={cps.data && !opcoesCp.length ? `Nenhum ${tipoCp} cadastrado. Cadastre em Cadastros → ${tipo === 'entrada' ? 'Clientes' : 'Fornecedores'}.` : undefined} />
       <SelectField label={tipo === 'entrada' ? 'Entrou na conta' : 'Pagamento'} value={pagamento} onChange={e => setPagamento(e.target.value)} options={opcoesPagamento} />
       {tipo === 'programada' && (
         <div className="form-grid">

@@ -140,7 +140,11 @@ export interface FinLancamento {
   forma: string; categoria: string; responsavel: string; centro: string;
   parcelas: number | null; valorParcela: number | null; diaVencimento: number | null; parcelasPagas: number;
   vencimentoFatura: string | null; origemId: string | null; obs: string;
+  /** Cliente (entrada) ou fornecedor (saída) ligado ao lançamento; nome fica mesmo se o cadastro for excluído. */
+  contraparteId: string | null; contraparte: string;
 }
+/** Cliente ou fornecedor ativo, para escolher no lançamento. */
+export interface FinContraparte { id: string; tipo: 'cliente' | 'fornecedor'; nome: string; documento: string }
 export interface FinPagamentoFatura { id: string; cartaoId: string; vencimento: string; valor: number; contaId: string; data: string }
 export interface FinMeta { id: string; nome: string; valorMeta: number; dataAlvo: string | null; ativa: boolean }
 export interface FinMovimentoMeta { id: string; metaId: string; tipo: 'deposito' | 'retirada'; valor: number; data: string; contaId: string }
@@ -160,6 +164,7 @@ export interface FinLancamentoInput {
   contaId?: string | null; cartaoId?: string | null;
   forma?: string; categoria?: string; responsavel?: string; centro?: string;
   parcelas?: number | null; valorParcela?: number | null; diaVencimento?: number | null; obs?: string;
+  contraparteId?: string | null;
 }
 
 // =====================================================================

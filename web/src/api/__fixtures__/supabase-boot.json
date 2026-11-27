@@ -5,11 +5,25 @@
     "nome": "Carla Dias",
     "admin": false,
     "setor": "Conferente",
+    "funcoes": {
+      "falta": true,
+      "ponto": true,
+      "lancar": true,
+      "painel": false,
+      "acessos": false,
+      "empresas": false,
+      "cadastros": false,
+      "dashboard": false,
+      "mensagens": false,
+      "relatorio": false,
+      "resultado": false,
+      "financeiro": false
+    },
     "leitura": false,
     "podeFalta": true,
     "financeiro": false
   },
-  "hoje": "2026-11-26",
+  "hoje": "2026-11-27",
   "cores": [
     "Preto",
     "Branco",
@@ -33,26 +47,27 @@
   "horaFim": "17:30",
   "modelos": [
     "Camisa Polo",
-    "Calça Jeans"
+    "Calça Jeans",
+    "Camiseta Básica"
   ],
   "meusHoje": [
     {
-      "id": "d673e04e-eacf-4f3b-bcb4-8f40234bf9cb",
+      "id": "d14a8d44-ba54-4baa-a49c-bf9a94113ab1",
       "cor": "Preto",
       "qtd": 8,
       "hist": "",
-      "hora": "13:56",
+      "hora": "09:42",
       "etapa": "Conferência",
       "modelo": "Camisa Polo",
       "edicoes": 0,
       "tamanho": "M"
     },
     {
-      "id": "01895a11-851c-41bd-94b8-e5b9c5e35642",
+      "id": "a6280d90-7809-4edc-a1fb-b3969cdd522a",
       "cor": "Preto",
       "qtd": 12,
       "hist": "",
-      "hora": "13:56",
+      "hora": "09:42",
       "etapa": "Conferência",
       "modelo": "Camisa Polo",
       "edicoes": 0,
@@ -72,6 +87,14 @@
       "Costura": 0,
       "tamanho": "P",
       "Conferência": 5
+    },
+    {
+      "cor": "Preto",
+      "Corte": 9,
+      "modelo": "Camisa Polo",
+      "Costura": 0,
+      "tamanho": "G",
+      "Conferência": 0
     },
     {
       "cor": "Preto",

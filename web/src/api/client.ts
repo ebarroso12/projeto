@@ -1,7 +1,7 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
@@ -109,6 +109,7 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),
     finSalvarLancamento: async (o: FinLancamentoInput) => str(await call('finSalvarLancamento', tok(), o)),
+    finContrapartes: async () => parseContrapartes(await call('finContrapartes', tok())),
     finApagarLancamento: async (id: string) => { await call('finApagarLancamento', tok(), id); },
     finPagarParcela: async (id: string, data: string, valor: number, contaId: string | null) => { await call('finPagarParcela', tok(), id, data, valor, contaId); },
     finPagarFatura: async (cartaoId: string, vencimento: string, valor: number, contaId: string, data: string) => {

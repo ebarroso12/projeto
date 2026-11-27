@@ -398,11 +398,11 @@ const fin = {
 };
 (function seedFin() {
   const m = mesAtual(), p = mesMenos(1);
-  const L = (o: Record<string, unknown>) => fin.lancamentos.push({ id: uid(), forma: '', categoria: '', responsavel: 'Edson', centro: 'Produção', parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: null, obs: '', contaId: null, cartaoId: null, ...o });
-  L({ tipo: 'entrada', data: `${p}-08`, descricao: 'Venda lote 118 · Loja Centro', valor: 14800, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial' });
-  L({ tipo: 'saida', data: `${p}-10`, descricao: 'Tecido malha 300 kg', valor: 6200, contaId: 'cc', categoria: 'Matéria-prima', forma: 'Boleto' });
+  const L = (o: Record<string, unknown>) => fin.lancamentos.push({ id: uid(), forma: '', categoria: '', responsavel: 'Edson', centro: 'Produção', parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, contraparteId: null, contraparte: '', origemId: null, obs: '', contaId: null, cartaoId: null, ...o });
+  L({ tipo: 'entrada', data: `${p}-08`, descricao: 'Venda lote 118 · Loja Centro', valor: 14800, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', contraparteId: 'r3', contraparte: 'Loja Centro Modas' });
+  L({ tipo: 'saida', data: `${p}-10`, descricao: 'Tecido malha 300 kg', valor: 6200, contaId: 'cc', categoria: 'Matéria-prima', forma: 'Boleto', contraparteId: 'r5', contraparte: 'Tecelagem Sul' });
   L({ tipo: 'saida', data: `${p}-05`, descricao: 'Folha de pagamento', valor: 9200, contaId: 'cc', categoria: 'Folha de pagamento', centro: 'Administrativo', forma: 'Transferência' });
-  L({ tipo: 'entrada', data: `${m}-06`, descricao: 'Venda lote 121 · Atacado', valor: 21400, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'PIX' });
+  L({ tipo: 'entrada', data: `${m}-06`, descricao: 'Venda lote 121 · Atacado', valor: 21400, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'PIX', contraparteId: 'r4', contraparte: 'Atacado Bom Preço' });
   L({ tipo: 'saida', data: `${m}-05`, descricao: 'Folha de pagamento', valor: 9350, contaId: 'cc', categoria: 'Folha de pagamento', centro: 'Administrativo', forma: 'Transferência' });
   L({ tipo: 'saida', data: `${m}-10`, descricao: 'Aluguel do galpão', valor: 4800, contaId: 'cc', categoria: 'Aluguel', centro: 'Administrativo', forma: 'Boleto' });
   L({ tipo: 'saida', data: `${m}-12`, descricao: 'Energia elétrica', valor: 1730, contaId: 'cc', categoria: 'Energia e água', forma: 'Débito automático' });
@@ -468,7 +468,10 @@ Object.assign(handlers, {
     const cartao = r.tipo !== 'entrada' && r.cartaoId ? fin.cartoes.find(c => c.id === r.cartaoId) : undefined;
     if (!cartao) conta(r.contaId);
     if (r.tipo === 'programada' && !cartao && !(Number(r.diaVencimento) >= 1)) throw fromServerMessage('Informe o dia do vencimento (1 a 31).');
+    const cp = r.contraparteId ? registrosDemo.find(x => x.id === r.contraparteId && (x.tipo === 'cliente' || x.tipo === 'fornecedor')) : undefined;
+    if (r.contraparteId && !cp) throw fromServerMessage('Cliente ou fornecedor inválido.');
     const item = { forma: '', categoria: '', responsavel: '', centro: '', obs: '', parcelasPagas: 0, origemId: null, parcelas: null, valorParcela: null, diaVencimento: null, ...r,
+      contraparteId: cp ? cp.id : null, contraparte: cp ? String(cp.nome) : '',
       contaId: cartao ? null : r.contaId, cartaoId: cartao ? cartao.id : null,
       vencimentoFatura: cartao ? vencFatura(String(r.data), cartao.diaFechamento, cartao.diaVencimento) : null } as Record<string, unknown>;
     const i = fin.lancamentos.findIndex(l => l.id === r.id);
@@ -483,7 +486,7 @@ Object.assign(handlers, {
     if (Number(l.parcelasPagas) >= Number(l.parcelas)) throw fromServerMessage('Todas as parcelas já foram pagas.');
     l.parcelasPagas = Number(l.parcelasPagas) + 1;
     fin.lancamentos.push({ id: uid(), tipo: 'saida', data, descricao: `${l.descricao} · parcela ${l.parcelasPagas}/${l.parcelas}`, valor: Number(valor), contaId: contaId ?? l.contaId, cartaoId: null,
-      forma: l.forma, categoria: l.categoria, responsavel: l.responsavel, centro: l.centro, parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: l.id, obs: '' });
+      forma: l.forma, categoria: l.categoria, responsavel: l.responsavel, centro: l.centro, parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: l.id, obs: '', contraparteId: l.contraparteId ?? null, contraparte: l.contraparte ?? '' });
     return null;
   },
   finPagarFatura: ([t, cartaoId, vencimento, valor, contaId, data]: unknown[]) => {
@@ -769,6 +772,7 @@ const mensagensDemo: { id: string; autor: string; paraLogin: string; titulo: str
 ];
 const nomeLogin = (l: string) => state.users.find(u => u.login === l)?.nome ?? l;
 Object.assign(handlers, {
+  finContrapartes: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return registrosDemo.filter(r => (r.tipo === 'cliente' || r.tipo === 'fornecedor') && r.ativo !== false).map(r => ({ id: r.id, tipo: r.tipo, nome: r.nome, documento: r.documento })); },
   registros: ([t, tipo]: unknown[]) => { requireAdmin(userOf(String(t))); return registrosDemo.filter(r => r.tipo === tipo); },
   salvarRegistro: ([t, o]: unknown[]) => {
     requireAdmin(userOf(String(t)));

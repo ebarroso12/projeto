@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { DreCategoria, FinDados, FinLancamento } from '../../api/types';
 import { calcularDre, pendencias } from '../dre/calc';
 import {
-  addMeses, compromissos, faturasAbertas, fluxoMes, parcelasEmAberto, realizadoMes, saldoConta, saldoTotal, totalGuardado, vencimentoParcela,
+  addMeses, compromissos, porContraparte, faturasAbertas, fluxoMes, parcelasEmAberto, realizadoMes, saldoConta, saldoTotal, totalGuardado, vencimentoParcela,
 } from './calc';
 
 const L = (o: Partial<FinLancamento>): FinLancamento => ({
-  id: Math.random().toString(36).slice(2), tipo: 'saida', data: '2026-11-10', descricao: 'x', valor: 0, contaId: null, cartaoId: null,
+  id: Math.random().toString(36).slice(2), tipo: 'saida', data: '2026-11-10', descricao: 'x', valor: 0, contaId: null, cartaoId: null, contraparteId: null, contraparte: '',
   forma: '', categoria: '', responsavel: '', centro: '', parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0,
   vencimentoFatura: null, origemId: null, obs: '', ...o,
 });
@@ -98,5 +98,21 @@ describe('DRE', () => {
   it('"preencher depois" e campos vazios deixam o mês pendente; "não se aplica" não', () => {
     const p = pendencias(cats, { gross: v(1), tax: { marca: 'na', valor: null }, cmv: { marca: 'depois', valor: null } });
     expect(p.map(c => c.chave)).toEqual(['cmv', 'ads', 'freight', 'rent', 'interest']);
+  });
+});
+
+describe('clientes e fornecedores no financeiro', () => {
+  it('soma entradas por cliente e saídas por fornecedor no mês, com "Não informado" por último', () => {
+    const d = base([
+      L({ tipo: 'entrada', data: '2026-11-03', valor: 500, contraparte: 'Loja A' }),
+      L({ tipo: 'entrada', data: '2026-11-09', valor: 1500, contraparte: 'Loja B' }),
+      L({ tipo: 'entrada', data: '2026-11-12', valor: 250, contraparte: 'Loja A' }),
+      L({ tipo: 'entrada', data: '2026-11-15', valor: 9000 }),
+      L({ tipo: 'entrada', data: '2026-10-30', valor: 99, contraparte: 'Loja A' }),
+      L({ tipo: 'saida', data: '2026-11-04', valor: 300, contraparte: 'Tecelagem' }),
+      L({ tipo: 'programada', data: '2026-11-04', valor: 900, contraparte: 'Tecelagem', parcelas: 3, valorParcela: 300 }),
+    ]);
+    expect(porContraparte(d, '2026-11', 'entrada')).toEqual([['Loja B', 1500], ['Loja A', 750], ['Não informado', 9000]]);
+    expect(porContraparte(d, '2026-11', 'saida')).toEqual([['Tecelagem', 300]]);
   });
 });
