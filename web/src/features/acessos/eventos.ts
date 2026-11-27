@@ -13,6 +13,7 @@ export const TABELAS: Record<string, string> = {
 };
 export const TIPOS: Record<string, { rotulo: string; tom: 'ok' | 'warn' | 'danger' | 'info' | 'neutral' }> = {
   entrada: { rotulo: 'Entrou', tom: 'ok' }, saida: { rotulo: 'Saiu', tom: 'neutral' },
+  backup: { rotulo: 'Baixou a cópia de segurança', tom: 'info' },
   acesso_pedido: { rotulo: 'Pediu acesso', tom: 'warn' }, acesso_liberado: { rotulo: 'Liberou acesso de', tom: 'ok' },
   acesso_negado: { rotulo: 'Negou acesso de', tom: 'danger' }, sessao_encerrada: { rotulo: 'Derrubou a sessão de', tom: 'danger' },
   aparelho_revogado: { rotulo: 'Revogou aparelho de', tom: 'warn' },

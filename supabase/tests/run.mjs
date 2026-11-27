@@ -322,7 +322,7 @@ ok((await rpc(adminB, `fab_relatorio('${dia(0)}','${dia(4)}')`)).data.diasUteis 
 // ============ 15. cópia de segurança ============
 console.log('\n--- cópia de segurança ---');
 r = await rpc(admin, 'fab_exportar()');
-ok(r.ok && r.data.formato === 'fabrica-backup-1' && r.data.empresa.codigo === 'alfa', 'admin exporta a própria empresa');
+ok(r.ok && r.data.formato === 'fabrica-backup-2' && r.data.empresa.codigo === 'alfa', 'admin exporta a própria empresa');
 const tabs = r.ok ? r.data.tabelas : {};
 ok(tabs.perfis?.length === 5 && tabs.perfis.every(x => x.empresa_id === empA), 'backup traz só as pessoas da empresa A');
 ok(tabs.ponto?.length >= 2 && tabs.itens_lista?.length >= 7 && Array.isArray(tabs.fin_lancamentos) && Array.isArray(tabs.dre_categorias), 'backup traz produção, ponto, financeiro e resultado');
@@ -934,6 +934,46 @@ ok(fails_with(await rpc(carla, `fab_lancar_por(${j({ login: 'ana' })}, 'Costura'
 ok(fails_with(await rpc(ana, 'fab_remessas(120)'), 'FUNCAO_BLOQUEADA'), 'funcionário sem Oficinas e remessas não vê');
 ok((await rpc(adminB, 'fab_remessas(120)')).data.remessas.length === 0 && fails_with(await rpc(adminB, `fab_fechar_remessa('${remessa.id}', null)`), 'não encontrada'), 'outra empresa não vê nem fecha');
 ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.alvo === 'remessas'), 'remessas ficam na auditoria');
+// ============ cópia de segurança completa (formato 2) ============
+console.log('\n--- cópia de segurança completa ---');
+await q(`delete from fab.eventos where tipo = 'backup'`);
+let bs = (await rpc(admin, 'fab_backup_situacao()')).data;
+ok(bs.ultima === null && bs.dias === null, 'sem cópia ainda: situação vazia');
+await q(`update fab.empresas set teste_ate = null where id = any($1)`, [[empA, empB]]);
+await q(`delete from fab.avisos_fila`);
+ok((await q(`select fab.lembrete_backup() n`))[0].n >= 2, 'lembrete semanal vai para as empresas sem cópia');
+const lemb = await q(`select * from fab.avisos_fila where tipo = 'backup' and empresa_id = $1`, [empA]);
+ok(lemb.length === 1 && lemb[0].url === '#/cadastros?aba=backup' && /ainda não tem/.test(lemb[0].texto), 'aviso leva direto para a aba de cópia');
+const admsA = (await q(`select array_agg(id order by id) a from fab.perfis where empresa_id = $1 and ativo and perfil = 'admin'`, [empA]))[0].a;
+ok(JSON.stringify([...lemb[0].users].sort()) === JSON.stringify([...admsA].sort()), 'lembrete só para administradores ativos');
+const pedBk = (await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'Cliente backup', dataPedido: diaP(-1), entrega: diaP(5), itens: [item('G', 3), item('P', 2)] })})`)).data;
+const bk2r = await rpc(admin, 'fab_exportar()');
+const bk2 = bk2r.data;
+ok(bk2r.ok && bk2.formato === 'fabrica-backup-2' && bk2.geradoPor && bk2.contagem && bk2.contagem.perfis === bk2.tabelas.perfis.length, 'formato 2 com contagem por tabela');
+for (const [filha, mae, fk] of [['pedido_itens', 'pedidos', 'pedido_id'], ['remessa_itens', 'remessas', 'remessa_id'], ['ordem_corte_itens', 'ordens_corte', 'ordem_id'], ['material_consumo', 'materiais', 'material_id'], ['mensagens_lidas', 'mensagens', 'mensagem_id']]) {
+  const esperado = (await q(`select count(*)::int n from fab.${filha} i join fab.${mae} m on m.id = i.${fk} where m.empresa_id = $1`, [empA]))[0].n;
+  ok(Array.isArray(bk2.tabelas[filha]) && bk2.tabelas[filha].length === esperado && (filha === 'mensagens_lidas' || esperado > 0), `itens sem empresa_id entram: ${filha} (${esperado})`);
+}
+const espRet = (await q(`select count(*)::int n from fab.retorno_itens i join fab.remessa_retornos r on r.id = i.retorno_id where r.empresa_id = $1`, [empA]))[0].n;
+ok(espRet > 0 && bk2.tabelas.retorno_itens.length === espRet, `itens de retorno entram (${espRet})`);
+const txt = JSON.stringify(bk2);
+ok(!('push_inscricoes' in bk2.tabelas) && !('chaves_acesso' in bk2.tabelas) && !('avisos_fila' in bk2.tabelas) && !('dani_uso' in bk2.tabelas), 'sem inscrições de avisos, chaves, filas internas');
+ok(bk2.tabelas.sessoes.every(x => !('session_id' in x)) && bk2.tabelas.aparelhos_confiaveis.every(x => !('aparelho' in x)), 'sem id de sessão nem id de aparelho confiável');
+ok(!txt.includes('p256dh') && !txt.includes('token_hash'), 'nenhuma chave de criptografia ou token no arquivo');
+const pedB = (await q(`select count(*)::int n from fab.pedido_itens i join fab.pedidos p on p.id = i.pedido_id where p.empresa_id = $1`, [empB]))[0].n;
+const bkB = (await rpc(adminB, 'fab_exportar()')).data;
+ok(bkB.tabelas.pedido_itens.length === pedB && bkB.tabelas.pedido_itens.every(i => !bk2.tabelas.pedido_itens.some(x => x.id === i.id && i.id !== undefined)), 'itens da outra empresa não vazam');
+bs = (await rpc(admin, 'fab_backup_situacao()')).data;
+ok(bs.ultima && bs.dias === 0 && bs.quem, 'situação mostra a última cópia (hoje) e quem baixou');
+ok((await q(`select count(*)::int n from fab.eventos where tipo = 'backup' and empresa_id = $1`, [empA]))[0].n === 1, 'download fica na Atividade');
+await q(`delete from fab.avisos_fila`);
+await q(`select fab.lembrete_backup()`);
+ok((await q(`select count(*)::int n from fab.avisos_fila where tipo = 'backup' and empresa_id = $1`, [empA]))[0].n === 0, 'com cópia recente, sem lembrete');
+ok(fails_with(await rpc(ana, 'fab_backup_situacao()'), 'FUNCAO_BLOQUEADA'), 'funcionário não vê a situação da cópia');
+ok(fails_with(await rpc(null, 'fab_backup_situacao()', { role: 'anon' }), 'permission denied'), 'anônimo não vê');
+ok((await q(`select has_function_privilege('authenticated', 'fab.lembrete_backup()', 'execute') p, has_function_privilege('anon', 'fab.lembrete_backup()', 'execute') a`)).every(x => !x.p && !x.a), 'lembrete não é chamado pelo app (só pelo agendador)');
+await q(`delete from fab.avisos_fila`);
+await q(`delete from fab.pedidos where id = $1`, [pedBk.id ?? pedBk]);
 await q(`delete from fab.remessas`); await q(`delete from fab.ordens_corte`); await q(`delete from fab.materiais where id = $1`, [mat30]);
 await q(`delete from fab.lancamentos where origem <> 'lancar' or (modelo = 'Calça Jeans' and cor = 'Branco')`);
 await q(`delete from fab.fin_lancamentos where categoria = 'Facção'`);
@@ -954,6 +994,7 @@ ok(fails_with(await rpc(bruno, `fab_dani_inicio('')`), 'DANI_LIMITE'), 'limite d
 ok((await rpc(carla, `fab_dani_inicio('')`)).ok, 'limite é por pessoa');
 ok((await rpc(admin, `fab_salvar_dani('-', '')`)).ok && !(await rpc(admin, 'fab_dani_config()')).data.configurada, 'dono remove a chave');
 await q(`delete from fab.dani_uso`);
+
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

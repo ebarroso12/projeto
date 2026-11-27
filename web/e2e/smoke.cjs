@@ -578,12 +578,68 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
     ok(pronto, 'service worker instalado');
     ok(await pg.evaluate(() => fetch('manifest.webmanifest').then(r => r.json()).then(m => m.display === 'standalone' && m.icons.length >= 2)), 'manifesto do app instalável');
     await pg.reload(); await pg.getByLabel('Login').waitFor();
+    await pg.goto(BASE + 'manual/'); await pg.getByRole('heading', { name: /Primeiro acesso/ }).waitFor();
+    ok(await pg.locator('img[src="img/login.webp"]').evaluate(i => i.complete && i.naturalWidth > 0), 'manual publicado em /manual/ com as imagens');
+    await pg.goto(BASE); await pg.getByLabel('Login').waitFor();
     await ctx.setOffline(true);
     await pg.reload();
-    ok(await until(() => pg.getByLabel('Login').isVisible(), 6000), 'sem internet o app ainda abre');
+    ok(await until(() => pg.getByLabel('Login').isVisible(), 6000), 'sem internet o app ainda abre (o manual não substitui o app guardado)');
+    await pg.goto(BASE + 'manual/').catch(() => undefined);
+    ok(await until(() => pg.getByRole('heading', { name: /Primeiro acesso/ }).isVisible(), 6000), 'sem internet o manual também abre');
+    await pg.goto(BASE).catch(() => undefined);
+    ok(await until(() => pg.getByLabel('Login').isVisible(), 6000), 'e o app continua abrindo depois do manual');
     await ctx.setOffline(false);
     await ctx.close();
   }
+  // 1.11: manual no app, cópia de segurança pelo aviso e dica do iPhone
+  {
+    const pg = await newPage({ width: 1280, height: 860 });
+    await pg.getByLabel('Login').fill('admin'); await pg.getByLabel('Senha', { exact: true }).fill('admin');
+    await pg.getByRole('button', { name: 'Entrar' }).click(); await pg.getByText('Presentes hoje').waitFor();
+    await pg.locator('.user-menu button, button[aria-haspopup="menu"]').first().click();
+    const [aba] = await Promise.all([pg.context().waitForEvent('page'), pg.getByRole('menuitem', { name: 'Manual do app' }).click()]);
+    await aba.waitForLoadState();
+    ok(/\/manual\/$/.test(aba.url()) && await aba.getByRole('heading', { name: /Primeiro acesso/ }).isVisible(), 'menu > Manual do app abre o manual em outra aba');
+    await aba.close();
+    await pg.getByRole('button', { name: /Perguntar à Dani/ }).click();
+    ok(await pg.locator('.dani-painel a', { hasText: 'Manual' }).getAttribute('href') === 'manual/', 'Dani tem o botão Manual');
+    await pg.getByRole('button', { name: 'Fechar a Dani' }).click();
+    await pg.goto(BASE + '#/cadastros?aba=backup');
+    await pg.getByRole('button', { name: 'Baixar cópia de segurança' }).waitFor();
+    ok(await until(() => pg.getByText('A empresa ainda não tem nenhuma cópia de segurança.').isVisible(), 5000), 'aviso semanal abre direto na cópia e mostra que não há cópia');
+    const [dl] = await Promise.all([pg.waitForEvent('download'), pg.getByRole('button', { name: 'Baixar cópia de segurança' }).click()]);
+    const conteudo = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8'));
+    ok(conteudo.formato === 'fabrica-backup-2', 'cópia baixada no formato 2');
+    ok(await until(() => pg.getByText(/Última cópia feita hoje/).isVisible(), 5000), 'depois de baixar, mostra "Última cópia feita hoje"');
+    ok(await pg.locator('.dica-iphone').count() === 0, 'computador não vê a dica do iPhone');
+    await pg.context().close();
+    const ctx = await browser.newContext({ ...require('playwright').devices['iPhone 13'], serviceWorkers: 'block' });
+    const ip = await ctx.newPage();
+    ip.on('pageerror', e => errors.push(e.message));
+    await ip.route('https://api.ipify.org/**', r => r.fulfill({ json: { ip: '203.0.113.7' } }));
+    await ip.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.__FABRICA__ = {};' }));
+    await ip.goto(BASE);
+    await ip.getByLabel('Login').fill('admin'); await ip.getByLabel('Senha', { exact: true }).fill('admin');
+    await ip.getByRole('button', { name: 'Entrar' }).click(); await ip.getByText('Presentes hoje').waitFor();
+    ok(await ip.locator('.dica-iphone').isVisible(), 'iPhone pelo navegador vê a dica de instalar');
+    ok(await ip.getByRole('button', { name: 'Avisos e instalar app' }).isVisible(), 'celular: o sino aparece no topo (a dica manda tocar nele)');
+    await ip.getByRole('button', { name: 'Avisos e instalar app' }).click();
+    ok(await ip.getByRole('dialog', { name: 'Avisos e app' }).isVisible(), 'sino abre avisos e instalação no celular');  // (emulação usa Chromium, que tem PushManager: o texto específico do Safari não aparece aqui)
+    await ip.keyboard.press('Escape');
+    ok(await ip.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'iPhone: dica sem rolagem horizontal');
+    await shot(ip, '40-dica-iphone');
+    await ip.getByRole('button', { name: 'Fechar a dica do iPhone' }).click();
+    ok(await ip.evaluate(() => localStorage.getItem('fab_dica_iphone')) === '1', 'dispensa guardada no aparelho');
+    await ip.reload();
+    if (await until(() => ip.getByLabel('Login').isVisible(), 4000)) {   // demonstração não guarda a sessão: entra de novo
+      await ip.getByLabel('Login').fill('admin'); await ip.getByLabel('Senha', { exact: true }).fill('admin');
+      await ip.getByRole('button', { name: 'Entrar' }).click();
+    }
+    await ip.getByText('Presentes hoje').waitFor();
+    ok(await ip.locator('.dica-iphone').count() === 0, 'dica dispensada não volta');
+    await ctx.close();
+  }
+  ok(errors.length === 0, `sem erros no console (${errors.slice(0, 3).join(' | ')})`);
   await browser.close();
   console.log(fails ? `\n${fails} FALHA(S)` : '\nTUDO OK');
   process.exit(fails ? 1 : 0);

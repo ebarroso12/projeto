@@ -18,7 +18,7 @@ const SINONIMOS: Record<string, string> = {
   receber: 'receber', prazo: 'receber', parcela: 'parcelas', parcelas: 'parcelas', producao: 'lancar', lancamento: 'lancar', ponto: 'ponto', saida: 'ponto',
 };
 
-export const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const termos = (s: string) => normalizar(s).split(/[^a-z0-9]+/).filter(t => t.length > 2 && !VAZIAS.has(t)).map(t => SINONIMOS[t] ?? t);
 
 const indice = SECOES.map(s => ({ s, titulo: termos(s.titulo), corpo: termos(`${s.titulo} ${s.texto}`) }));

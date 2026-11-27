@@ -22,7 +22,7 @@ export function AvisosBotao() {
   const [aberto, setAberto] = useState(false);
   return (
     <>
-      <Button variant="ghost" iconOnly aria-label="Avisos e instalar app" onClick={() => setAberto(true)}><Icon name="bell" /></Button>
+      <Button variant="ghost" iconOnly className="btn-sino" aria-label="Avisos e instalar app" onClick={() => setAberto(true)}><Icon name="bell" /></Button>
       {aberto && <AvisosDialog onClose={() => setAberto(false)} />}
     </>
   );

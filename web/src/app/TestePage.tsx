@@ -6,7 +6,7 @@ import { TextField } from '../ui/Field';
 import { Banner } from '../ui/primitives';
 import { useAuth } from './auth';
 
-const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+const slug = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
 
 /** Remove ?convite= do endereço (e volta para a tela de entrada). */
 export function sairDoConvite() {

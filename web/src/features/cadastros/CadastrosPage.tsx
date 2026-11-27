@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../app/auth';
 import { PageHeader, Segmented } from '../../ui/primitives';
 import { ListasTab } from './ListasTab';
@@ -12,7 +13,9 @@ type Tab = 'pessoas' | 'produto' | 'cliente' | 'fornecedor' | 'banco' | 'oficina
 export default function CadastrosPage() {
   const { api, demo } = useAuth();
   const completo = api.precisaEmpresa || demo; // cadastros gerais: servidor Supabase ou demonstração
-  const [tab, setTab] = useState<Tab>('pessoas');
+  const [params] = useSearchParams();
+  const pedida = params.get('aba') as Tab | null;   // ex.: aviso semanal abre direto em ?aba=backup
+  const [tab, setTab] = useState<Tab>(pedida && ['pessoas', 'listas', 'acesso', 'backup', 'produto', 'cliente', 'fornecedor', 'oficina', 'banco'].includes(pedida) ? pedida : 'pessoas');
   const abas: { value: Tab; label: string }[] = [
     { value: 'pessoas', label: 'Funcionários' },
     ...(completo ? [{ value: 'produto' as Tab, label: 'Produtos' }, { value: 'cliente' as Tab, label: 'Clientes' }, { value: 'fornecedor' as Tab, label: 'Fornecedores' }, { value: 'oficina' as Tab, label: 'Oficinas' }, { value: 'banco' as Tab, label: 'Bancos' }] : []),

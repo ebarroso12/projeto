@@ -49,7 +49,7 @@ export function longDate(d = new Date()): string {
 /** Sugere o login a partir do nome: primeiro nome, sem acento, minúsculo. */
 export function loginFromName(nome: string): string {
   return (nome.trim().split(/\s+/)[0] ?? '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 

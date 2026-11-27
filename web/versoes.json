@@ -1,5 +1,15 @@
 [
   {
+    "versao": "1.11.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Manual do app dentro do Fábrica: menu do seu nome > Manual do app (ou o botão Manual na Dani). Funciona também sem internet depois de aberto uma vez.",
+      "Cópia de segurança completa: agora inclui os itens de pedidos, remessas, retornos, ordens de corte e regras de consumo. A tela mostra quando foi a última cópia e quem baixou.",
+      "Lembrete semanal: toda segunda às 8h, quem administra recebe aviso se a última cópia de segurança tiver mais de 7 dias.",
+      "iPhone: dica no topo explicando como instalar o app para receber avisos, com passo a passo no manual."
+    ]
+  },
+  {
     "versao": "1.10.0",
     "data": "2026-11-27",
     "novidades": [

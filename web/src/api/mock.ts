@@ -139,7 +139,7 @@ const ROTAS_MOCK: Record<string, string> = {
 const funcaoDaChamada = (fn: string): string | null =>
   ROTAS_MOCK[fn] ? ROTAS_MOCK[fn]!
   : fn.startsWith('fin') ? 'financeiro' : fn.startsWith('dre') ? 'resultado'
-  : ['listarUsuarios', 'salvarUsuario', 'salvarListas', 'criarChave', 'revogarChaves', 'exportar', 'funcoesPessoa', 'salvarFuncoes', 'verWifi', 'salvarWifi', 'registros', 'salvarRegistro', 'apagarRegistro', 'dadosPessoas', 'salvarDadosPessoa'].includes(fn) ? 'cadastros'
+  : ['listarUsuarios', 'salvarUsuario', 'salvarListas', 'criarChave', 'revogarChaves', 'exportar', 'backupSituacao', 'funcoesPessoa', 'salvarFuncoes', 'verWifi', 'salvarWifi', 'registros', 'salvarRegistro', 'apagarRegistro', 'dadosPessoas', 'salvarDadosPessoa'].includes(fn) ? 'cadastros'
   : ['enviarMensagem', 'mensagensEnviadas', 'apagarMensagem', 'destinatarios'].includes(fn) ? 'mensagens'
   : ['acessos', 'acessosPendentes', 'decidirAcesso', 'encerrarSessao', 'revogarAparelho', 'configAcesso', 'bloquearPessoa'].includes(fn) ? 'acessos'
   : fn === 'relatorio' ? 'relatorio' : fn === 'painel' ? 'painel' : null;
@@ -445,6 +445,7 @@ const dreCats = [
   ['interest', 'finance', 'Juros recebidos', 'plus', 'fixed', false], ['dividend', 'finance', 'Dividendos recebidos', 'plus', 'fixed', false],
 ].map(([chave, grupo, nome, tipo, variabilidade, essencial], i) => ({ id: `d-${chave}`, chave, grupo, nome, tipo, variabilidade, essencial, nota: '', ativa: true, ordem: i + 1 })) as Record<string, unknown>[];
 const dreMeses: { mes: string; status: string; atualizadoEm: string; valores: Record<string, { marca: string; valor: number | null }> }[] = [];
+let ultimoBackupDemo: string | null = null;
 (function seedDre() {
   const vals = (o: Record<string, number>) => Object.fromEntries(dreCats.map(c => [c.id as string, c.chave as string in o ? { marca: 'valor', valor: o[c.chave as string]! } : { marca: 'na', valor: null }]));
   dreMeses.push({ mes: mesMenos(1), status: 'fechado', atualizadoEm: `${today()}T09:00`, valores: vals({ gross: 52000, returns: 1300, tax: 4700, cmv: 21500, ads: 900, shipping: 1600, commission: 1250, rent: 4800, accountant: 900, electricity: 650, prolabore: 6000, interest: 180 }) });
@@ -455,7 +456,8 @@ const dreMeses: { mes: string; status: string; atualizadoEm: string; valores: Re
 Object.assign(handlers, {
   criarChave: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return 'demo-key'; },
   revogarChaves: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return 0; },
-  exportar: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return { formato: 'fabrica-backup-1', geradoEm: `${today()}T12:00:00`, empresa: { codigo: 'demo', nome: 'Confecção Demonstração' }, tabelas: { financeiro: finSnapshot(), dre_meses: dreMeses } }; },
+  backupSituacao: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return ultimoBackupDemo ? { ultima: ultimoBackupDemo, quem: 'Demonstração', dias: 0 } : { ultima: null, quem: '', dias: null }; },
+  exportar: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); ultimoBackupDemo = new Date().toISOString(); return { formato: 'fabrica-backup-2', contagem: { financeiro: 1, dre_meses: dreMeses.length }, geradoEm: `${today()}T12:00:00`, empresa: { codigo: 'demo', nome: 'Confecção Demonstração' }, tabelas: { financeiro: finSnapshot(), dre_meses: dreMeses } }; },
 
   empresas: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return empresasDemo; },
   criarEmpresa: ([t, o]: unknown[]) => {

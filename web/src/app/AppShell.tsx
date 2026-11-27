@@ -20,6 +20,8 @@ import { BotaoAtualizar, Rodape } from './Versao';
 import { MensagensBotao } from './Mensagens';
 import { AvisosBotao } from './Avisos';
 import { Dani } from './dani/Dani';
+import { abrirManual } from '../lib/manual';
+import { DicaIphone } from './DicaIphone';
 
 function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
@@ -68,6 +70,7 @@ function UserMenu({ onPassword }: { onPassword: () => void }) {
         <div className="menu-panel" role="menu">
           <div className="menu-head"><b>{eu.nome}</b><small className="muted">{eu.setor}{eu.admin ? ' · administrador' : ''}{eu.leitura ? ' · só ver' : ''}</small></div>
           {!eu.leitura && <button type="button" role="menuitem" className="menu-item" onClick={() => { setOpen(false); onPassword(); }}><Icon name="key" size={16} />Trocar senha</button>}
+          <button type="button" role="menuitem" className="menu-item" onClick={() => { setOpen(false); abrirManual(); }}><Icon name="report" size={16} />Manual do app</button>
           <button type="button" role="menuitem" className="menu-item" onClick={() => signOut()}><Icon name="logout" size={16} />Sair</button>
         </div>
       )}
@@ -93,6 +96,7 @@ export function AppShell() {
   const acoes: Acao[] = useMemo(() => [
     { id: 'tema', label: theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro', dica: 'Aparência', icon: theme === 'dark' ? 'sun' : 'moon', run: toggle },
     ...(boot.eu.leitura ? [] : [{ id: 'senha', label: 'Trocar minha senha', dica: 'Conta', icon: 'key' as const, run: () => setPwd(true) }]),
+    { id: 'manual', label: 'Abrir o manual do app', dica: 'Ajuda', icon: 'report', run: () => abrirManual() },
     { id: 'sair', label: 'Sair do sistema', dica: 'Conta', icon: 'logout', run: () => signOut() },
   ], [theme, toggle, boot.eu.leitura, signOut]);
   const contar = (f: (typeof items)[number]) => (f.id === 'acessos' ? pendentes.length : f.badge?.(boot) ?? 0);
@@ -160,6 +164,7 @@ export function AppShell() {
             </div>
           )}
           <PendentesBanner pendentes={pendentes} />
+          {!boot.eu.leitura && <DicaIphone />}
           <PageArt.Provider value={pageInfo}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
           {!boot.eu.leitura && <Dani />}
           <Rodape />

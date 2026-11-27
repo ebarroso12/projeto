@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
@@ -20,10 +20,25 @@ function versaoPlugin(): Plugin {
   };
 }
 
+/** Manual interativo (docs/tutorial) publicado junto com o app em /manual/ — uma fonte só, sem cópia no repositório. */
+function manualPlugin(): Plugin {
+  let saida = 'dist';
+  return {
+    name: 'fabrica-manual',
+    apply: 'build',
+    configResolved(c) { saida = c.build.outDir; },
+    closeBundle() {
+      const origem = new URL('../docs/tutorial', import.meta.url);
+      if (!existsSync(origem)) return;
+      cpSync(origem, new URL(`./${saida}/manual`, import.meta.url), { recursive: true });
+    },
+  };
+}
+
 // base './' permite publicar em qualquer subpasta (GitHub Pages, Vercel, Netlify, pasta no servidor).
 export default defineConfig({
   base: './',
-  plugins: [react(), versaoPlugin()],
+  plugins: [react(), versaoPlugin(), manualPlugin()],
   define: { __VERSAO__: JSON.stringify(info), __VERSOES__: JSON.stringify(versoes) },
   build: { target: 'es2022', sourcemap: false },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },

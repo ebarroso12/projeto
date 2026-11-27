@@ -21,7 +21,7 @@ const KEY = ['empresas'];
 const KEY_CONV = ['convites'];
 const diasAte = (iso: string) => Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000);
 const linkDe = (token: string) => `${window.location.origin}${window.location.pathname}?convite=${token}`;
-const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+const slug = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
 const senhaAleatoria = () => Math.random().toString(36).slice(2, 6) + Math.floor(1000 + Math.random() * 9000);
 
 function NovaEmpresa({ onClose }: { onClose: () => void }) {

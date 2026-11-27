@@ -68,6 +68,11 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     revogarChaves: async (): Promise<number> => num(await call('revogarChaves', tok())),
     /** Cópia de segurança de todos os dados da empresa (JSON). */
     exportar: async (): Promise<unknown> => call('exportar', tok()),
+    /** Quando foi a última cópia de segurança da empresa (e por quem). */
+    backupSituacao: async (): Promise<{ ultima: string | null; quem: string; dias: number | null }> => {
+      const r = rec(await call('backupSituacao', tok()));
+      return { ultima: r.ultima ? str(r.ultima) : null, quem: str(r.quem), dias: r.dias === null || r.dias === undefined ? null : num(r.dias) };
+    },
 
     verWifi: async () => parseWifi(await call('verWifi', tok())),
     salvarWifi: async (exigir: boolean, ips: { nome: string; ip: string; em: string }[]) =>

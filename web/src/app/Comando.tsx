@@ -6,7 +6,7 @@ import type { Feature } from './registry';
 
 export interface Acao { id: string; label: string; dica?: string; icon: IconName; run: () => void }
 
-const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const sem = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Busca rápida (Ctrl+K / ⌘K): vai para qualquer tela ou executa uma ação sem tirar a mão do teclado. */
 export function Comando({ features, acoes, aberto, setAberto }: { features: Feature[]; acoes: Acao[]; aberto: boolean; setAberto: (v: boolean) => void }) {

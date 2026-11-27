@@ -6,6 +6,7 @@ import { useBoot } from '../boot';
 import { features, pode } from '../registry';
 import { Icon } from '../../ui/Icon';
 import { respostaDoManual } from './busca';
+import { linkManual } from '../../lib/manual';
 
 const CHAVE = 'fab_dani_conversa';
 const lerConversa = (): DaniMsg[] => { try { return JSON.parse(sessionStorage.getItem(CHAVE) ?? '[]') as DaniMsg[]; } catch { return []; } };
@@ -132,6 +133,7 @@ export function Dani() {
           <header>
             <Avatar />
             <div><b>Dani</b><small>Assistente do Fábrica</small></div>
+            <a className="dani-acao" href={linkManual()} target="_blank" rel="noreferrer">Manual</a>
             {msgs.length > 0 && <button type="button" className="dani-acao" onClick={() => setMsgs([])}>Limpar</button>}
             <button type="button" className="dani-fechar" aria-label="Fechar a Dani" onClick={() => setAberta(false)}><Icon name="x" size={18} /></button>
           </header>

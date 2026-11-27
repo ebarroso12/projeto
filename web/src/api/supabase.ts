@@ -147,6 +147,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     configAcesso: async exigir => { await rpc('fab_config_acesso', { p_exigir: exigir }); },
     acessos: async (ini, fim) => parseAcessos(await rpc('fab_acessos', { p_ini: ini, p_fim: fim })),
     exportar: async () => rpc('fab_exportar'),
+    backupSituacao: async () => {
+      const r = (await rpc('fab_backup_situacao')) as Record<string, unknown> | null;
+      return { ultima: r?.ultima ? String(r.ultima) : null, quem: String(r?.quem ?? ''), dias: typeof r?.dias === 'number' ? r.dias : null };
+    },
 
     verWifi: async () => parseWifi(await rpc('fab_ver_wifi')),
     salvarWifi: async (exigir, ips) => parseWifi(await rpc('fab_salvar_wifi', { p_exigir: exigir, p_manter: ips.map(i => i.ip) })),
