@@ -163,6 +163,8 @@ export function createApi(transport: Transport, getToken: () => string | null) {
       ({ erro: 'nao_configurado', mensagem: 'Na demonstração a Dani responde pelo manual.' }),
     daniConfig: async (): Promise<DaniConfig> => { const r = rec(await call('daniConfig', tok())); return { configurada: r.configurada === true, final: r.final ? str(r.final) : null, modelo: str(r.modelo), perguntasHoje: num(r.perguntasHoje) }; },
     salvarDani: async (chave: string, modelo: string) => { await call('salvarDani', tok(), chave, modelo); },
+    /** Só o dono: modelos que a chave do Gemini aceita (não conta como pergunta). */
+    daniModelos: async (): Promise<{ modelos: string[]; recomendados: string[] }> => { const r = rec(await call('daniModelos', tok())); return { modelos: strings(r.modelos), recomendados: strings(r.recomendados) }; },
 
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),

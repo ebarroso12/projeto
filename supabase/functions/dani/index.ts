@@ -3,6 +3,7 @@
  *
  *   POST { pergunta, historico: [{ de: 'eu' | 'dani', texto }], tela }   com o token da pessoa (Authorization)
  *   -> { resposta }  |  { erro: 'nao_configurado' | 'limite' | 'limite_gemini' | 'falha', mensagem }
+ *   POST { listarModelos: true }   (só o dono; não conta como pergunta) -> { modelos, recomendados }
  *
  * 1) fab_dani_inicio (com o token da pessoa): confere a sessão, aplica o limite de uso e devolve o contexto
  *    (nome, funções liberadas, tela). 2) fab_dani_chave (service_role): chave e modelo do Gemini.
@@ -60,11 +61,37 @@ BASE DE CONHECIMENTO
 ${kb}`;
 }
 
+const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/models';
+type Tentativa = { modelo: string; status: number | string; ms: number };
+
+/** Só o dono: modelos que a chave aceita. Não conta como pergunta (não passa por fab_dani_inicio). */
+async function listarModelos(jwt: string): Promise<Response> {
+  const comoUsuario = createClient(URL_, ANON, { global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false } });
+  const { error } = await comoUsuario.rpc('fab_dani_config');   // exige o dono do sistema
+  if (error) return json({ erro: 'sessao', mensagem: 'Só o responsável pelo sistema pode ver os modelos.' }, 403);
+  const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
+  const { data: cfg } = await admin.rpc('fab_dani_chave');
+  const chave = (cfg as { chave?: string } | null)?.chave;
+  if (!chave) return json({ erro: 'nao_configurado', mensagem: 'Salve a chave do Gemini primeiro.' });
+  try {
+    const r = await fetch(`${GEMINI}?pageSize=200`, { headers: { 'x-goog-api-key': chave }, signal: AbortSignal.timeout(15_000) });
+    if (!r.ok) return json({ erro: r.status === 400 || r.status === 401 || r.status === 403 ? 'nao_configurado' : 'falha', mensagem: `O Google recusou a consulta (código ${r.status}).` });
+    const d = await r.json() as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+    const modelos = (d.models ?? []).filter(m => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+      .map(m => m.name.replace(/^models\//, '')).filter(n => /^gemini-/.test(n) && !/(tts|image|audio|embedding|live|computer-use|robotics)/.test(n));
+    return json({ modelos, recomendados: MODELOS_PADRAO.filter(m => modelos.includes(m)) });
+  } catch {
+    return json({ erro: 'falha', mensagem: 'O Google não respondeu agora. Tente de novo em instantes.' });
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ erro: 'falha', mensagem: 'Método não permitido.' }, 405);
   let b: { pergunta?: unknown; historico?: unknown; tela?: unknown; listarModelos?: unknown };
   try { b = await req.json(); } catch { return json({ erro: 'falha', mensagem: 'Corpo inválido.' }, 400); }
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (b.listarModelos === true) return listarModelos(jwt);
   const pergunta = String(b.pergunta ?? '').trim().slice(0, 1000);
   if (!pergunta) return json({ erro: 'falha', mensagem: 'Escreva a sua dúvida.' }, 400);
   const historico = (Array.isArray(b.historico) ? b.historico : []).slice(-8)
@@ -72,7 +99,6 @@ Deno.serve(async (req: Request) => {
     .filter(h => h.texto);
 
   // 1) quem é a pessoa (e o limite de uso), com o token dela
-  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const comoUsuario = createClient(URL_, ANON, { global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false } });
   const { data: ctx, error: e1 } = await comoUsuario.rpc('fab_dani_inicio', { p_tela: String(b.tela ?? '') });
   if (e1 || !ctx) {
@@ -80,60 +106,66 @@ Deno.serve(async (req: Request) => {
     if (m.includes('DANI_LIMITE')) return json({ erro: 'limite', mensagem: m.replace(/^.*DANI_LIMITE:\s*/, '') });
     return json({ erro: 'sessao', mensagem: 'Entre no app de novo para falar com a Dani.' }, 401);
   }
+  const dono = (ctx as { dono?: boolean }).dono === true;
 
   // 2) chave do Gemini (só aqui, nunca vai para o navegador)
   const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
   const { data: cfg } = await admin.rpc('fab_dani_chave');
   const chave = (cfg as { chave?: string } | null)?.chave;
   if (!chave) return json({ erro: 'nao_configurado', mensagem: 'A IA da Dani ainda não foi configurada.' });
-  // só o dono do sistema: quais modelos esta chave pode usar (para escolher o modelo em Empresas > Assistente Dani)
-  if ((b as { listarModelos?: unknown }).listarModelos === true && (ctx as { dono?: boolean }).dono === true) {
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': chave }, signal: AbortSignal.timeout(15_000) });
-    const d = await r.json().catch(() => ({}));
-    const lista = ((d as { models?: { name: string; supportedGenerationMethods?: string[] }[] }).models ?? [])
-      .filter(m => (m.supportedGenerationMethods ?? []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''));
-    return json({ modelos: lista, status: r.status });
-  }
   const preferido = (cfg as { modelo?: string }).modelo;
   const modelos = [...new Set([preferido, ...MODELOS_PADRAO].filter(Boolean) as string[])];
 
-  // 3) Gemini
+  // 3) Gemini: o primeiro modelo que responder vale
   const corpo = JSON.stringify({
     systemInstruction: { parts: [{ text: instrucoes(ctx as Ctx) }] },
     contents: [...historico.map(h => ({ role: h.de, parts: [{ text: h.texto }] })), { role: 'user', parts: [{ text: pergunta }] }],
     generationConfig: { temperature: 0.3, maxOutputTokens: 900 },
   });
-  let ultimo = '';
   const inicio = Date.now();
-  const tentativas: { modelo: string; status: number | string; ms: number }[] = [];
-  for (const modelo of modelos) {
-    // orçamento total ~40s (o app espera a resposta); cada modelo tem no máximo 25s
+  const tentativas: Tentativa[] = [];   // diagnóstico: modelo, código e tempo (nunca a chave nem a pergunta)
+  let ultimo = '', cotas = 0;
+  for (const [i, modelo] of modelos.entries()) {
+    // orçamento total ~40 s (o app espera); com reserva depois, cada modelo tem no máximo 12 s
+    // (os "lite" respondem em 2–3 s; um modelo lento salvo pelo dono não segura a resposta)
     const resta = 40_000 - (Date.now() - inicio);
-    if (resta < 5_000) { ultimo = ultimo || 'sem tempo'; break; }
+    if (resta < 4_000) { ultimo = ultimo || 'sem tempo'; break; }
+    const limite = i === modelos.length - 1 ? resta : Math.min(12_000, resta);
     const t0 = Date.now();
+    const anota = (status: number | string) => {
+      const ult = tentativas[tentativas.length - 1];
+      if (ult && ult.modelo === modelo) { ult.status = status; ult.ms = Date.now() - t0; } else tentativas.push({ modelo, status, ms: Date.now() - t0 });
+    };
     try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, {
+      const r = await fetch(`${GEMINI}/${encodeURIComponent(modelo)}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave }, body: corpo,
-        signal: AbortSignal.timeout(Math.min(25_000, resta)),
+        signal: AbortSignal.timeout(limite),
       });
-      tentativas.push({ modelo, status: r.status, ms: Date.now() - t0 });   // diagnóstico (sem chave, sem pergunta)
+      anota(r.status);
       if (r.status === 404) { ultimo = `modelo ${modelo} indisponível`; continue; }
-      if (r.status === 429) return json({ erro: 'limite_gemini', mensagem: 'A cota gratuita da IA acabou por agora. Tente daqui a alguns minutos.' });
-      if (r.status === 400 || r.status === 401 || r.status === 403) {
+      if (r.status === 429) { cotas++; ultimo = `cota de ${modelo}`; continue; }   // a cota gratuita é por modelo: tenta o próximo
+      if (!r.ok) {
         const t = await r.text();
-        tentativas[tentativas.length - 1]!.status = `${r.status}: ${t.replace(/\s+/g, ' ').slice(0, 160)}`;
-        if (/API key|API_KEY|permission|PERMISSION/i.test(t)) return json({ erro: 'nao_configurado', mensagem: 'A chave do Gemini não foi aceita. O responsável pelo sistema precisa conferir a chave.' });
+        anota(`${r.status}: ${t.replace(/\s+/g, ' ').slice(0, 160)}`);
+        if ((r.status === 400 || r.status === 401 || r.status === 403) && /API key|API_KEY|permission|PERMISSION/i.test(t)) {
+          console.log(JSON.stringify({ dani: 'chave recusada', tentativas }));
+          return json({ erro: 'nao_configurado', mensagem: 'A chave do Gemini não foi aceita. O responsável pelo sistema precisa conferir a chave.' });
+        }
         ultimo = `erro ${r.status}`; continue;
       }
-      if (!r.ok) { ultimo = `erro ${r.status}`; tentativas[tentativas.length - 1]!.status = `${r.status}: ${(await r.text()).replace(/\s+/g, ' ').slice(0, 160)}`; continue; }
       const d = await r.json();
       const texto = (d?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('').trim();
-      if (!texto) { ultimo = 'resposta vazia'; continue; }
+      if (!texto) { anota('resposta vazia'); ultimo = 'resposta vazia'; continue; }
       return json({ resposta: texto, modelo });
     } catch (e) {
       ultimo = String(e);
-      tentativas.push({ modelo, status: ultimo.slice(0, 80), ms: Date.now() - t0 });
+      anota(ultimo.slice(0, 80));   // mesma tentativa (ex.: cabeçalho chegou e o corpo estourou o tempo) não vira duas
     }
   }
-  return json({ erro: 'falha', mensagem: 'A IA não respondeu agora.', detalhe: ultimo, tentativas });
+  console.log(JSON.stringify({ dani: 'sem resposta', tentativas }));
+  if (cotas > 0 && cotas === tentativas.filter(t => t.status !== 404).length) {
+    return json({ erro: 'limite_gemini', mensagem: 'A cota gratuita da IA acabou por agora. Tente daqui a alguns minutos.' });
+  }
+  // detalhes técnicos só para o dono do sistema
+  return json({ erro: 'falha', mensagem: 'A IA não respondeu agora.', ...(dono ? { detalhe: ultimo, tentativas } : {}) });
 });

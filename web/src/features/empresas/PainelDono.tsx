@@ -93,6 +93,8 @@ export function DaniCard() {
   const salvar = useAction((v: { chave: string; modelo: string }) => api.salvarDani(v.chave, v.modelo), {
     success: (_d, v) => (v.chave === '-' ? 'Chave removida: a Dani responde pelo manual.' : 'Dani configurada.'), invalidate: [['dani-config']], onSuccess: () => setChave(''),
   });
+  const [lista, setLista] = useState<{ modelos: string[]; recomendados: string[] } | null>(null);
+  const verModelos = useAction(() => api.daniModelos(), { onSuccess: d => setLista(d) });
   const c = q.data;
   return (
     <Card title="Assistente Dani (IA)" subtitle="A Dani responde dúvidas de uso no canto da tela. Com a chave gratuita do Gemini ela conversa; sem a chave, responde pelo manual.">
@@ -110,7 +112,22 @@ export function DaniCard() {
           <TextField label="Modelo (opcional)" value={modelo ?? c?.modelo ?? ''} onChange={e => setModelo(e.target.value)} placeholder="automático" hint="Vazio = automático (gemini-3.5-flash-lite, rápido)" />
           <Button variant="primary" loading={salvar.isPending} disabled={!chave && modelo === null} onClick={() => salvar.mutate({ chave, modelo: (modelo ?? c?.modelo ?? '').trim() })}>Salvar</Button>
         </div>
-        {c?.configurada && <div><Button size="sm" variant="ghost" onClick={() => salvar.mutate({ chave: '-', modelo: c.modelo })}>Remover chave</Button></div>}
+        {c?.configurada && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button size="sm" loading={verModelos.isPending} onClick={() => verModelos.mutate(undefined)}>Ver modelos que a chave aceita</Button>
+            <Button size="sm" variant="ghost" onClick={() => salvar.mutate({ chave: '-', modelo: c.modelo })}>Remover chave</Button>
+          </div>
+        )}
+        {lista && (
+          <div className="stack" style={{ gap: 6 }}>
+            <small className="muted">Toque num modelo para usá-lo e depois em Salvar. Recomendados (rápidos): {lista.recomendados.join(', ') || 'nenhum desta lista'}. Deixe o campo vazio para o automático.</small>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {lista.modelos.map(m => (
+                <Button key={m} size="sm" variant={lista.recomendados.includes(m) ? 'primary' : 'ghost'} onClick={() => setModelo(m)}>{m}</Button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   );

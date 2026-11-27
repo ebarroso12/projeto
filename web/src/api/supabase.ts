@@ -231,6 +231,13 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
       const d = rec(data);
       return d.resposta ? { resposta: str(d.resposta) } : { erro: (str(d.erro) || 'falha') as 'falha', mensagem: str(d.mensagem) };
     },
+    daniModelos: async () => {
+      const { data, error } = await sb.functions.invoke('dani', { body: { listarModelos: true } });
+      let d: Record<string, unknown> = data ? rec(data) : {};
+      if (error) { try { const res = (error as { context?: Response }).context; d = res ? rec(await res.json()) : {}; } catch { d = {}; } }
+      if (error || d.erro) throw fromServerMessage(str(d.mensagem) || 'Não foi possível consultar os modelos agora.');
+      return { modelos: strings(d.modelos), recomendados: strings(d.recomendados) };
+    },
     daniConfig: async () => { const r = rec(await rpc('fab_dani_config')); return { configurada: r.configurada === true, final: r.final ? str(r.final) : null, modelo: str(r.modelo), perguntasHoje: num(r.perguntasHoje) }; },
     salvarDani: async (chave, modelo) => { await rpc('fab_salvar_dani', { p_chave: chave, p_modelo: modelo }); },
     finDados: async () => parseFin(await rpc('fin_dados')),

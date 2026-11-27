@@ -1426,6 +1426,7 @@ type RemessaInputMock = { id?: string; quem: Record<string, string>; etapa: stri
 const daniDemo = { configurada: false, final: null as string | null, modelo: '' };
 Object.assign(handlers, {
   daniConfig: ([t]: unknown[]) => { exigeDonoDemo(t); return { ...daniDemo, perguntasHoje: 0 }; },
+  daniModelos: ([t]: unknown[]) => { exigeDonoDemo(t); if (!daniDemo.configurada) throw fromServerMessage('Salve a chave do Gemini primeiro.'); return { modelos: ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash'], recomendados: ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest'] }; },
   salvarDani: ([t, chave, modelo]: unknown[]) => {
     exigeDonoDemo(t);
     const k = String(chave ?? '').trim();

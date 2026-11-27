@@ -979,6 +979,13 @@ await q(`delete from fab.lancamentos where origem <> 'lancar' or (modelo = 'Cal�
 await q(`delete from fab.fin_lancamentos where categoria = 'Facção'`);
 // ============ 31. Dani (assistente de IA) ============
 console.log('\n--- Dani ---');
+await rpc(admin, `fab_salvar_dani('AIzaSyTESTE_chave-123456789012345678901', 'gemini-2.5-flash')`);
+await db.exec(readFileSync(join(here, '../migrations/20261127000034_dani_modelo_antigo.sql'), 'utf8'));
+ok((await rpc(admin, 'fab_dani_config()')).data.modelo === '', 'modelo antigo e lento salvo volta para o automático');
+await rpc(admin, `fab_salvar_dani('', 'gemini-3.5-flash-lite')`);
+await db.exec(readFileSync(join(here, '../migrations/20261127000034_dani_modelo_antigo.sql'), 'utf8'));
+ok((await rpc(admin, 'fab_dani_config()')).data.modelo === 'gemini-3.5-flash-lite', 'modelo escolhido pelo dono é mantido');
+await rpc(admin, `fab_salvar_dani('-', '')`);
 ok(fails_with(await rpc(adminB, `fab_salvar_dani('AIzaSy' || repeat('x', 33), '')`), 'responsável pelo sistema'), 'só o dono configura a chave do Gemini');
 ok(fails_with(await rpc(admin, `fab_salvar_dani('curta', '')`), 'Chave do Gemini inválida'), 'chave inválida recusada');
 ok((await rpc(admin, `fab_salvar_dani('AIzaSyTESTE_chave-123456789012345678901', 'gemini-2.5-flash')`)).ok, 'dono salva a chave e o modelo');
@@ -987,7 +994,7 @@ ok(dc.configurada && dc.final === '8901' && dc.modelo === 'gemini-2.5-flash' && 
 ok(fails_with(await rpc(admin, 'fab_dani_chave()'), 'permission denied'), 'usuário logado não lê a chave');
 ok((await rpc(admin, `fab_salvar_dani('AQ.Ab8TESTE_formato-novo.123456789012345678901234', '')`)).ok && (await rpc(admin, 'fab_dani_config()')).data.final === '1234', 'aceita a chave no formato novo (AQ.)');
 ok(fails_with(await rpc(admin, `fab_salvar_dani('AQ. com espaço 12345678901234567890123', '')`), 'inválida') && fails_with(await rpc(admin, `fab_salvar_dani('curta', '')`), 'inválida'), 'chave com espaço ou curta é recusada');
-await rpc(admin, `fab_salvar_dani('AIzaSyTESTE_chave-123456789012345678901', 'gemini-2.5-flash')`);
+ok((await rpc(admin, `fab_salvar_dani('AIzaSyTESTE_chave-123456789012345678901', 'gemini-2.5-flash')`)).ok && (await rpc(admin, 'fab_dani_config()')).data.final === '8901', 'chave do formato novo pode ser trocada por uma do formato antigo');
 ok((await rpc(null, 'fab_dani_chave()', { role: 'service_role' })).data.chave === 'AIzaSyTESTE_chave-123456789012345678901', 'função de borda lê a chave');
 let di = await rpc(ana, `fab_dani_inicio('Lançar')`);
 ok(di.ok && di.data.nome === 'Ana Souza' && di.data.funcoes.lancar === true && di.data.funcoes.financeiro === false && di.data.tela === 'Lançar', 'Dani recebe o contexto da pessoa (funções liberadas)');
