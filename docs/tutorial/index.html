@@ -31,7 +31,7 @@ h1, h2, h3 { font-family: var(--f-titulo); line-height: 1.2; text-wrap: balance;
 .capa .linkapp { color: #ffd29a; font-weight: 600; }
 .grade { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 40px; align-items: start;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 80px; }
-nav.indice { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); font-size: 14.5px; }
+nav.indice { min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); font-size: 14.5px; }
 nav.indice b { display: block; font-family: var(--f-titulo); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); margin-bottom: 8px; }
 nav.indice ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
 nav.indice li { counter-increment: s; }
@@ -62,7 +62,8 @@ figcaption { font-size: 13.5px; color: var(--suave); }
 .dica { background: var(--dica); border-color: var(--dica-borda); }
 .atencao { background: var(--atencao); border-color: var(--atencao-borda); }
 .box b:first-child { font-family: var(--f-titulo); }
-code, kbd { background: var(--codigo); border-radius: 6px; padding: 1px 6px; font-size: .92em; }
+section, section > *, .guia > *, .guia-topo > * { min-width: 0; }
+code, kbd { overflow-wrap: anywhere; background: var(--codigo); border-radius: 6px; padding: 1px 6px; font-size: .92em; }
 .tabela { overflow-x: auto; border: 1px solid var(--linha); border-radius: 12px; }
 table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
 th, td { padding: 8px 12px; border-bottom: 1px solid var(--linha); text-align: left; vertical-align: top; }
@@ -77,8 +78,51 @@ tr:last-child td { border-bottom: 0; }
 .faq dt { font-weight: 700; margin-top: 10px; }
 .faq dd { margin: 2px 0 0; color: var(--tinta); max-width: 72ch; }
 .rodape { text-align: center; color: var(--suave); font-size: 13.5px; }
+
+/* ---------- interativo ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.progresso { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 14px; }
+.progresso .barra { flex: 1 1 220px; max-width: 360px; height: 10px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+.progresso .barra span { display: block; height: 100%; width: 0; background: #ffad4a; border-radius: inherit; transition: width .3s; }
+.progresso button { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+#busca { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--linha); background: var(--papel); color: var(--tinta); font: inherit; font-size: 14.5px; margin-bottom: 4px; }
+#busca:focus { outline: 2px solid var(--laranja); outline-offset: 1px; }
+.busca-res { font-size: 13px; color: var(--suave); min-height: 1.2em; margin: 0 0 8px; }
+mark { background: #ffe08a; color: #14203d; border-radius: 3px; padding: 0 2px; }
+nav.indice a .feito { margin-left: auto; font-size: 12px; color: var(--suave); font-variant-numeric: tabular-nums; }
+nav.indice a.completa .feito { color: var(--ok); font-weight: 700; }
+nav.indice a.atual { background: var(--papel); box-shadow: 0 0 0 1px var(--linha); font-weight: 600; }
+ol.passos > li.marcavel { cursor: pointer; border-radius: 10px; padding-top: 2px; padding-bottom: 2px; transition: background .15s; }
+ol.passos > li.marcavel:hover { background: var(--codigo); }
+ol.passos > li.marcavel:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+ol.passos > li.feito::before { content: "✓"; background: var(--ok); }
+ol.passos > li.feito { color: var(--suave); }
+.marcar-dica { font-size: 13px; color: var(--suave); }
+.guia { border: 1px solid var(--linha); border-radius: 16px; padding: 16px; display: grid; gap: 14px; background: var(--bg); }
+.guia-topo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.guia-trilha { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.guia-trilha button, .guia-modo, .guia-nav button, .opcoes button { font: inherit; font-size: 14px; border-radius: 999px; border: 1px solid var(--linha); background: var(--papel); color: var(--tinta); padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.guia-trilha button[aria-selected="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.guia-trilha button.visto:not([aria-selected="true"]) { border-color: var(--ok); }
+.guia-passo { display: grid; gap: 14px; }
+.guia.passo-a-passo .guia-passo:not(.ativo) { display: none; }
+.guia:not(.passo-a-passo) .guia-nav, .guia:not(.passo-a-passo) .guia-trilha { display: none; }
+.guia-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.guia-nav .primario { background: var(--laranja); border-color: var(--laranja); color: #fff; font-weight: 600; }
+.guia-nav button:disabled { opacity: .4; cursor: default; }
+.simulador { border: 1px dashed var(--laranja); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: var(--papel); }
+.sim-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.sim-campos label { display: grid; gap: 4px; font-size: 13px; color: var(--suave); }
+.sim-campos input { font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--bg); color: var(--tinta); width: 100%; font-variant-numeric: tabular-nums; }
+.quiz { border: 1px solid var(--linha); border-radius: 16px; padding: 16px; display: grid; gap: 14px; }
+.quiz .q { display: grid; gap: 8px; }
+.opcoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.opcoes button.certa { background: var(--ok); color: #fff; border-color: var(--ok); }
+.opcoes button.errada { background: #d33; color: #fff; border-color: #d33; }
+section.sem-resultado { display: none; }
+
 @media (max-width: 900px) {
-  .grade { grid-template-columns: 1fr; gap: 18px; padding-block: 16px 60px; }
+  .grade { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-block: 16px 60px; }
   nav.indice { position: static; }
   nav.indice ol { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 6px; }
   nav.indice a { white-space: nowrap; background: var(--papel); border: 1px solid var(--linha); }
@@ -91,12 +135,20 @@ tr:last-child td { border-bottom: 0; }
     <span class="selo">Manual de uso · versão 1.9</span>
     <h1>Fábrica: <em>do corte ao lucro</em>, passo a passo</h1>
     <p>Como montar a empresa no app, organizar a equipe, controlar corte e costura com oficinas sem perder peças, acompanhar pedidos, estoque, produção, financeiro e resultado.</p>
-    <p>Endereço do app: <span class="linkapp">fabricapremium.vercel.app</span></p>
+    <p>Endereço do app: <span class="linkapp">fabricapremium.vercel.app</span> · dúvida na hora? Toque na <b>Dani</b>, no canto da tela do app.</p>
+    <div class="progresso" aria-live="polite">
+      <div class="barra"><span id="prog-barra"></span></div>
+      <span id="prog-texto">0 de 0 passos feitos</span>
+      <button type="button" id="prog-zerar">Recomeçar</button>
+    </div>
   </div>
 </header>
 
 <div class="grade">
   <nav class="indice" aria-label="Índice do manual">
+    <label for="busca" class="sr-only">Buscar no manual</label>
+    <input id="busca" type="search" placeholder="Buscar no manual (ex.: remessa, senha)" autocomplete="off">
+    <p id="busca-res" class="busca-res" aria-live="polite"></p>
     <b>Índice</b>
     <ol>
       <li><a href="#primeiro-acesso">Primeiro acesso</a></li>
@@ -168,56 +220,131 @@ tr:last-child td { border-bottom: 0; }
       <p class="onde">Menu <b>Operação → Oficinas e remessas</b>. É aqui que a conta fecha <b>por oficina e por remessa</b>: o que saiu, o que voltou bom, com defeito e o que está faltando.</p>
       <div class="box dica"><b>O caminho das peças</b><p>Bobina → <b>ordem de corte</b> (cortador) → <b>remessa</b> (costureira) → <b>retorno</b> (boas e com defeito) → <b>acerto</b> (pagamento). Cada passo alimenta a produção, o estoque e o Financeiro automaticamente.</p></div>
 
-      <h3>Passo 1 · Ordem de corte: a bobina e o que foi cortado</h3>
-      <ol class="passos">
-        <li>Toque em <b>Ordem de corte</b>.</li>
-        <li>Escolha <b>quem cortou</b> (oficina ou funcionário), o <b>modelo</b> e a <b>cor</b>.</li>
-        <li>Em <b>Bobina / tecido</b>, escolha o tecido e informe <b>quanto foi usado</b> (kg ou metros da bobina).</li>
-        <li>Digite quantas peças foram cortadas em cada tamanho e toque em <b>Registrar corte</b>.</li>
-      </ol>
-      <figure><img src="img/ordem-form.webp" alt="Formulário de ordem de corte com quem cortou, modelo, cor, bobina, quantidade usada e grade de tamanhos" width="1080" height="776" loading="lazy"><figcaption>Ordem de corte: as peças entram no Corte no nome de quem cortou e o tecido sai do estoque pelo peso real.</figcaption></figure>
-      <p><b>Rendimento da bobina.</b> O app compara com a regra do tecido. Exemplo: 25 kg ÷ 0,25 kg por peça = <b>100 peças esperadas</b>. Se o cortador entregou 90, a perda foi de <b>10%</b>, mostrada em vermelho quando passa de 5%.</p>
-      <figure><img src="img/ordens.webp" alt="Lista de ordens de corte com peças cortadas, esperadas e percentual de perda" width="1280" height="800" loading="lazy"><figcaption>Aba Ordens de corte: peças cortadas × esperadas e a perda de tecido de cada bobina.</figcaption></figure>
+      <div class="guia" id="guia-oficinas">
+        <div class="guia-topo">
+          <div class="guia-trilha" role="tablist" aria-label="Passos do fluxo de oficinas">
+            <button type="button" role="tab" data-ir="0">1 · Corte</button>
+            <button type="button" role="tab" data-ir="1">2 · Remessa</button>
+            <button type="button" role="tab" data-ir="2">3 · Retorno</button>
+            <button type="button" role="tab" data-ir="3">4 · Acerto</button>
+            <button type="button" role="tab" data-ir="4">5 · Acompanhar</button>
+          </div>
+          <button type="button" class="guia-modo" id="guia-modo">Ver tudo de uma vez</button>
+        </div>
 
-      <h3>Passo 2 · Remessa: mandar as peças para a costureira</h3>
-      <ol class="passos">
-        <li>Toque em <b>Nova remessa</b> e escolha <b>para quem vai</b>. O <b>valor por peça</b> vem do cadastro da oficina.</li>
-        <li>Informe o <b>prazo de devolução</b> e, se quiser, o <b>desconto por peça faltando</b> (cobrado no acerto).</li>
-        <li>Em <b>Peças de uma ordem de corte</b>, escolha a ordem para preencher a grade sozinho, ou digite modelo, cor e tamanhos.</li>
-        <li>Toque em <b>Registrar envio</b>. Abra a remessa e use <b>Comprovante</b> (imprimir e assinar) ou <b>WhatsApp</b> (manda a lista para a oficina).</li>
-      </ol>
-      <figure><img src="img/remessa-form.webp" alt="Formulário de nova remessa com oficina, etapa, datas, valor por peça, desconto e itens" width="1080" height="776" loading="lazy"><figcaption>Nova remessa a partir de uma ordem de corte.</figcaption></figure>
+        <div class="guia-passo" role="tabpanel">
+          <h3>Passo 1 · Ordem de corte: a bobina e o que foi cortado</h3>
+          <ol class="passos">
+            <li>Toque em <b>Ordem de corte</b>.</li>
+            <li>Escolha <b>quem cortou</b> (oficina ou funcionário), o <b>modelo</b> e a <b>cor</b>.</li>
+            <li>Em <b>Bobina / tecido</b>, escolha o tecido e informe <b>quanto foi usado</b> (kg ou metros da bobina).</li>
+            <li>Digite quantas peças foram cortadas em cada tamanho e toque em <b>Registrar corte</b>.</li>
+          </ol>
+          <figure><img src="img/ordem-form.webp" alt="Formulário de ordem de corte com quem cortou, modelo, cor, bobina, quantidade usada e grade de tamanhos" width="1080" height="776" loading="lazy"><figcaption>As peças entram no Corte no nome de quem cortou e o tecido sai do estoque pelo peso real.</figcaption></figure>
+          <div class="simulador" id="sim-rendimento">
+            <b>Simulador · rendimento da bobina</b>
+            <div class="sim-campos">
+              <label for="r-usado">Tecido usado (kg)<input id="r-usado" type="number" min="0" step="0.1" value="25"></label>
+              <label for="r-consumo">Consumo por peça (kg)<input id="r-consumo" type="number" min="0" step="0.01" value="0.25"></label>
+              <label for="r-cortadas">Peças cortadas<input id="r-cortadas" type="number" min="0" step="1" value="90"></label>
+            </div>
+            <div class="conta" aria-live="polite">
+              <div><span>Peças esperadas</span><strong id="r-esperadas">100</strong></div>
+              <div><span>Perda de tecido</span><strong id="r-perda" class="vermelho">10%</strong></div>
+              <div><span>Gasto real por peça</span><strong id="r-real">0,278 kg</strong></div>
+            </div>
+            <p class="onde" id="r-texto">25 kg ÷ 0,25 kg por peça = 100 peças esperadas. Foram cortadas 90: perda de 10%.</p>
+          </div>
+          <figure><img src="img/ordens.webp" alt="Lista de ordens de corte com peças cortadas, esperadas e percentual de perda" width="1280" height="800" loading="lazy"><figcaption>Aba Ordens de corte: a perda aparece em vermelho quando passa de 5%.</figcaption></figure>
+        </div>
 
-      <h3>Passo 3 · Retorno: conferir o que voltou</h3>
-      <ol class="passos">
-        <li>Abra a remessa e toque em <b>Registrar retorno</b>.</li>
-        <li>Para cada tamanho, digite as peças <b>boas</b> e as <b>com defeito</b>. Se voltou tudo certo, use <b>Voltou tudo bom</b>.</li>
-        <li>Pode registrar em várias vezes (parte hoje, parte amanhã). O app <b>não aceita</b> voltar mais do que foi enviado.</li>
-      </ol>
-      <figure class="estreita"><img src="img/retorno.webp" alt="Janela de retorno com faltam voltar, boas e com defeito por tamanho" width="720" height="488" loading="lazy"><figcaption>As peças boas entram como Costura no nome da oficina.</figcaption></figure>
+        <div class="guia-passo" role="tabpanel">
+          <h3>Passo 2 · Remessa: mandar as peças para a costureira</h3>
+          <ol class="passos">
+            <li>Toque em <b>Nova remessa</b> e escolha <b>para quem vai</b>. O <b>valor por peça</b> vem do cadastro da oficina.</li>
+            <li>Informe o <b>prazo de devolução</b> e, se quiser, o <b>desconto por peça faltando</b> (cobrado no acerto).</li>
+            <li>Em <b>Peças de uma ordem de corte</b>, escolha a ordem para preencher a grade sozinho, ou digite modelo, cor e tamanhos.</li>
+            <li>Toque em <b>Registrar envio</b>. Abra a remessa e use <b>Comprovante</b> (imprimir e assinar) ou <b>WhatsApp</b> (manda a lista para a oficina).</li>
+          </ol>
+          <figure><img src="img/remessa-form.webp" alt="Formulário de nova remessa com oficina, etapa, datas, valor por peça, desconto e itens" width="1080" height="776" loading="lazy"><figcaption>Nova remessa a partir de uma ordem de corte.</figcaption></figure>
+        </div>
 
-      <h3>Passo 4 · Acerto: fechar a conta e pagar</h3>
-      <p>Toque em <b>Acertar</b>. O app mostra a conta e, se você tiver o Financeiro, lança o pagamento como saída na categoria <b>Facção</b>, ligada à oficina.</p>
-      <div class="conta" role="group" aria-label="Exemplo de acerto">
-        <div><span>Enviadas</span><strong>90</strong></div>
-        <div><span>Voltaram boas</span><strong class="verde">80</strong></div>
-        <div><span>Com defeito</span><strong>2</strong></div>
-        <div><span>Faltando</span><strong class="vermelho">8</strong></div>
-        <div><span>A pagar</span><strong>R$ 120,00</strong></div>
+        <div class="guia-passo" role="tabpanel">
+          <h3>Passo 3 · Retorno: conferir o que voltou</h3>
+          <ol class="passos">
+            <li>Abra a remessa e toque em <b>Registrar retorno</b>.</li>
+            <li>Para cada tamanho, digite as peças <b>boas</b> e as <b>com defeito</b>. Se voltou tudo certo, use <b>Voltou tudo bom</b>.</li>
+            <li>Pode registrar em várias vezes (parte hoje, parte amanhã). O app <b>não aceita</b> voltar mais do que foi enviado.</li>
+          </ol>
+          <figure class="estreita"><img src="img/retorno.webp" alt="Janela de retorno com faltam voltar, boas e com defeito por tamanho" width="720" height="488" loading="lazy"><figcaption>As peças boas entram como Costura no nome da oficina.</figcaption></figure>
+        </div>
+
+        <div class="guia-passo" role="tabpanel">
+          <h3>Passo 4 · Acerto: fechar a conta e pagar</h3>
+          <ol class="passos">
+            <li>Abra a remessa e toque em <b>Acertar</b>.</li>
+            <li>Confira enviadas, boas, com defeito e faltando, e o valor calculado.</li>
+            <li>Com o Financeiro liberado, deixe marcado <b>Lançar o pagamento</b>, escolha a conta e a data e toque em <b>Fechar e acertar</b>. Vira uma saída “Facção” ligada à oficina.</li>
+          </ol>
+          <div class="simulador" id="sim-acerto">
+            <b>Simulador · acerto da oficina</b>
+            <div class="sim-campos">
+              <label for="a-enviadas">Enviadas<input id="a-enviadas" type="number" min="0" step="1" value="90"></label>
+              <label for="a-boas">Voltaram boas<input id="a-boas" type="number" min="0" step="1" value="80"></label>
+              <label for="a-defeito">Com defeito<input id="a-defeito" type="number" min="0" step="1" value="2"></label>
+              <label for="a-valor">Valor por peça (R$)<input id="a-valor" type="number" min="0" step="0.05" value="2.50"></label>
+              <label for="a-desconto">Desconto por faltante (R$)<input id="a-desconto" type="number" min="0" step="0.5" value="10"></label>
+            </div>
+            <div class="conta" aria-live="polite">
+              <div><span>Faltando</span><strong id="a-faltando" class="vermelho">8</strong></div>
+              <div><span>Boas × valor</span><strong id="a-bruto">R$ 200,00</strong></div>
+              <div><span>Desconto</span><strong id="a-desc">R$ 80,00</strong></div>
+              <div><span>A pagar</span><strong id="a-pagar" class="verde">R$ 120,00</strong></div>
+            </div>
+            <p class="onde" id="a-texto">80 boas × R$ 2,50 − 8 faltando × R$ 10,00 = R$ 120,00. Peça com defeito não é paga nem descontada.</p>
+          </div>
+          <figure class="estreita"><img src="img/acerto.webp" alt="Janela de acerto da remessa com enviadas, boas, defeito, faltando e lançamento no Financeiro" width="480" height="564" loading="lazy"></figure>
+        </div>
+
+        <div class="guia-passo" role="tabpanel">
+          <h3>Passo 5 · Quem está com o quê</h3>
+          <p>A primeira aba mostra, por oficina, quantas peças ainda estão com ela, quantas remessas passaram do prazo e quanto há para acertar. Todo dia às 8h, quem tem a função recebe aviso das remessas atrasadas.</p>
+          <figure><img src="img/oficinas.webp" alt="Painel quem está com o quê, com peças por oficina e remessa atrasada em vermelho" width="1280" height="800" loading="lazy"></figure>
+          <div class="box atencao"><b>Errou alguma coisa?</b>
+            <ul>
+              <li>Retorno errado: abra a remessa e exclua o retorno (a produção dele sai junto); registre de novo.</li>
+              <li>Remessa já acertada: <b>Reabrir</b> tira o pagamento do Financeiro.</li>
+              <li>Ordem de corte errada: exclua (se ainda não tiver remessa); o corte sai da produção e o tecido volta ao estoque.</li>
+              <li>Lançamentos que vieram de ordem ou remessa não são editados no Lançar: corrija aqui.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="guia-nav">
+          <button type="button" id="guia-ant">← Passo anterior</button>
+          <span id="guia-pos" aria-live="polite">Passo 1 de 5</span>
+          <button type="button" id="guia-prox" class="primario">Próximo passo →</button>
+        </div>
       </div>
-      <p class="onde">Exemplo: 80 boas × R$ 2,50 − 8 faltando × R$ 10,00 de desconto = <b>R$ 120,00</b>. Defeito não é pago nem descontado: volta para conserto ou perda.</p>
-      <figure class="estreita"><img src="img/acerto.webp" alt="Janela de acerto da remessa com enviadas, boas, defeito, faltando e lançamento no Financeiro" width="480" height="564" loading="lazy"></figure>
 
-      <h3>Passo 5 · Quem está com o quê</h3>
-      <p>A primeira aba mostra, por oficina, quantas peças ainda estão com ela, quantas remessas passaram do prazo e quanto há para acertar. Todo dia às 8h, quem tem a função recebe aviso das remessas atrasadas.</p>
-      <figure><img src="img/oficinas.webp" alt="Painel quem está com o quê, com peças por oficina e remessa atrasada em vermelho" width="1280" height="800" loading="lazy"></figure>
-      <div class="box atencao"><b>Errou alguma coisa?</b>
-        <ul>
-          <li>Retorno errado: abra a remessa e exclua o retorno (a produção dele sai junto); registre de novo.</li>
-          <li>Remessa já acertada: <b>Reabrir</b> tira o pagamento do Financeiro.</li>
-          <li>Ordem de corte errada: exclua (se ainda não tiver remessa); o corte sai da produção e o tecido volta ao estoque.</li>
-          <li>Lançamentos que vieram de ordem ou remessa não são editados no Lançar: corrija aqui.</li>
-        </ul>
+      <div class="quiz" id="quiz">
+        <b>Teste rápido</b>
+        <div class="q" data-certa="b">
+          <p>1. Uma costureira devolveu 45 boas e 3 com defeito de 50 enviadas. Quantas estão faltando?</p>
+          <div class="opcoes"><button type="button" data-op="a">5</button><button type="button" data-op="b">2</button><button type="button" data-op="c">0</button></div>
+          <p class="explica" hidden>50 − 45 − 3 = <b>2</b> faltando. Defeito não conta como faltante.</p>
+        </div>
+        <div class="q" data-certa="c">
+          <p>2. Onde se corrige uma costura que entrou errada por uma remessa?</p>
+          <div class="opcoes"><button type="button" data-op="a">No Lançar</button><button type="button" data-op="b">No Relatório</button><button type="button" data-op="c">Na remessa, excluindo o retorno</button></div>
+          <p class="explica" hidden>Lançamentos que vieram de remessa são corrigidos em <b>Oficinas e remessas</b>: exclua o retorno e registre de novo.</p>
+        </div>
+        <div class="q" data-certa="a">
+          <p>3. A bobina tinha 30 kg, cada peça gasta 0,3 kg e saíram 95 peças. Houve perda?</p>
+          <div class="opcoes"><button type="button" data-op="a">Sim, 5%</button><button type="button" data-op="b">Não</button><button type="button" data-op="c">Sim, 30%</button></div>
+          <p class="explica" hidden>30 ÷ 0,3 = 100 esperadas; 95 cortadas: perda de <b>5%</b>.</p>
+        </div>
+        <p class="onde" id="quiz-placar" aria-live="polite"></p>
       </div>
     </section>
 
@@ -357,3 +484,155 @@ tr:last-child td { border-bottom: 0; }
     <p class="rodape">Manual do Fábrica · versão 1.9 · as telas são do modo demonstração, com dados de exemplo.</p>
   </main>
 </div>
+
+<script>
+(() => {
+  const salvar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento */ } };
+  const ler = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const brl = n => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const num = (n, c = 0) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+
+  // ---------------- passos marcáveis e progresso
+  const feitos = new Set(ler('fab-manual-feitos', []));
+  const secoes = [...document.querySelectorAll('main section')];
+  const passos = [];
+  secoes.forEach(sec => sec.querySelectorAll('ol.passos > li').forEach((li, i) => {
+    const id = `${sec.id}-${[...sec.querySelectorAll('ol.passos')].indexOf(li.parentElement)}-${i}`;
+    li.dataset.id = id; li.classList.add('marcavel'); li.tabIndex = 0; li.setAttribute('role', 'checkbox');
+    passos.push(li);
+  }));
+  secoes.forEach(sec => { if (sec.querySelector('ol.passos')) { const p = document.createElement('p'); p.className = 'marcar-dica'; p.textContent = 'Toque em cada passo para marcar como feito.'; sec.querySelector('ol.passos').before(p); } });
+  const atualizar = () => {
+    passos.forEach(li => { const f = feitos.has(li.dataset.id); li.classList.toggle('feito', f); li.setAttribute('aria-checked', String(f)); });
+    const total = passos.length, ok = passos.filter(li => feitos.has(li.dataset.id)).length;
+    document.getElementById('prog-barra').style.width = `${total ? (ok / total) * 100 : 0}%`;
+    document.getElementById('prog-texto').textContent = ok === total && total ? 'Manual concluído! Todos os passos feitos.' : `${ok} de ${total} passos feitos`;
+    document.querySelectorAll('nav.indice a').forEach(a => {
+      const sec = document.getElementById(a.getAttribute('href').slice(1));
+      const meus = passos.filter(li => sec && sec.contains(li));
+      let sp = a.querySelector('.feito');
+      if (!meus.length) { if (sp) sp.remove(); return; }
+      if (!sp) { sp = document.createElement('span'); sp.className = 'feito'; a.appendChild(sp); }
+      const f = meus.filter(li => feitos.has(li.dataset.id)).length;
+      sp.textContent = f === meus.length ? '✓' : `${f}/${meus.length}`;
+      a.classList.toggle('completa', f === meus.length);
+    });
+    salvar('fab-manual-feitos', [...feitos]);
+  };
+  const alternar = li => { const id = li.dataset.id; feitos.has(id) ? feitos.delete(id) : feitos.add(id); atualizar(); };
+  passos.forEach(li => {
+    li.addEventListener('click', e => { if (e.target.closest('a')) return; alternar(li); });
+    li.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); alternar(li); } });
+  });
+  document.getElementById('prog-zerar').addEventListener('click', () => { feitos.clear(); atualizar(); });
+  atualizar();
+
+  // ---------------- índice acompanha a leitura
+  const links = new Map([...document.querySelectorAll('nav.indice a')].map(a => [a.getAttribute('href').slice(1), a]));
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { links.forEach(a => a.classList.remove('atual')); const a = links.get(e.target.id); if (a) a.classList.add('atual'); }
+    }), { rootMargin: '-30% 0px -60% 0px' });
+    secoes.forEach(s => obs.observe(s));
+  }
+
+  // ---------------- busca
+  const busca = document.getElementById('busca'), res = document.getElementById('busca-res');
+  const sem = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const tirarMarcas = () => document.querySelectorAll('mark').forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  const marcar = (raiz, termo) => {
+    const w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement.closest('script,style,button,input') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const nos = []; while (w.nextNode()) nos.push(w.currentNode);
+    nos.forEach(n => {
+      const i = sem(n.textContent).indexOf(termo);
+      if (i < 0) return;
+      const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + termo.length);
+      const m = document.createElement('mark'); r.surroundContents(m);
+    });
+  };
+  let t;
+  busca.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => {
+    tirarMarcas(); document.normalize();
+    const q = sem(busca.value.trim());
+    const guia = document.getElementById('guia-oficinas');
+    if (q.length < 2) { secoes.forEach(s => s.classList.remove('sem-resultado')); res.textContent = ''; return; }
+    if (guia.classList.contains('passo-a-passo')) document.getElementById('guia-modo').click();
+    let n = 0;
+    secoes.forEach(s => { const tem = sem(s.textContent).includes(q); s.classList.toggle('sem-resultado', !tem); if (tem) { n++; marcar(s, q); } });
+    res.textContent = n ? `${n} seção(ões) com “${busca.value.trim()}”` : 'Nada encontrado. Tente outra palavra ou pergunte à Dani no app.';
+  }, 200); });
+
+  // ---------------- modo guiado do fluxo de oficinas
+  const guia = document.getElementById('guia-oficinas');
+  const etapas = [...guia.querySelectorAll('.guia-passo')], abas = [...guia.querySelectorAll('.guia-trilha button')];
+  const vistos = new Set(ler('fab-manual-guia', [0]));
+  let atual = 0;
+  const mostrar = i => {
+    atual = Math.max(0, Math.min(etapas.length - 1, i)); vistos.add(atual); salvar('fab-manual-guia', [...vistos]);
+    etapas.forEach((e, k) => e.classList.toggle('ativo', k === atual));
+    abas.forEach((b, k) => { b.setAttribute('aria-selected', String(k === atual)); b.classList.toggle('visto', vistos.has(k)); });
+    document.getElementById('guia-pos').textContent = `Passo ${atual + 1} de ${etapas.length}`;
+    document.getElementById('guia-ant').disabled = atual === 0;
+    const prox = document.getElementById('guia-prox');
+    prox.textContent = atual === etapas.length - 1 ? 'Ir para o teste rápido ↓' : 'Próximo passo →';
+  };
+  guia.classList.add('passo-a-passo');
+  abas.forEach((b, k) => b.addEventListener('click', () => mostrar(k)));
+  document.getElementById('guia-ant').addEventListener('click', () => { mostrar(atual - 1); guia.scrollIntoView({ block: 'start' }); });
+  document.getElementById('guia-prox').addEventListener('click', () => {
+    if (atual === etapas.length - 1) { document.getElementById('quiz').scrollIntoView({ block: 'start' }); return; }
+    mostrar(atual + 1); guia.scrollIntoView({ block: 'start' });
+  });
+  document.getElementById('guia-modo').addEventListener('click', e => {
+    const passo = guia.classList.toggle('passo-a-passo');
+    e.target.textContent = passo ? 'Ver tudo de uma vez' : 'Ver passo a passo';
+  });
+  mostrar(0);
+
+  // ---------------- simuladores
+  const v = id => Math.max(0, parseFloat(document.getElementById(id).value.replace(',', '.')) || 0);
+  const rendimento = () => {
+    const usado = v('r-usado'), consumo = v('r-consumo'), cortadas = v('r-cortadas');
+    const esperadas = consumo > 0 ? Math.floor(usado / consumo + 1e-9) : 0;
+    const perda = esperadas ? Math.round(((esperadas - cortadas) / esperadas) * 1000) / 10 : 0;
+    document.getElementById('r-esperadas').textContent = num(esperadas);
+    const pe = document.getElementById('r-perda');
+    pe.textContent = perda > 0 ? `${num(perda, 1)}%` : perda < 0 ? `rendeu ${num(-perda, 1)}% a mais` : 'sem perda';
+    pe.className = perda > 5 ? 'vermelho' : perda > 0 ? '' : 'verde';
+    document.getElementById('r-real').textContent = cortadas ? `${num(usado / cortadas, 3)} kg` : '—';
+    document.getElementById('r-texto').textContent = consumo > 0
+      ? `${num(usado, 1)} kg ÷ ${num(consumo, 2)} kg por peça = ${num(esperadas)} peças esperadas. Foram cortadas ${num(cortadas)}${perda > 0 ? `: perda de ${num(perda, 1)}%.` : '.'}`
+      : 'Informe o consumo por peça (regra do tecido em Matéria-prima).';
+  };
+  const acerto = () => {
+    const env = v('a-enviadas'), boas = v('a-boas'), def = v('a-defeito'), val = v('a-valor'), des = v('a-desconto');
+    const t = document.getElementById('a-texto');
+    if (boas + def > env) { t.textContent = 'Voltaram mais peças do que foram enviadas: o app não aceita esse retorno.'; t.style.color = '#d33'; return; }
+    t.style.color = '';
+    const falt = env - boas - def, bruto = boas * val, desc = falt * des, pagar = Math.max(0, bruto - desc);
+    document.getElementById('a-faltando').textContent = num(falt);
+    document.getElementById('a-bruto').textContent = brl(bruto);
+    document.getElementById('a-desc').textContent = brl(desc);
+    document.getElementById('a-pagar').textContent = brl(pagar);
+    t.textContent = `${num(boas)} boas × ${brl(val)}${falt && des ? ` − ${num(falt)} faltando × ${brl(des)}` : ''} = ${brl(pagar)}. Peça com defeito não é paga nem descontada.`;
+  };
+  ['r-usado', 'r-consumo', 'r-cortadas'].forEach(id => document.getElementById(id).addEventListener('input', rendimento));
+  ['a-enviadas', 'a-boas', 'a-defeito', 'a-valor', 'a-desconto'].forEach(id => document.getElementById(id).addEventListener('input', acerto));
+  rendimento(); acerto();
+
+  // ---------------- teste rápido
+  const qs = [...document.querySelectorAll('#quiz .q')];
+  const placar = () => {
+    const resp = qs.filter(q => q.dataset.resp), certas = resp.filter(q => q.dataset.resp === q.dataset.certa).length;
+    document.getElementById('quiz-placar').textContent = resp.length === qs.length ? `Você acertou ${certas} de ${qs.length}.${certas === qs.length ? ' Pronto para usar as remessas!' : ' Releia os passos e tente de novo.'}` : '';
+  };
+  qs.forEach(q => q.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    q.dataset.resp = b.dataset.op;
+    q.querySelectorAll('button').forEach(x => x.classList.remove('certa', 'errada'));
+    b.classList.add(b.dataset.op === q.dataset.certa ? 'certa' : 'errada');
+    q.querySelector(`button[data-op="${q.dataset.certa}"]`).classList.add('certa');
+    q.querySelector('.explica').hidden = false;
+    placar();
+  })));
+})();
+</script>
