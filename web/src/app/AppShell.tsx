@@ -120,7 +120,7 @@ export function AppShell() {
         <div className="sidebar-foot">
           <div className="user-card">
             <span className="avatar" aria-hidden="true">{iniciais(boot.eu.nome)}</span>
-            <span className="user-txt"><b>{boot.eu.nome}</b><small>{boot.eu.admin ? 'Administrador' : boot.eu.leitura ? 'Só acompanhamento' : boot.eu.setor}</small></span>
+            <span className="user-txt"><b>{boot.eu.nome}</b><small>{[boot.eu.setor, boot.eu.admin && 'Administrador', boot.eu.leitura && 'só acompanhamento'].filter(Boolean).join(' · ')}</small></span>
             <button type="button" className="user-out" onClick={() => signOut()} aria-label="Sair" title="Sair"><Icon name="logout" size={16} /></button>
           </div>
         </div>

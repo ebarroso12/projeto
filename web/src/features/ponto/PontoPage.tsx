@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../app/auth';
 import { BOOT_KEY, useBoot } from '../../app/boot';
 import { useAction } from '../../app/useAction';
-import { dataBR, hmToMin, nowMin } from '../../lib/format';
+import { dataBR, nowMin } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { useConfirm } from '../../ui/Dialog';
 import { Badge, Banner, Card, PageHeader } from '../../ui/primitives';
+import { expediente } from './expediente';
 
 function useClock(ms = 5000): Date {
   const [now, setNow] = useState(() => new Date());
@@ -29,7 +30,6 @@ export default function PontoPage() {
 
   const podeEntrar = !p.entrada;
   const podeSair = Boolean(p.entrada) && !p.saida;
-  const passouDoFim = nowMin(now) >= hmToMin(horaFim);
 
   const marcar = async (tipo: 'entrada' | 'saida') => {
     const nome = tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
@@ -37,11 +37,7 @@ export default function PontoPage() {
   };
 
   // anel: andamento do expediente (da entrada até o fim previsto); depois do fim, vira hora extra
-  const ini = p.entrada ? hmToMin(p.entrada) : 0, fim = hmToMin(horaFim), agora = p.saida ? hmToMin(p.saida) : nowMin(now);
-  const total = Math.max(1, fim - ini), feito = p.entrada ? Math.max(0, agora - ini) : 0;
-  const frac = p.entrada ? Math.min(1, feito / total) : 0;
-  const extra = p.entrada && agora > fim ? agora - fim : 0;
-  const falta = p.entrada && !p.saida && agora < fim ? fim - agora : 0;
+  const { frac, feito, extra, falta } = expediente(p.entrada, p.saida, horaFim, nowMin(now));
   const hm = (m: number) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
   const R = 108, C = 2 * Math.PI * R;
   const estado = !p.entrada ? 'Ainda não marcou entrada' : p.saida ? `Trabalhou ${hm(feito)} hoje` : extra ? `Hora extra: ${hm(extra)}` : `Faltam ${hm(falta)} para as ${horaFim}`;
@@ -79,7 +75,7 @@ export default function PontoPage() {
           <Button variant={podeSair ? 'danger' : 'secondary'} size="lg" block disabled={!podeSair} loading={bater.isPending && bater.variables === 'saida'} onClick={() => void marcar('saida')}>Marcar SAÍDA</Button>
 
           {p.saida && p.extra && <Banner tone="info">Hora extra hoje: <b>{p.extra}</b></Banner>}
-          {p.entrada && !p.saida && passouDoFim && <Banner tone="warn">Passou das {horaFim}: contando <b>hora extra</b>. Marque a SAÍDA quando for embora.</Banner>}
+          {p.entrada && !p.saida && extra > 0 && <Banner tone="warn">Passou das {horaFim}: contando <b>hora extra</b>. Marque a SAÍDA quando for embora.</Banner>}
           {p.entrada && !p.saida && <p className="muted" style={{ textAlign: 'center', fontSize: 13 }}>Se esquecer de marcar a saída, o ponto fecha às {horaFim} sem hora extra.</p>}
           {p.saida && <p className="muted" style={{ textAlign: 'center' }}>Ponto de hoje completo. Bom descanso!</p>}
         </div>

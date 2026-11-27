@@ -17,12 +17,18 @@ export function Comando({ features, acoes, aberto, setAberto }: { features: Feat
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setAberto(!aberto); }
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'k') return;
+      // com uma janela (dialog) aberta, o resto da tela fica inerte: a busca abriria por trás, sem uso
+      if (document.querySelector('dialog[open]')) return;
+      e.preventDefault();
+      setAberto(!aberto);
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [aberto, setAberto]);
-  useEffect(() => { if (aberto) { setQ(''); setI(0); setTimeout(() => input.current?.focus(), 10); } }, [aberto]);
+  useEffect(() => { if (aberto) { setQ(''); setI(0); } }, [aberto]);
+  const lista = useRef<HTMLUListElement>(null);
+  useEffect(() => { lista.current?.querySelector('li.on')?.scrollIntoView({ block: 'nearest' }); }, [i, aberto]);
 
   const itens: Acao[] = useMemo(() => {
     const telas: Acao[] = features.map(f => ({ id: f.id, label: f.title, dica: f.group, icon: f.icon, run: () => nav(f.path) }));
@@ -38,17 +44,17 @@ export function Comando({ features, acoes, aberto, setAberto }: { features: Feat
       <div className="cmd" role="dialog" aria-modal="true" aria-label="Busca rápida">
         <div className="cmd-input">
           <Icon name="search" size={18} />
-          <input ref={input} value={q} placeholder="Ir para uma tela ou fazer algo…" aria-label="Buscar"
+          <input ref={input} autoFocus value={q} placeholder="Ir para uma tela ou fazer algo…" aria-label="Buscar"
             onChange={e => { setQ(e.target.value); setI(0); }}
             onKeyDown={e => {
-              if (e.key === 'ArrowDown') { e.preventDefault(); setI(x => Math.min(itens.length - 1, x + 1)); }
+              if (e.key === 'ArrowDown') { e.preventDefault(); setI(x => Math.max(0, Math.min(itens.length - 1, x + 1))); }
               if (e.key === 'ArrowUp') { e.preventDefault(); setI(x => Math.max(0, x - 1)); }
               if (e.key === 'Enter') { e.preventDefault(); escolher(itens[i]); }
               if (e.key === 'Escape') setAberto(false);
             }} />
           <kbd>Esc</kbd>
         </div>
-        <ul className="cmd-list" role="listbox">
+        <ul className="cmd-list" role="listbox" ref={lista}>
           {itens.length === 0 && <li className="cmd-vazio">Nada encontrado.</li>}
           {itens.map((a, n) => (
             <li key={a.id} role="option" aria-selected={n === i} className={n === i ? 'on' : ''}

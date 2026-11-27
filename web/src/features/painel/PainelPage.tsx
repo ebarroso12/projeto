@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import type { Painel, Presenca, Saldo } from '../../api/types';
@@ -73,10 +74,13 @@ function PainelView({ p }: { p: Painel }) {
 export default function PainelPage() {
   const api = useApi();
   const { eu } = useBoot();
+  const [, setTick] = useState(0); // refaz a saudação (bom dia/boa tarde) com o painel aberto o dia todo
+  useEffect(() => { const t = window.setInterval(() => setTick(x => x + 1), 5 * 60_000); return () => window.clearInterval(t); }, []);
+  const nome = primeiroNome(eu.nome);
   const q = useQuery({ queryKey: ['painel'], queryFn: () => api.painel(), refetchInterval: 60_000 });
   return (
     <>
-      <PageHeader title={eu.leitura ? 'Painel' : `${saudacao()}, ${primeiroNome(eu.nome)}`} subtitle="Produção e presença de hoje · atualiza sozinho a cada minuto"
+      <PageHeader title={eu.leitura || !nome ? 'Painel' : `${saudacao()}, ${nome}`} subtitle="Produção e presença de hoje · atualiza sozinho a cada minuto"
         actions={<Button icon={<Icon name="refresh" size={16} />} loading={q.isFetching && !q.isPending} onClick={() => void q.refetch()}>Atualizar</Button>} />
       <QueryView query={q}>{p => <PainelView p={p} />}</QueryView>
     </>
