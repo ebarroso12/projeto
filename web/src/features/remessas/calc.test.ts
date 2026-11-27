@@ -20,10 +20,10 @@ describe('conta da remessa (oficina)', () => {
 
 describe('rendimento da bobina', () => {
   const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', oficinaId: null, login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
-    materialQtd: 25, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
+    materialQtd: 25, sobra: null, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
   it('esperado pela regra × cortado = perda', () => {
-    expect(rendimento(O({}))).toEqual({ cortadas: 90, esperadas: 100, perdaPct: 10, consumoReal: 0.278 });
-    expect(rendimento(O({ materialQtd: null }))).toEqual({ cortadas: 90, esperadas: null, perdaPct: null, consumoReal: null });
+    expect(rendimento(O({}))).toEqual({ cortadas: 90, usado: 25, esperadas: 100, perdaPct: 10, consumoReal: 0.278 });
+    expect(rendimento(O({ materialQtd: null }))).toEqual({ cortadas: 90, usado: null, esperadas: null, perdaPct: null, consumoReal: null });
   });
 });
 
@@ -77,7 +77,7 @@ describe('resposta da oficina pelo link', () => {
 
 describe('balanço da ordem de corte', () => {
   const O: OrdemCorte = { id: 'o1', numero: 12, data: '2026-11-20', quem: 'Corte do João', oficinaId: null, login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
-    materialQtd: 25, consumoPeca: 0.25, itens: { G: 10, M: 50, P: 40 }, remetido: 90 };
+    materialQtd: 25, sobra: null, consumoPeca: 0.25, itens: { G: 10, M: 50, P: 40 }, remetido: 90 };
   it('do tecido à peça: na fábrica, com a oficina e sumidas por tamanho', () => {
     const aberta = R({});                                   // P 40 (30+2), M 50 (50): 8 do P com a oficina
     const fechada = R({ id: 'r2', status: 'fechada', itens: [{ id: 'c', modelo: 'Calça', cor: 'Branco', tamanho: 'G', qtd: 6, boas: 4, defeito: 0 }] });   // 2 do G sumiram
@@ -166,7 +166,7 @@ describe('ranking de oficinas', () => {
 });
 describe('ranking de cortadores', () => {
   const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', oficinaId: 'of-joao', login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
-    materialQtd: 25, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
+    materialQtd: 25, sobra: null, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
   it('perda média ponderada pelo tecido, sem alerta primeiro', () => {
     const rk = rankingCortadores([O({}), O({ id: 'o2', itens: { P: 50, M: 48 } }), O({ id: 'o3', quem: 'Rita', oficinaId: null, login: 'rita', itens: { P: 50, M: 50 } }),
       O({ id: 'o4', quem: 'Rita', oficinaId: null, login: 'rita', materialQtd: null, itens: { P: 5 } })], 3);
@@ -178,5 +178,14 @@ describe('ranking de cortadores', () => {
   it('bobina pequena (0 peças esperadas) conta como informada, não como "sem bobina"', () => {
     const l = rankingCortadores([O({ materialQtd: 0.2, itens: { P: 1 } })], 3)[0]!;
     expect([l.semBobina, l.esperadas, l.perdaPct]).toEqual([0, 0, 0]);
+  });
+});
+
+describe('sobra de tecido', () => {
+  const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', oficinaId: null, login: null, modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
+    materialQtd: 25, sobra: null, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
+  it('rendimento conta só o tecido usado (levado − sobra)', () => {
+    expect(rendimento(O({}))).toMatchObject({ usado: 25, esperadas: 100, perdaPct: 10 });
+    expect(rendimento(O({ sobra: 2.5 }))).toMatchObject({ usado: 22.5, esperadas: 90, perdaPct: 0, consumoReal: 0.25 });
   });
 });

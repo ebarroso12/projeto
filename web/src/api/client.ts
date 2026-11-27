@@ -149,6 +149,8 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     remessaOpcoes: async () => parseRemessaOpcoes(await call('remessaOpcoes', tok())),
     /** Link da oficina para a remessa (cria na primeira vez; novo = troca e o antigo para de funcionar). */
     remessaLink: async (id: string, novo = false): Promise<string> => str(await call('remessaLink', tok(), id, novo)),
+    /** Sobra de tecido da ordem de corte que voltou ao estoque (0 = tira a sobra). */
+    registrarSobra: async (ordemId: string, qtd: number, data: string | null) => { await call('registrarSobra', tok(), ordemId, qtd, data); },
     salvarLimitePerda: async (limite: number): Promise<number> => num(await call('salvarLimitePerda', tok(), limite)),
     /** Fecha a contestação da oficina registrando o que foi decidido (retornoId null = envio). */
     resolverContestacao: async (remessaId: string, retornoId: string | null, nota: string) => { await call('resolverContestacao', tok(), remessaId, retornoId, nota); },

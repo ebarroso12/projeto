@@ -372,7 +372,7 @@ export function parseRemessasDados(v: unknown): RemessasDados {
     })),
     ordens: arrR(r.ordens).map(o => ({
       id: str(o.id), numero: num(o.numero), data: str(o.data), quem: str(o.quem), oficinaId: strOrNull(o.oficinaId), login: strOrNull(o.login), modelo: str(o.modelo), cor: str(o.cor), obs: str(o.obs),
-      material: strOrNull(o.material), unidade: strOrNull(o.unidade), materialQtd: numOrNull(o.materialQtd), consumoPeca: numOrNull(o.consumoPeca),
+      material: strOrNull(o.material), unidade: strOrNull(o.unidade), materialQtd: numOrNull(o.materialQtd), sobra: numOrNull(o.sobra), consumoPeca: numOrNull(o.consumoPeca),
       itens: Object.fromEntries(Object.entries(rec(o.itens)).map(([k, x]) => [k, num(x)])), remetido: num(o.remetido),
     })),
   };

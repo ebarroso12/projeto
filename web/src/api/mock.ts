@@ -1099,7 +1099,7 @@ Object.assign(handlers, {
 
 // ---------------------------------------------------------------- matéria-prima (demonstração; mesma regra do banco)
 interface MMaterial { id: string; nome: string; unidade: string; minimo: number; inicio: string; ativo: boolean; obs: string; regras: { etapa: string; modelo: string; qtdPorPeca: number }[] }
-interface MMov { id: string; materialId: string; tipo: 'entrada' | 'saida' | 'ajuste'; qtd: number; data: string; valor: number | null; fornecedor: string; finId: string | null; obs: string; por: string }
+interface MMov { id: string; materialId: string; tipo: 'entrada' | 'saida' | 'ajuste'; qtd: number; data: string; valor: number | null; fornecedor: string; finId: string | null; obs: string; por: string; ordemId?: string }
 const inicioMat = isoDay(addDays(new Date(), -45));
 const materiaisDemo: MMaterial[] = [
   { id: 'm1', nome: 'Malha piquet', unidade: 'kg', minimo: 120, inicio: inicioMat, ativo: true, obs: '', regras: [{ etapa: 'Corte', modelo: 'Camisa Polo', qtdPorPeca: 0.22 }] },
@@ -1200,6 +1200,7 @@ Object.assign(handlers, {
     const i = movsDemo.findIndex(x => x.id === id);
     if (i < 0) throw fromServerMessage('Movimento não encontrado.');
     if (movsDemo[i]!.finId && fin.lancamentos.some(l => l.id === movsDemo[i]!.finId && !l.apagado)) throw fromServerMessage('Esta compra está no Financeiro: exclua o lançamento lá antes.');
+    if (movsDemo[i]!.ordemId) throw fromServerMessage(`Este movimento vem da ordem de corte #${ordensDemo.find(o => o.id === movsDemo[i]!.ordemId)?.numero ?? '?'}: corrija pela ordem (sobra ou excluir a ordem).`);
     movsDemo.splice(i, 1);
     return null;
   },
@@ -1245,7 +1246,7 @@ Object.assign(handlers, {
 });
 
 // ---------------------------------------------------------------- oficinas e remessas (demonstração; mesma regra do banco)
-interface MOrdem { id: string; numero: number; data: string; quem: string; login: string; oficinaId?: string | null; modelo: string; cor: string; obs: string; materialId: string | null; materialQtd: number | null; itens: Record<string, number> }
+interface MOrdem { id: string; numero: number; data: string; quem: string; login: string; oficinaId?: string | null; sobra?: number | null; modelo: string; cor: string; obs: string; materialId: string | null; materialQtd: number | null; itens: Record<string, number> }
 interface MRemessa {
   id: string; numero: number; quem: string; login: string; oficinaId: string | null; etapa: string; dataEnvio: string; prazo: string | null;
   valorPeca: number; descontoFaltante: number; ordemId: string | null; status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null;
@@ -1326,7 +1327,7 @@ const consumoPecaDe = (matId: string, modelo: string) => {
   const m = materiaisDemo.find(x => x.id === matId);
   return m?.regras.find(r => r.etapa === 'Corte' && r.modelo === modelo)?.qtdPorPeca ?? m?.regras.find(r => r.etapa === 'Corte' && r.modelo === '')?.qtdPorPeca ?? null;
 };
-Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa', 'remessaLink', 'salvarLimitePerda', 'resolverContestacao'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
+Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa', 'remessaLink', 'salvarLimitePerda', 'resolverContestacao', 'registrarSobra'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
 Object.assign(handlers, {
   remessas: ([t]: unknown[]) => {
     requireAdmin(userOf(String(t)));
@@ -1335,7 +1336,7 @@ Object.assign(handlers, {
       remessas: remessasDemo.map(remessaJson).sort((a, b) => Number(b.status === 'aberta') - Number(a.status === 'aberta') || (a.prazo ?? '9').localeCompare(b.prazo ?? '9') || b.numero - a.numero),
       ordens: [...ordensDemo].sort((a, b) => b.data.localeCompare(a.data)).map(o => {
         const m = materiaisDemo.find(x => x.id === o.materialId);
-        return { ...o, login: o.login || null, oficinaId: o.oficinaId ?? null, material: m?.nome ?? null, unidade: m?.unidade ?? null, consumoPeca: o.materialId ? consumoPecaDe(o.materialId, o.modelo) : null,
+        return { ...o, login: o.login || null, oficinaId: o.oficinaId ?? null, sobra: o.sobra ?? null, material: m?.nome ?? null, unidade: m?.unidade ?? null, consumoPeca: o.materialId ? consumoPecaDe(o.materialId, o.modelo) : null,
           remetido: remessasDemo.filter(r => r.ordemId === o.id).flatMap(r => r.itens).reduce((s, i) => s + i.qtd, 0) };
       }),
     };
@@ -1351,7 +1352,7 @@ Object.assign(handlers, {
   },
   salvarOrdemCorte: ([t, o]: unknown[]) => {
     const u = userOf(String(t)); requireAdmin(u);
-    const r = o as { quem: Record<string, string>; data: string; modelo: string; cor: string; materialId?: string; materialQtd?: number; obs: string; itens: { tamanho: string; qtd: number }[] };
+    const r = o as { quem: Record<string, string>; data: string; modelo: string; cor: string; materialId?: string; materialQtd?: number; sobraQtd?: number | null; obs: string; itens: { tamanho: string; qtd: number }[] };
     const quem = quemDemo(r.quem);
     const itens = r.itens.filter(i => Number(i.qtd) > 0);
     if (!itens.length) throw fromServerMessage('Informe a quantidade cortada em pelo menos um tamanho.');
@@ -1359,13 +1360,30 @@ Object.assign(handlers, {
     ordensDemo.push({ id, numero, data, quem: quem.nome, login: quem.login, oficinaId: quem.oficinaId, modelo: r.modelo, cor: r.cor, obs: r.obs ?? '', materialId: r.materialId || null, materialQtd: r.materialQtd ? Number(r.materialQtd) : null,
       itens: Object.fromEntries(itens.map(i => [i.tamanho, Number(i.qtd)])) });
     for (const i of itens) lancDe(quem, 'Corte', r.modelo, r.cor, i.tamanho, Number(i.qtd), data);
-    if (r.materialId && r.materialQtd) movsDemo.push({ id: `mv${Date.now()}`, materialId: r.materialId, tipo: 'saida', qtd: Number(r.materialQtd), data, valor: null, fornecedor: '', finId: null, obs: `Ordem de corte #${numero}`, por: u.nome });
+    const sobra = Number(r.sobraQtd) || 0;
+    if (sobra > 0 && (!r.materialId || !r.materialQtd)) throw fromServerMessage('Informe a bobina e o tecido levado para registrar a sobra.');
+    if (sobra > 0 && sobra >= Number(r.materialQtd)) throw fromServerMessage('A sobra precisa ser menor que o tecido levado.');
+    if (r.materialId && r.materialQtd) movsDemo.push({ id: `mv${Date.now()}`, materialId: r.materialId, tipo: 'saida', qtd: Number(r.materialQtd), data, valor: null, fornecedor: '', finId: null, obs: `Ordem de corte #${numero}`, por: u.nome, ordemId: id });
+    if (sobra > 0) { ordensDemo[ordensDemo.length - 1]!.sobra = sobra; movsDemo.push({ id: `mv${Date.now()}s`, materialId: r.materialId!, tipo: 'ajuste', qtd: sobra, data, valor: null, fornecedor: '', finId: null, obs: `Sobra da ordem de corte #${numero}`, por: u.nome, ordemId: id }); }
     return { id, numero, pecas: itens.reduce((s, i) => s + Number(i.qtd), 0) };
+  },
+  registrarSobra: ([t, ordemId, qtd, dataS]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const o = ordensDemo.find(x => x.id === ordemId); if (!o) throw fromServerMessage('Ordem de corte não encontrada.');
+    if (!o.materialId || !o.materialQtd) throw fromServerMessage('Esta ordem não tem a bobina informada: não há de onde sobrar tecido.');
+    const n = Number(qtd);
+    if (!Number.isFinite(n) || n < 0) throw fromServerMessage('Quantidade de sobra inválida.');
+    if (n >= o.materialQtd) throw fromServerMessage(`A sobra precisa ser menor que o tecido levado (${o.materialQtd}).`);
+    for (let i = movsDemo.length - 1; i >= 0; i--) if (movsDemo[i]!.ordemId === o.id && movsDemo[i]!.tipo === 'ajuste') movsDemo.splice(i, 1);
+    if (n > 0) movsDemo.push({ id: `mv${Date.now()}s`, materialId: o.materialId, tipo: 'ajuste', qtd: n, data: String(dataS || today()), valor: null, fornecedor: '', finId: null, obs: `Sobra da ordem de corte #${o.numero}`, por: u.nome, ordemId: o.id });
+    o.sobra = n > 0 ? n : null;
+    return { levado: o.materialQtd, sobra: n, usado: o.materialQtd - n };
   },
   apagarOrdemCorte: ([t, id]: unknown[]) => {
     requireAdmin(userOf(String(t)));
     if (remessasDemo.some(r => r.ordemId === id)) throw fromServerMessage('Há remessa feita a partir desta ordem: exclua a remessa antes.');
     const i = ordensDemo.findIndex(o => o.id === id); if (i < 0) throw fromServerMessage('Ordem de corte não encontrada.');
+    for (let k = movsDemo.length - 1; k >= 0; k--) if (movsDemo[k]!.ordemId === id) movsDemo.splice(k, 1);   // o tecido volta ao estoque
     ordensDemo.splice(i, 1); return null;
   },
   salvarRemessa: ([t, o]: unknown[]) => {

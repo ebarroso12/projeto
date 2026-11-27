@@ -1095,6 +1095,28 @@ await rpc(admin, `fab_salvar_funcoes('ana', ${j({ remessas: false })})`);
 const bkR = (await rpc(admin, 'fab_exportar()')).data;
 ok(bkR.tabelas.remessa_confirmacoes.length >= 4 && bkR.tabelas.remessas.length >= 2 && bkR.tabelas.remessas.every(x => !('token' in x)) && !JSON.stringify(bkR).includes(lkR2), 'cópia leva as confirmações e não leva o link');
 await q(`delete from fab.avisos_fila`);
+// ---- sobra de tecido
+await q(`delete from fab.avisos_fila`);
+const sAntes = await saldoMat();
+const ocS = (await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, data: diaP(-1), modelo: 'Calça Jeans', cor: 'Branco', materialId: mat30, materialQtd: 3, sobraQtd: 0.5, itens: [{ tamanho: 'P', qtd: 9 }] })})`)).data;
+ok(Math.abs((await saldoMat()) - (sAntes - 2.5)) < 1e-9, 'sobra informada na ordem volta ao estoque (levou 3, sobrou 0,5: baixa 2,5)');
+ok((await rpc(admin, 'fab_remessas(120)')).data.ordens.find(o => o.id === ocS.id).sobra === 0.5, 'ordem mostra a sobra');
+ok((await q(`select texto from fab.avisos_fila where tipo = 'perda'`)).some(a => a.texto.includes(`#${ocS.numero}`) && a.texto.includes('o tecido dava 10')), 'alerta de perda usa o tecido usado (2,5 kg dava 10 peças)');
+const mvS = (await q(`select tipo, qtd::float, valor from fab.material_movs where ordem_id = $1 order by tipo`, [ocS.id]));
+ok(mvS.length === 2 && mvS[0].tipo === 'ajuste' && mvS[0].qtd === 0.5 && mvS[0].valor === null, 'sobra entra como ajuste ligado à ordem (não é compra)');
+let rs = await rpc(admin, `fab_registrar_sobra('${ocS.id}', 1, null)`);
+ok(rs.ok && Number(rs.data.usado) === 2 && Math.abs((await saldoMat()) - (sAntes - 2)) < 1e-9 && (await q(`select count(*)::int n from fab.material_movs where ordem_id = $1 and tipo = 'ajuste'`, [ocS.id]))[0].n === 1, 'pesar de novo substitui a sobra (sem duplicar)');
+ok(fails_with(await rpc(admin, `fab_registrar_sobra('${ocS.id}', 3, null)`), 'menor que o tecido levado') && fails_with(await rpc(admin, `fab_registrar_sobra('${ocS.id}', -1, null)`), 'inválida'), 'sobra igual ou maior que o levado, ou negativa, é recusada');
+ok(fails_with(await rpc(admin, `fab_registrar_sobra('${ocS.id}', 0.5, '${diaP(-5)}')`), 'antes da ordem'), 'sobra não pode ser antes da ordem');
+const ocSem = (await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, data: diaP(-1), modelo: 'Calça Jeans', cor: 'Branco', itens: [{ tamanho: 'P', qtd: 2 }] })})`)).data;
+ok(fails_with(await rpc(admin, `fab_registrar_sobra('${ocSem.id}', 1, null)`), 'não tem a bobina') && fails_with(await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, modelo: 'Calça Jeans', cor: 'Branco', sobraQtd: 1, itens: [{ tamanho: 'P', qtd: 2 }] })})`), 'Informe a bobina'), 'sem bobina não há sobra');
+const mvSaida = (await q(`select id from fab.material_movs where ordem_id = $1 and tipo = 'saida'`, [ocS.id]))[0].id;
+ok(fails_with(await rpc(admin, `fab_apagar_mov_material('${mvSaida}')`), 'vem da ordem de corte'), 'movimento da ordem só muda pela ordem');
+ok(fails_with(await rpc(ana, `fab_registrar_sobra('${ocS.id}', 1, null)`), 'FUNCAO_BLOQUEADA'), 'funcionário sem a função não registra sobra');
+await rpc(admin, `fab_apagar_ordem_corte('${ocSem.id}')`);   // sem bobina, ela consome pela regra: tira antes de medir o saldo
+ok((await rpc(admin, `fab_registrar_sobra('${ocS.id}', 0, null)`)).ok && (await rpc(admin, 'fab_remessas(120)')).data.ordens.find(o => o.id === ocS.id).sobra === null && Math.abs((await saldoMat()) - (sAntes - 3)) < 1e-9, 'sobra 0 tira a sobra');
+await rpc(admin, `fab_apagar_ordem_corte('${ocS.id}')`);
+ok(Math.abs((await saldoMat()) - sAntes) < 1e-9, 'excluir a ordem devolve tudo ao estoque');
 for (const o of [oc12, ocA, ocOk]) await rpc(admin, `fab_apagar_ordem_corte('${o.id}')`);
 await q(`delete from fab.remessas`); await q(`delete from fab.ordens_corte`); await q(`delete from fab.materiais where id = $1`, [mat30]);
 await q(`delete from fab.lancamentos where origem <> 'lancar' or (modelo = 'Calça Jeans' and cor = 'Branco')`);

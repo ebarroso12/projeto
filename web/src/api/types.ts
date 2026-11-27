@@ -294,10 +294,11 @@ export interface VitrineAdmin {
 export type QuemFez = { login: string } | { oficinaId: string };
 export interface OrdemCorte {
   id: string; numero: number; data: string; quem: string; oficinaId: string | null; login: string | null; modelo: string; cor: string; obs: string;
-  material: string | null; unidade: string | null; materialQtd: number | null; consumoPeca: number | null;
+  /** materialQtd = tecido levado; sobra = o que voltou ao estoque (usado = levado − sobra) */
+  material: string | null; unidade: string | null; materialQtd: number | null; sobra: number | null; consumoPeca: number | null;
   itens: Record<string, number>; remetido: number;
 }
-export interface OrdemCorteInput { quem: QuemFez; data: string; modelo: string; cor: string; materialId?: string | null; materialQtd?: number | null; obs: string; itens: { tamanho: string; qtd: number }[] }
+export interface OrdemCorteInput { quem: QuemFez; data: string; modelo: string; cor: string; materialId?: string | null; materialQtd?: number | null; sobraQtd?: number | null; obs: string; itens: { tamanho: string; qtd: number }[] }
 export interface RemessaItem { id: string; modelo: string; cor: string; tamanho: string; qtd: number; boas: number; defeito: number }
 /** Resposta da oficina pelo link: confere, ou a contagem dela nos itens em que discorda. */
 export interface ConfirmacaoOficina {

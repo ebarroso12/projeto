@@ -1,5 +1,13 @@
 [
   {
+    "versao": "1.14.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Sobra de tecido: pese o que voltou da bobina; volta ao estoque e o rendimento conta só o tecido usado.",
+      "Comprovante impresso com QR code: a costureira aponta o celular e confirma as peças. Cada devolução tem o seu comprovante."
+    ]
+  },
+  {
     "versao": "1.13.0",
     "data": "2026-11-27",
     "novidades": [

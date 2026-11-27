@@ -396,7 +396,7 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await doc.getByLabel('Modelo', { exact: true }).selectOption('Calça Jeans');
   await doc.getByLabel('Cor', { exact: true }).selectOption('Azul Marinho');
   await doc.getByLabel('Bobina / tecido (opcional)').selectOption({ label: 'Tecido tactel' });
-  await doc.getByLabel(/Quanto foi usado/).fill('40');
+  await doc.getByLabel(/Tecido levado para o corte/).fill('40');
   await doc.getByLabel('Corte, tamanho P', { exact: true }).fill('20');
   await doc.getByLabel('Corte, tamanho M', { exact: true }).fill('30');
   await doc.getByRole('button', { name: 'Registrar corte' }).click();
@@ -497,6 +497,31 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => rko.isVisible()) && (await rko.locator('tbody tr').count()) >= 2 && await rko.getByText('Melhor').count() === 1, 'ranking de oficinas: melhor primeiro');
   ok(await page.getByRole('table', { name: 'Ranking de cortadores' }).getByText('Corte do João').isVisible(), 'ranking de cortadores pela perda no corte');
   await shot(page, '44-ranking');
+  // sobra de tecido
+  await page.getByRole('tab', { name: /^Ordens de corte/ }).click();
+  const linhaOc = page.locator('.item', { hasText: '#12 · Camisa Polo Branco' });
+  await linhaOc.getByRole('button', { name: 'Pesar sobra' }).click();
+  const dso = page.locator('dialog[open]');
+  await dso.getByLabel(/^Sobra \(/).fill('31');
+  ok(await until(() => dso.getByText(/precisa ser menor que o tecido levado/).isVisible()) && await dso.getByRole('button', { name: 'Salvar' }).isDisabled(), 'sobra maior que o levado é recusada');
+  await dso.getByLabel(/^Sobra \(/).fill('3,4');
+  ok(await until(() => dso.getByText(/Usou 26,6/).isVisible()), 'mostra o tecido usado e o rendimento antes de salvar');
+  await dso.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Sobra registrada: voltou ao estoque.').waitFor();
+  ok(await until(() => linhaOc.getByText(/levou 30 kg, sobrou 3,4, usou 26,6/).isVisible()), 'ordem mostra levou, sobrou e usou');
+  // comprovante com QR
+  await page.getByRole('tab', { name: /^Remessas/ }).click();
+  await page.getByRole('button', { name: /#32 · Facção Bom Ponto/ }).click();
+  const [pc] = await Promise.all([page.waitForEvent('popup'), page.locator('dialog[open]').getByRole('button', { name: 'Comprovante', exact: true }).click()]);
+  await pc.locator('svg').first().waitFor();
+  ok(await pc.getByText('Remessa #32 · envio').isVisible() && await pc.getByText(/conferir e confirmar/).isVisible() && await pc.locator('td.caixa').count() >= 1, 'comprovante do envio com QR e coluna para a oficina conferir');
+  await shot(pc, '45-comprovante');
+  await pc.close();
+  const [pr] = await Promise.all([page.waitForEvent('popup'), page.locator('dialog[open]').getByRole('button', { name: /Imprimir comprovante da devolução/ }).first().click()]);
+  await pr.locator('svg').first().waitFor();
+  ok(await pr.getByText(/devolução de/).first().isVisible() && await pr.getByText('contada às cegas').isVisible(), 'comprovante da devolução com QR');
+  await pr.close();
+  await page.keyboard.press('Escape');
   // lançar em nome de quem não usa celular
   await page.locator('.sidebar').getByRole('link', { name: 'Lançar' }).click();
   await page.getByLabel('Quem fez').selectOption({ label: 'Ateliê da Rosa (oficina)' });

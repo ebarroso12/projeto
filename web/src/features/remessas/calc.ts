@@ -32,14 +32,16 @@ export function contaRemessa(r: Remessa, hoje: string): ContaRemessa {
   };
 }
 
-export interface Rendimento { cortadas: number; esperadas: number | null; perdaPct: number | null; consumoReal: number | null }
+export interface Rendimento { cortadas: number; usado: number | null; esperadas: number | null; perdaPct: number | null; consumoReal: number | null }
+/** Tecido usado = levado − sobra que voltou ao estoque; o rendimento conta só o que foi usado. */
 export function rendimento(o: OrdemCorte): Rendimento {
   const cortadas = Object.values(o.itens).reduce((s, q) => s + q, 0);
-  const esperadas = o.materialQtd && o.consumoPeca ? Math.floor(o.materialQtd / o.consumoPeca + 1e-9) : null;
+  const usado = o.materialQtd ? Math.round((o.materialQtd - (o.sobra ?? 0)) * 1000) / 1000 : null;
+  const esperadas = usado && o.consumoPeca ? Math.floor(usado / o.consumoPeca + 1e-9) : null;
   return {
-    cortadas, esperadas,
+    cortadas, usado, esperadas,
     perdaPct: esperadas ? Math.round(((esperadas - cortadas) / esperadas) * 1000) / 10 : null,
-    consumoReal: o.materialQtd && cortadas ? Math.round((o.materialQtd / cortadas) * 1000) / 1000 : null,
+    consumoReal: usado && cortadas ? Math.round((usado / cortadas) * 1000) / 1000 : null,
   };
 }
 

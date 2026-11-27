@@ -14,6 +14,7 @@ import { QueryView } from '../../ui/QueryView';
 import { Badge, Banner, Card, EmptyState, PageHeader, Segmented, Stat } from '../../ui/primitives';
 import { parseValor, valorTexto } from '../financeiro/LancamentoForm';
 import { useToast } from '../../ui/Toast';
+import { htmlComprovante } from './comprovante';
 import { balancoOrdem, conferenciaCega, rankingCortadores, rankingOficinas, contaRemessa, contestacoes, divergencias, painelOficinas, rendimento, respostaOficina, textoComprovante } from './calc';
 
 const KEY = ['remessas'] as const;
@@ -62,19 +63,22 @@ function OrdemForm({ onClose }: { onClose: () => void }) {
   const [cor, setCor] = useState('');
   const [mat, setMat] = useState('');
   const [matQtd, setMatQtd] = useState('');
+  const [sobra, setSobra] = useState('');
   const [grade, setGrade] = useState<Record<string, string>>({});
   const [obs, setObs] = useState('');
   const [erro, setErro] = useState('');
   const unidade = opc.data?.materiais.find(m => m.id === mat)?.unidade ?? '';
   const total = Object.values(grade).reduce((s, q) => s + (Number(q) || 0), 0);
   const salvar = useAction(() => api.salvarOrdemCorte({
-    quem: quemDe(quem)!, data, modelo, cor, materialId: mat || null, materialQtd: mat && matQtd ? parseValor(matQtd) : null, obs: obs.trim(),
+    quem: quemDe(quem)!, data, modelo, cor, materialId: mat || null, materialQtd: mat && matQtd ? parseValor(matQtd) : null, sobraQtd: mat && matQtd && sobra ? parseValor(sobra) : null, obs: obs.trim(),
     itens: boot.tamanhos.filter(t => Number(grade[t]) > 0).map(t => ({ tamanho: t, qtd: Number(grade[t]) })),
   }), { success: r => `Ordem de corte #${r.numero}: ${formatNumber(r.pecas)} peça(s) lançadas no corte.`, invalidate: [KEY, ['materiais']], onSuccess: onClose });
   const submit = () => {
     if (!quemDe(quem)) return setErro('Escolha quem cortou.');
     if (!modelo || !cor) return setErro('Escolha o modelo e a cor.');
     if (mat && matQtd && !(parseValor(matQtd) > 0)) return setErro('Quantidade de material inválida.');
+    if (sobra && (!mat || !matQtd)) return setErro('Informe a bobina e o tecido levado para registrar a sobra.');
+    if (sobra && !(parseValor(sobra)! >= 0 && parseValor(sobra)! < parseValor(matQtd)!)) return setErro('A sobra precisa ser menor que o tecido levado.');
     if (!total) return setErro('Informe quantas peças foram cortadas em cada tamanho.');
     setErro('');
     salvar.mutate();
@@ -95,7 +99,8 @@ function OrdemForm({ onClose }: { onClose: () => void }) {
       <div className="form-grid">
         <SelectField label="Bobina / tecido (opcional)" value={mat} placeholder="—" options={(opc.data?.materiais ?? []).map(m => ({ value: m.id, label: m.nome }))} onChange={e => setMat(e.target.value)}
           hint={opc.data && !opc.data.materiais.length ? 'Cadastre o tecido em Matéria-prima para medir o rendimento.' : undefined} />
-        {mat && <TextField label={`Quanto foi usado (${unidade})`} inputMode="decimal" value={matQtd} onChange={e => setMatQtd(e.target.value)} hint="Peso ou metragem da bobina usada no corte." />}
+        {mat && <TextField label={`Tecido levado para o corte (${unidade})`} inputMode="decimal" value={matQtd} onChange={e => setMatQtd(e.target.value)} hint="Peso ou metragem que saiu do estoque para o corte." />}
+        {mat && <TextField label={`Sobra que voltou ao estoque (${unidade}, opcional)`} inputMode="decimal" value={sobra} onChange={e => setSobra(e.target.value)} hint="Pese o que sobrou. Dá para informar depois, no botão Sobra da ordem." />}
       </div>
       <b>Cortado por tamanho</b>
       <Grade tamanhos={boot.tamanhos} valores={grade} onChange={setGrade} prefixo="Corte" />
@@ -313,28 +318,6 @@ function AcertoDialog({ r, onClose }: { r: Remessa; onClose: () => void }) {
   );
 }
 
-// ---------------------------------------------------------------- comprovante para imprimir
-function imprimirComprovante(r: Remessa, empresa: string) {
-  const esc = (s: string) => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
-  const c = contaRemessa(r, hoje());
-  const linhas = r.itens.map(i => `<tr><td>${esc(i.modelo)}</td><td>${esc(i.cor)}</td><td>${esc(i.tamanho)}</td><td class="n">${i.qtd}</td><td class="n">${i.boas || ''}</td><td class="n">${i.defeito || ''}</td></tr>`).join('');
-  const w = window.open('', '_blank', 'width=820,height=900');
-  if (!w) return;
-  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Remessa #${r.numero}</title><style>
-    body{font-family:system-ui,Arial,sans-serif;margin:28px;color:#111} h1{font-size:20px;margin:0 0 4px} .m{color:#555;margin:0 0 16px}
-    table{width:100%;border-collapse:collapse;font-size:14px} th,td{border:1px solid #bbb;padding:6px 8px;text-align:left} .n{text-align:right}
-    .ass{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px} .ass div{border-top:1px solid #333;padding-top:6px;font-size:13px;text-align:center}
-  </style></head><body>
-    <h1>${esc(empresa)} · Remessa #${r.numero}</h1>
-    <p class="m">Para: <b>${esc(r.quem)}</b> (${esc(r.etapa)}) · Enviada em ${dataBR(r.dataEnvio)}${r.prazo ? ` · Devolver até ${dataBR(r.prazo)}` : ''}${r.valorPeca ? ` · ${formatBRL(r.valorPeca)} por peça` : ''}</p>
-    <table><thead><tr><th>Modelo</th><th>Cor</th><th>Tam.</th><th class="n">Enviadas</th><th class="n">Voltaram boas</th><th class="n">Defeito</th></tr></thead>
-    <tbody>${linhas}</tbody><tfoot><tr><th colspan="3">Total</th><th class="n">${c.enviadas}</th><th class="n">${c.boas}</th><th class="n">${c.defeito}</th></tr></tfoot></table>
-    ${r.obs ? `<p>Obs.: ${esc(r.obs)}</p>` : ''}
-    <div class="ass"><div>Entregue por (${esc(empresa)})</div><div>Recebido por (${esc(r.quem)})</div></div>
-    <script>window.onload=()=>window.print()</script></body></html>`);
-  w.document.close();
-}
-
 function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte[]; onClose: () => void }) {
   const api = useApi();
   const boot = useBoot();
@@ -366,6 +349,16 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
   const copiarLink = (tok: string) => {
     navigator.clipboard.writeText(urlDo(tok)).then(() => toast.success('Link copiado. Mande para a oficina.'), () => toast.error('Não foi possível copiar. Use o botão WhatsApp.'));
   };
+  // comprovante impresso com QR do link da oficina (envio ou uma devolução); a janela abre já no clique
+  const imprimir = async (retornoId?: string) => {
+    const w = window.open('', '_blank', 'width=820,height=900');
+    if (!w) { toast.error('O navegador bloqueou a janela de impressão. Libere pop-ups para este site.'); return; }
+    w.document.write('<p style="font-family:system-ui;margin:40px">Gerando o comprovante…</p>');
+    try {
+      const tok = r.token ?? await link.mutateAsync(false);
+      w.document.open(); w.document.write(htmlComprovante(r, boot.empresa.nome || 'Fábrica', urlDo(tok), retornoId)); w.document.close();
+    } catch { w.close(); }
+  };
   const trocarLink = async () => {
     if (await confirm({ title: 'Trocar o link desta remessa?', message: 'O link antigo para de funcionar. Use se o link foi parar com outra pessoa.', confirmLabel: 'Trocar o link' })) {
       link.mutate(true, { onSuccess: () => toast.success('Link trocado. Mande o novo para a oficina.') });
@@ -387,7 +380,7 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
           if (await confirm({ title: `Excluir a remessa #${r.numero}?`, message: 'Fica registrado na Atividade.', confirmLabel: 'Excluir', tone: 'danger' })) apagar.mutate();
         }}><Icon name="trash" size={15} /> Excluir</Button>}
         <span style={{ marginRight: 'auto' }} />
-        <Button onClick={() => imprimirComprovante(r, boot.empresa.nome || 'Fábrica')} icon={<Icon name="printer" size={15} />}>Comprovante</Button>
+        <Button onClick={() => void imprimir()} icon={<Icon name="printer" size={15} />}>Comprovante</Button>
         <Button onClick={() => void zap()} icon={<Icon name="send" size={15} />}>WhatsApp + link</Button>
         {r.status === 'aberta' && !r.retornos.length && <Button onClick={() => setModal('editar')} icon={<Icon name="pencil" size={15} />}>Editar</Button>}
         {r.status === 'aberta' && c.pendentes > 0 && <Button onClick={() => setModal('retorno')}>Registrar retorno</Button>}
@@ -428,6 +421,7 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
           {r.retornos.map(t => (
             <div className="item" key={t.id}>
               <div className="item-main"><b>{dataBR(t.data)}{t.cega && <span className="selo-cega" title="Contada sem ver o número esperado">às cegas</span>}</b><small>{t.boas} boa(s){t.defeito ? ` · ${t.defeito} com defeito` : ''}{t.obs ? ` · ${t.obs}` : ''}</small></div>
+              <Button size="sm" variant="ghost" iconOnly aria-label={`Imprimir comprovante da devolução de ${dataBR(t.data)}`} onClick={() => void imprimir(t.id)}><Icon name="printer" size={15} /></Button>
               {r.status === 'aberta' && <Button size="sm" variant="ghost" iconOnly aria-label="Excluir retorno" onClick={async () => {
                 if (await confirm({ title: 'Excluir este retorno?', message: 'As peças boas saem da produção.', confirmLabel: 'Excluir', tone: 'danger' })) apagarRet.mutate(t.id);
               }}><Icon name="trash" size={15} /></Button>}
@@ -526,6 +520,7 @@ function Conteudo({ remessas, ordens, limitePerda, aba, setAba, onVer }: { remes
   const contestadas = remessas.filter(r => contestacoes(r) > 0).length;
   const pend = painel.reduce((s, l) => s + l.pendentes, 0), atras = painel.reduce((s, l) => s + l.atrasadas, 0), acertar = painel.reduce((s, l) => s + l.aAcertar, 0);
   const apagarOrdem = useAction((id: string) => api.apagarOrdemCorte(id), { success: 'Ordem de corte excluída.', invalidate: [KEY, ['materiais']] });
+  const [sobraDe, setSobraDe] = useState<OrdemCorte | null>(null);
   type LR = { r: Remessa; c: ReturnType<typeof contaRemessa> };
   const linhas = useMemo(() => remessas.map(r => ({ r, c: contaRemessa(r, h) })), [remessas, h]);
   const cols: Column<LR>[] = [
@@ -573,6 +568,7 @@ function Conteudo({ remessas, ordens, limitePerda, aba, setAba, onVer }: { remes
             empty="Nenhuma remessa ainda. Clique em “Nova remessa”." />
         </Card>
       )}
+      {sobraDe && <SobraDialog o={sobraDe} onClose={() => setSobraDe(null)} />}
       {aba === 'balanco' && <BalancoAba ordens={ordens} remessas={remessas} limite={limitePerda} />}
       {aba === 'ranking' && <RankingAba ordens={ordens} remessas={remessas} limite={limitePerda} />}
       {aba === 'ordens' && (
@@ -586,13 +582,14 @@ function Conteudo({ remessas, ordens, limitePerda, aba, setAba, onVer }: { remes
                     <div className="item-main">
                       <b>#{o.numero} · {o.modelo} {o.cor} · {o.quem}</b>
                       <small>{dataBR(o.data)} · {Object.entries(o.itens).map(([t, q]) => `${t}: ${q}`).join(' · ')}
-                        {o.material && o.materialQtd ? ` · ${o.material} ${formatNumber(o.materialQtd)} ${o.unidade}` : ''}{o.remetido ? ` · ${formatNumber(o.remetido)} em remessa` : ''}</small>
+                        {o.material && o.materialQtd ? ` · ${o.material}: levou ${formatNumber(o.materialQtd)} ${o.unidade}${o.sobra ? `, sobrou ${formatNumber(o.sobra)}, usou ${formatNumber(rd.usado ?? 0)}` : ''}` : ''}{o.remetido ? ` · ${formatNumber(o.remetido)} em remessa` : ''}</small>
                     </div>
                     <span style={{ textAlign: 'right' }}>
                       <b className="tnum">{formatNumber(rd.cortadas)} peça(s)</b><br />
                       {rd.esperadas !== null ? <small className={rd.perdaPct! > 5 ? 'valor-neg' : 'muted'}>esperadas {formatNumber(rd.esperadas)} · {rd.perdaPct! > 0 ? `perda ${formatNumber(rd.perdaPct!)}%` : 'sem perda'}</small>
                         : <small className="muted">{o.material ? 'sem regra de consumo' : 'sem bobina informada'}</small>}
                     </span>
+                    {o.material && o.materialQtd ? <Button size="sm" variant="ghost" onClick={() => setSobraDe(o)}>{o.sobra ? 'Sobra' : 'Pesar sobra'}</Button> : null}
                     {!o.remetido && <Button size="sm" variant="ghost" iconOnly aria-label={`Excluir ordem ${o.numero}`} onClick={async () => {
                       if (await confirm({ title: `Excluir a ordem de corte #${o.numero}?`, message: 'O corte sai da produção e o tecido volta ao estoque.', confirmLabel: 'Excluir', tone: 'danger' })) apagarOrdem.mutate(o.id);
                     }}><Icon name="trash" size={15} /></Button>}
@@ -653,7 +650,7 @@ function BalancoAba({ ordens, remessas, limite }: { ordens: OrdemCorte[]; remess
                 <div className="balanco-corpo">
                   {b.alertas.length > 0 && <Banner tone="danger"><ul style={{ margin: 0, paddingLeft: 18 }}>{b.alertas.map(a => <li key={a}>{a}</li>)}</ul></Banner>}
                   <p className="muted" style={{ margin: 0 }}>
-                    Tecido: {b.esperadas !== null ? `${formatNumber(o.materialQtd ?? 0)} ${o.unidade ?? ''} dava ${formatNumber(b.esperadas)} peças, saíram ${formatNumber(b.total.cortadas)} (perda ${pctTxt(b.perdaCortePct)})` : o.material ? 'sem regra de consumo para este modelo' : 'bobina não informada'}
+                    Tecido: {b.esperadas !== null ? `usou ${formatNumber(rendimento(o).usado ?? 0)} ${o.unidade ?? ''}${o.sobra ? ` (levou ${formatNumber(o.materialQtd ?? 0)}, sobrou ${formatNumber(o.sobra)})` : ''}, dava ${formatNumber(b.esperadas)} peças, saíram ${formatNumber(b.total.cortadas)} (perda ${pctTxt(b.perdaCortePct)})` : o.material ? 'sem regra de consumo para este modelo' : 'bobina não informada'}
                     {' · '}{b.remessas} remessa(s) · defeito {pctTxt(b.defeitoPct)}
                   </p>
                   <div className="table-wrap">
@@ -729,5 +726,29 @@ function RankingAba({ ordens, remessas, limite }: { ordens: OrdemCorte[]; remess
         )}
       </Card>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- sobra de tecido da ordem de corte
+function SobraDialog({ o, onClose }: { o: OrdemCorte; onClose: () => void }) {
+  const api = useApi();
+  const [qtd, setQtd] = useState(o.sobra ? String(o.sobra).replace('.', ',') : '');
+  const [data, setData] = useState(hoje());
+  const n = qtd.trim() === '' ? 0 : parseValor(qtd);
+  const valido = n !== null && n >= 0 && n < (o.materialQtd ?? 0);
+  const rd = rendimento({ ...o, sobra: valido && n ? n : null });
+  const salvar = useAction(() => api.registrarSobra(o.id, n ?? 0, data), { success: n ? 'Sobra registrada: voltou ao estoque.' : 'Sobra retirada.', invalidate: [KEY, ['materiais']], onSuccess: onClose });
+  return (
+    <Dialog open onClose={onClose} title={`Sobra da ordem de corte #${o.numero}`}
+      footer={<>{o.sobra ? <Button variant="ghost" onClick={() => { setQtd(''); }}>Sem sobra</Button> : null}<span style={{ marginRight: 'auto' }} />
+        <Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={salvar.isPending} disabled={!valido} onClick={() => salvar.mutate()}>Salvar</Button></>}>
+      <p className="muted" style={{ margin: 0 }}>{o.modelo} {o.cor} · {o.quem} · levou <b>{formatNumber(o.materialQtd ?? 0)} {o.unidade}</b> de {o.material}. Pese o que sobrou: volta ao estoque e o rendimento passa a contar só o tecido usado.</p>
+      <div className="form-grid">
+        <TextField label={`Sobra (${o.unidade})`} inputMode="decimal" value={qtd} onChange={e => setQtd(e.target.value)} hint="Em branco ou 0 = sem sobra." />
+        <TextField label="Data da pesagem" type="date" value={data} min={o.data} onChange={e => setData(e.target.value)} />
+      </div>
+      {!valido && qtd.trim() !== '' && <p className="err" role="alert" style={{ color: 'var(--danger)', margin: 0 }}>A sobra precisa ser menor que o tecido levado ({formatNumber(o.materialQtd ?? 0)} {o.unidade}).</p>}
+      {valido && <p style={{ margin: 0 }}>Usou <b>{formatNumber(rd.usado ?? 0)} {o.unidade}</b>{rd.esperadas !== null ? <> · dava <b>{formatNumber(rd.esperadas)}</b> peças, saíram <b>{formatNumber(rd.cortadas)}</b>{rd.perdaPct !== null && rd.perdaPct > 0 ? <> · perda <b className="valor-neg">{formatNumber(rd.perdaPct)}%</b></> : ' · sem perda'}</> : ' · sem regra de consumo para este modelo'}</p>}
+    </Dialog>
   );
 }
