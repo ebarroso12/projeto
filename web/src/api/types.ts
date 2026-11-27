@@ -224,3 +224,25 @@ export type DadosPessoa = Record<string, string>;
 export interface Mensagem { id: string; autor: string; para: string; titulo: string; texto: string; importante: boolean; em: string; lida: boolean }
 export interface MensagemEnviada extends Omit<Mensagem, 'lida'> { leram: string[]; faltam: string[] }
 export interface Destinatario { login: string; nome: string; setor: string }
+
+// =====================================================================
+// Pedidos de clientes (andamento vem da produção lançada)
+// =====================================================================
+export type PedidoStatus = 'aberto' | 'entregue' | 'cancelado';
+export interface PedidoItem {
+  id?: string; modelo: string; cor: string; tamanho: string; qtd: number; preco: number;
+  /** Peças desta linha já feitas em cada etapa (Corte, Costura, Conferência). */
+  feito: Record<string, number>;
+}
+export interface Pedido {
+  id: string; numero: number; clienteId: string | null; cliente: string;
+  dataPedido: string; entrega: string | null; status: PedidoStatus; entregueEm: string | null; obs: string;
+  finLancamentoId: string | null; criadoPor: string; itens: PedidoItem[];
+}
+export interface PedidoInput {
+  id?: string; clienteId?: string | null; clienteNome?: string; dataPedido: string; entrega: string | null; obs: string;
+  itens: { modelo: string; cor: string; tamanho: string; qtd: number; preco: number }[];
+}
+export interface PedidoOpcoes { clientes: { id: string; nome: string; prazo: string }[]; precos: Record<string, number> }
+/** Ao entregar: nada, entrada à vista, ou conta a receber em parcelas. */
+export type PedidoReceber = null | { contaId: string; avista: true } | { contaId: string; parcelas: number; diaVencimento: number };

@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -258,3 +258,23 @@ const msg = (r: R) => ({ id: str(r.id), autor: str(r.autor), para: str(r.para, '
 export const parseMensagens = (v: unknown): Mensagem[] => list(v, r => ({ ...msg(r), lida: bool(r.lida) }));
 export const parseEnviadas = (v: unknown): MensagemEnviada[] => list(v, r => ({ ...msg(r), leram: strings(r.leram), faltam: strings(r.faltam) }));
 export const parseDestinatarios = (v: unknown): Destinatario[] => list(v, r => ({ login: str(r.login), nome: str(r.nome), setor: str(r.setor) }));
+
+const pedidoItem = (r: R): PedidoItem => ({
+  id: str(r.id), modelo: str(r.modelo), cor: str(r.cor), tamanho: str(r.tamanho), qtd: num(r.qtd), preco: num(r.preco),
+  feito: Object.fromEntries(Object.entries(rec(r.feito)).map(([k, v]) => [k, num(v)])),
+});
+export const parsePedidos = (v: unknown): Pedido[] =>
+  (Array.isArray(v) ? v : []).map(rec).map(r => ({
+    id: str(r.id), numero: num(r.numero), clienteId: strOrNull(r.clienteId), cliente: str(r.cliente),
+    dataPedido: str(r.dataPedido), entrega: strOrNull(r.entrega),
+    status: (['aberto', 'entregue', 'cancelado'].includes(str(r.status)) ? str(r.status) : 'aberto') as PedidoStatus,
+    entregueEm: strOrNull(r.entregueEm), obs: str(r.obs), finLancamentoId: strOrNull(r.finLancamentoId), criadoPor: str(r.criadoPor),
+    itens: (Array.isArray(r.itens) ? r.itens : []).map(rec).map(pedidoItem),
+  }));
+export function parsePedidoOpcoes(v: unknown): PedidoOpcoes {
+  const r = rec(v);
+  return {
+    clientes: (Array.isArray(r.clientes) ? r.clientes : []).map(rec).map(c => ({ id: str(c.id), nome: str(c.nome), prazo: str(c.prazo) })),
+    precos: Object.fromEntries(Object.entries(rec(r.precos)).map(([k, x]) => [k, num(x)])),
+  };
+}

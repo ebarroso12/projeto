@@ -15,6 +15,9 @@ const DESCRICAO: Record<string, string> = {
   financeiro: 'Entradas, saídas, contas, cartões e metas', resultado: 'DRE: vendas, custos e lucro do mês',
   cadastros: 'Pessoas, listas, links e cópia de segurança', acessos: 'Liberar entradas, ver atividade e métricas',
   empresas: 'Empresas clientes, links TESTE/PRO e fichas (gestão do sistema)',
+  pedidos: 'Pedidos dos clientes, andamento na produção e entrega',
+  materiais: 'Estoque de matéria-prima: entradas, saídas e alertas',
+  produtividade: 'Peças por pessoa e pagamento por produção',
   mensagens: 'Enviar mensagens para um funcionário ou para todos (libere para o gerente)',
 };
 

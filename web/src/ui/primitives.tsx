@@ -10,7 +10,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="page-head">
       <div className="page-title">
-        {art && <img className="page-art" src={art} alt="" width={56} height={56} decoding="async" />}
+        {art && <img className="page-art" src={art} alt="" width={56} height={56} decoding="async" onError={e => { e.currentTarget.style.display = 'none'; }} />}
         <div>
         {grupo && <div className="eyebrow">{grupo}</div>}
         <h1>{title}</h1>

@@ -131,8 +131,13 @@ const userOf = (token: string): MUser => {
 const newSession = (u: MUser) => { const t = `t_${u.login}_${Math.random().toString(36).slice(2)}`; state.sessions.set(t, u.login); return t; };
 /** Função do sistema da chamada atual (igual ao servidor: fin* = financeiro, dre* = resultado…). */
 let funcaoAtual: string | null = null;
+/** Rotas dos módulos novos (igual à tabela fab.rotas do banco). */
+const ROTAS_MOCK: Record<string, string> = {
+  pedidos: 'pedidos', pedidoOpcoes: 'pedidos', salvarPedido: 'pedidos', statusPedido: 'pedidos', apagarPedido: 'pedidos',
+};
 const funcaoDaChamada = (fn: string): string | null =>
-  fn.startsWith('fin') ? 'financeiro' : fn.startsWith('dre') ? 'resultado'
+  ROTAS_MOCK[fn] ? ROTAS_MOCK[fn]!
+  : fn.startsWith('fin') ? 'financeiro' : fn.startsWith('dre') ? 'resultado'
   : ['listarUsuarios', 'salvarUsuario', 'salvarListas', 'criarChave', 'revogarChaves', 'exportar', 'funcoesPessoa', 'salvarFuncoes', 'verWifi', 'salvarWifi', 'registros', 'salvarRegistro', 'apagarRegistro', 'dadosPessoas', 'salvarDadosPessoa'].includes(fn) ? 'cadastros'
   : ['enviarMensagem', 'mensagensEnviadas', 'apagarMensagem', 'destinatarios'].includes(fn) ? 'mensagens'
   : ['acessos', 'acessosPendentes', 'decidirAcesso', 'encerrarSessao', 'revogarAparelho', 'configAcesso', 'bloquearPessoa'].includes(fn) ? 'acessos'
@@ -751,7 +756,7 @@ Object.assign(handlers, {
 });
 
 // ---------------------------------------------------------------- funções por pessoa (demonstração)
-const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'financeiro', 'resultado', 'cadastros', 'acessos', 'mensagens', 'empresas'];
+const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'pedidos', 'materiais', 'produtividade', 'financeiro', 'resultado', 'cadastros', 'acessos', 'mensagens', 'empresas'];
 const extras: Record<string, Record<string, boolean>> = {};
 const padraoDe = (u: MUser, f: string) => (f === 'empresas' ? u.login === 'admin' : ['lancar', 'ponto', 'falta'].includes(f) ? true : u.perfil === 'admin');
 function funcoesDe(u: MUser): Record<string, boolean> {
@@ -863,3 +868,127 @@ Object.assign(handlers, {
   apagarMensagem: ([t, id]: unknown[]) => { requireMensagens(userOf(String(t))); const i = mensagensDemo.findIndex(m => m.id === id); if (i >= 0) mensagensDemo.splice(i, 1); return null; },
 });
 function requireMensagens(u: MUser) { if (!funcoesDe(u).mensagens) throw fromServerMessage('Você não tem acesso a esta função. Fale com o administrador.'); }
+
+// ---------------------------------------------------------------- pedidos (demonstração; mesma regra do banco)
+interface MPedido {
+  id: string; numero: number; clienteId: string | null; cliente: string; dataPedido: string; entrega: string | null;
+  status: 'aberto' | 'entregue' | 'cancelado'; entregueEm: string | null; obs: string; finLancamentoId: string | null; criadoPor: string;
+  itens: { id: string; modelo: string; cor: string; tamanho: string; qtd: number; preco: number }[];
+}
+const pedidosDemo: MPedido[] = [];
+(function seedPedidos() {
+  const hoje = new Date();
+  // combinações com corte nos últimos dias, para o andamento aparecer
+  const recentes = [...new Map(state.lancs.filter(l => l.etapa === 'Corte' && l.data >= isoDay(addDays(hoje, -6)))
+    .map(l => [`${l.modelo}|${l.cor}|${l.tamanho}`, l])).values()].slice(0, 4);
+  const clientes: [string, string][] = [['r3', 'Loja Centro Modas'], ['r4', 'Atacado Bom Preço'], ['r3', 'Loja Centro Modas'], ['', 'Boutique Bela (sem cadastro)']];
+  recentes.forEach((l, i) => {
+    const prod = state.lancs.filter(x => x.etapa === 'Corte' && x.modelo === l.modelo && x.cor === l.cor && x.tamanho === l.tamanho && x.data >= isoDay(addDays(hoje, -7)))
+      .reduce((s, x) => s + x.qtd, 0);
+    const [cid, cnome] = clientes[i]!;
+    pedidosDemo.push({
+      id: `ped${i + 1}`, numero: 41 + i, clienteId: cid || null, cliente: cnome, dataPedido: isoDay(addDays(hoje, -7)),
+      entrega: isoDay(addDays(hoje, [-2, 3, 9, 15][i]!)), status: 'aberto', entregueEm: null, obs: i === 0 ? 'Cliente pediu urgência' : '', finLancamentoId: null, criadoPor: 'Edson',
+      itens: [{ id: `pi${i}`, modelo: l.modelo, cor: l.cor, tamanho: l.tamanho, qtd: Math.max(20, Math.round(prod * [0.6, 0.9, 1.3, 1.6][i]!)), preco: [79.9, 64.5, 119, 89.9][i]! }],
+    });
+  });
+  pedidosDemo.push({ id: 'ped0', numero: 38, clienteId: 'r4', cliente: 'Atacado Bom Preço', dataPedido: isoDay(addDays(hoje, -30)), entrega: isoDay(addDays(hoje, -12)),
+    status: 'entregue', entregueEm: isoDay(addDays(hoje, -13)), obs: '', finLancamentoId: null, criadoPor: 'Edson',
+    itens: [{ id: 'pi9', modelo: 'Camisa Polo', cor: 'Preto', tamanho: 'M', qtd: 120, preco: 79.9 }] });
+})();
+
+/** Distribui a produção entre os pedidos: entregues primeiro, depois a entrega mais próxima (igual a fab.pedidos_producao). */
+function producaoDosPedidos(): Map<string, Record<string, number>> {
+  const out = new Map<string, Record<string, number>>();
+  const ativos = pedidosDemo.filter(p => p.status !== 'cancelado');
+  const combos = new Map<string, string>();
+  for (const p of ativos) for (const i of p.itens) {
+    const k = `${i.modelo}|${i.cor}|${i.tamanho}`;
+    if (!combos.has(k) || p.dataPedido < combos.get(k)!) combos.set(k, p.dataPedido);
+  }
+  const ordem = (a: MPedido, b: MPedido) => Number(b.status === 'entregue') - Number(a.status === 'entregue')
+    || (a.entregueEm ?? '9').localeCompare(b.entregueEm ?? '9') || (a.entrega ?? '9').localeCompare(b.entrega ?? '9') || a.numero - b.numero;
+  for (const [k, inicio] of combos) {
+    const [modelo, cor, tamanho] = k.split('|');
+    for (const etapa of ['Corte', 'Costura', 'Conferência']) {
+      let disp = state.lancs.filter(l => l.etapa === etapa && l.modelo === modelo && l.cor === cor && l.tamanho === tamanho && l.data >= inicio).reduce((s, l) => s + l.qtd, 0);
+      for (const p of [...ativos].sort(ordem)) for (const i of p.itens) {
+        if (`${i.modelo}|${i.cor}|${i.tamanho}` !== k) continue;
+        const f = Math.min(i.qtd, disp); disp -= f;
+        out.set(i.id, { ...(out.get(i.id) ?? {}), [etapa]: p.status === 'entregue' ? i.qtd : f });
+      }
+    }
+  }
+  return out;
+}
+
+Object.assign(handlers, {
+  pedidos: ([t]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const prod = producaoDosPedidos();
+    return pedidosDemo.map(p => ({ ...p, itens: p.itens.map(i => ({ ...i, feito: prod.get(i.id) ?? {} })) }))
+      .sort((a, b) => Number(b.status === 'aberto') - Number(a.status === 'aberto') || (a.entrega ?? '9').localeCompare(b.entrega ?? '9') || b.numero - a.numero);
+  },
+  pedidoOpcoes: ([t]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    return {
+      clientes: registrosDemo.filter(r => r.tipo === 'cliente' && r.ativo !== false).map(r => ({ id: r.id, nome: r.nome, prazo: (r.dados as Record<string, string>).prazo ?? '' })),
+      precos: Object.fromEntries(registrosDemo.filter(r => r.tipo === 'produto').map(r => [r.nome, Number((r.dados as Record<string, string>).preco)])),
+    };
+  },
+  salvarPedido: ([t, o]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const r = o as Record<string, unknown>;
+    const itens = (r.itens as MPedido['itens']) ?? [];
+    const cli = r.clienteId ? registrosDemo.find(x => x.id === r.clienteId && x.tipo === 'cliente') : undefined;
+    if (r.clienteId && !cli) throw fromServerMessage('Cliente inválido.');
+    const nome = cli ? String(cli.nome) : String(r.clienteNome ?? '').trim();
+    if (!nome) throw fromServerMessage('Informe o cliente.');
+    if (!itens.length) throw fromServerMessage('Inclua pelo menos um item no pedido.');
+    if (r.entrega && String(r.entrega) < String(r.dataPedido)) throw fromServerMessage('A entrega não pode ser antes da data do pedido.');
+    for (const i of itens) if (!(Number(i.qtd) >= 1)) throw fromServerMessage('Quantidade inválida.');
+    const ex = pedidosDemo.find(p => p.id === r.id);
+    if (ex && ex.status !== 'aberto') throw fromServerMessage('Reabra o pedido para editar.');
+    const base = { clienteId: cli ? String(cli.id) : null, cliente: nome, dataPedido: String(r.dataPedido), entrega: (r.entrega as string) || null, obs: String(r.obs ?? ''),
+      itens: itens.map((i, n) => ({ id: `pi${Date.now()}${n}`, modelo: i.modelo, cor: i.cor, tamanho: i.tamanho, qtd: Number(i.qtd), preco: Number(i.preco) || 0 })) };
+    if (ex) { Object.assign(ex, base); return { id: ex.id, numero: ex.numero }; }
+    const numero = Math.max(0, ...pedidosDemo.map(p => p.numero)) + 1;
+    const novo: MPedido = { id: `ped${Date.now()}`, numero, status: 'aberto', entregueEm: null, finLancamentoId: null, criadoPor: u.nome, ...base };
+    pedidosDemo.push(novo);
+    return { id: novo.id, numero };
+  },
+  statusPedido: ([t, id, status, receber]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const p = pedidosDemo.find(x => x.id === id);
+    if (!p) throw fromServerMessage('Pedido não encontrado.');
+    if (status === 'entregue') {
+      if (p.status !== 'aberto') throw fromServerMessage('Só pedidos em aberto podem ser entregues.');
+      const rcb = receber as Record<string, unknown> | null;
+      if (rcb) {
+        const total = p.itens.reduce((s, i) => s + i.qtd * i.preco, 0);
+        if (!(total > 0)) throw fromServerMessage('O pedido não tem preço: informe o preço dos itens para lançar no Financeiro.');
+        conta(rcb.contaId);
+        const descricao = `Pedido #${p.numero} · ${p.cliente}`;
+        const fid = uid();
+        const baseL = { id: fid, descricao, valor: Math.round(total * 100) / 100, contaId: rcb.contaId, cartaoId: null, forma: '', categoria: 'Vendas', responsavel: '', centro: '', obs: '',
+          vencimentoFatura: null, origemId: null, contraparteId: p.clienteId, contraparte: p.cliente, parcelasPagas: 0, data: today() };
+        if (rcb.avista) fin.lancamentos.push({ ...baseL, tipo: 'entrada', parcelas: null, valorParcela: null, diaVencimento: null });
+        else fin.lancamentos.push({ ...baseL, tipo: 'receber', parcelas: Number(rcb.parcelas), valorParcela: Math.round((total / Number(rcb.parcelas)) * 100) / 100, diaVencimento: Number(rcb.diaVencimento) });
+        p.finLancamentoId = fid;
+      }
+      p.status = 'entregue'; p.entregueEm = today();
+    } else if (status === 'cancelado') {
+      if (p.status !== 'aberto') throw fromServerMessage('Só pedidos em aberto podem ser cancelados.');
+      p.status = 'cancelado';
+    } else { p.status = 'aberto'; p.entregueEm = null; }
+    return null;
+  },
+  apagarPedido: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const i = pedidosDemo.findIndex(x => x.id === id);
+    if (i < 0) throw fromServerMessage('Pedido não encontrado.');
+    if (pedidosDemo[i]!.status === 'entregue') throw fromServerMessage('Pedido entregue não pode ser excluído. Reabra ou cancele antes.');
+    pedidosDemo.splice(i, 1);
+    return null;
+  },
+});

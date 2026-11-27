@@ -638,6 +638,66 @@ ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ id: recId, tipo: 're
 const totR = (await rpc(admin, 'fin_contrapartes_totais(2026)')).data.find(x => x.id === cliR);
 ok(totR.recebido === 2000 && totR.aReceber === 0 && totR.ultimo === '2027-01-10', 'totais do cliente: recebido no ano e nada mais a receber');
 await q(`delete from fab.fin_lancamentos where origem_id = '${recId}'`); await q(`delete from fab.fin_lancamentos where id = '${recId}'`);
+// ============ 25. pedidos ligados à produção ============
+console.log('\n--- pedidos ---');
+const cliP = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'cliente', nome: 'Magazine Pedidos' })})`)).data;
+const prodP = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'produto', nome: 'Produto X' })})`)).data;
+const [{ h: hojeA }] = await q(`select fab.hoje($1)::text as h from fab.empresas where id = $1`, [empA]);
+const diaP = n => new Date(new Date(hojeA + 'T12:00:00Z').getTime() + n * 864e5).toISOString().slice(0, 10);
+const item = (tamanho, qtd, preco = 50) => ({ modelo: 'Calça Jeans', cor: 'Branco', tamanho, qtd, preco });
+let rp = await rpc(admin, `fab_salvar_pedido(${j({ clienteId: cliP, dataPedido: diaP(-5), entrega: diaP(10), itens: [item('G', 10)] })})`);
+const pd1 = rp.data;
+ok(rp.ok && pd1.numero >= 1, 'cria pedido com cliente do cadastro');
+rp = await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'Cliente avulso', dataPedido: diaP(-4), entrega: diaP(3), itens: [item('G', 8)] })})`);
+const pd2 = rp.data;
+ok(rp.ok && pd2.numero === pd1.numero + 1, 'numeração sequencial; aceita cliente sem cadastro');
+const pd3 = (await rpc(admin, `fab_salvar_pedido(${j({ clienteId: cliP, dataPedido: diaP(-6), entrega: diaP(-1), itens: [item('P', 5, 0)] })})`)).data;
+ok(fails_with(await rpc(admin, `fab_salvar_pedido(${j({ clienteId: prodP, itens: [item('G', 1)] })})`), 'Cliente inválido'), 'produto não serve como cliente');
+ok(fails_with(await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'x', itens: [{ modelo: 'Bermuda', cor: 'Branco', tamanho: 'G', qtd: 1 }] })})`), 'Modelo inválido'), 'modelo fora da lista é recusado');
+ok(fails_with(await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'x', dataPedido: diaP(0), entrega: diaP(-2), itens: [item('G', 1)] })})`), 'antes da data do pedido'), 'entrega antes do pedido é recusada');
+ok(fails_with(await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'x', itens: [] })})`), 'pelo menos um item'), 'pedido sem itens é recusado');
+ok(fails_with(await rpc(admin, `fab_salvar_pedido(${j({ clienteNome: 'x', itens: [item('G', 0)] })})`), 'Quantidade inválida'), 'quantidade zero é recusada');
+// produção (Lançar) da mesma combinação
+for (const [etapa, qtd, d] of [['Corte', 12, -2], ['Costura', 6, -1], ['Corte', 3, -30]]) {
+  await q(`insert into fab.lancamentos (empresa_id, user_id, etapa, modelo, cor, tamanho, qtd, dia) values ($1, $2, $3, 'Calça Jeans', 'Branco', 'G', $4, $5::date)`, [empA, admin, etapa, qtd, diaP(d)]);
+}
+const feitoDe = (lista, id) => lista.find(x => x.id === id).itens[0].feito;
+let peds = (await rpc(admin, 'fab_pedidos(120)')).data;
+const opc = (await rpc(admin, 'fab_pedido_opcoes()')).data;
+ok(opc.clientes.some(c => c.id === cliP) && !opc.clientes.some(c => c.id === prodP), 'opções: clientes do cadastro (sem produtos)');
+eq(feitoDe(peds, pd2.id), { Corte: 8, Costura: 6, 'Conferência': 0 }, 'produção vai primeiro para a entrega mais próxima');
+eq(feitoDe(peds, pd1.id), { Corte: 4, Costura: 0, 'Conferência': 0 }, 'o restante vai para o pedido seguinte (corte antigo, de antes dos pedidos, não conta)');
+ok(peds.find(x => x.id === pd1.id).cliente === 'Magazine Pedidos' && peds.find(x => x.id === pd2.id).cliente === 'Cliente avulso', 'nome do cliente');
+// entrega com conta a receber
+ok(fails_with(await rpc(admin, `fab_status_pedido('${pd3.id}', 'entregue', ${j({ contaId: conta, parcelas: 1, diaVencimento: 10 })})`), 'não tem preço'), 'sem preço não lança no Financeiro');
+ok((await rpc(admin, `fab_status_pedido('${pd2.id}', 'entregue', ${j({ contaId: conta, parcelas: 2, diaVencimento: 10 })})`)).ok, 'entrega pedido gerando conta a receber');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const recP = fin.lancamentos.find(l => l.tipo === 'receber' && l.descricao === `Pedido #${pd2.numero} · Cliente avulso`);
+ok(recP && recP.valor === 400 && recP.parcelas === 2 && recP.valorParcela === 200, 'conta a receber de 8 × R$ 50 em 2x');
+peds = (await rpc(admin, 'fab_pedidos(120)')).data;
+ok(peds.find(x => x.id === pd2.id).status === 'entregue' && peds.find(x => x.id === pd2.id).finLancamentoId === recP.id, 'pedido entregue ligado ao lançamento');
+eq(feitoDe(peds, pd2.id), { Corte: 8, Costura: 8, 'Conferência': 8 }, 'pedido entregue conta como concluído');
+eq(feitoDe(peds, pd1.id), { Corte: 4, Costura: 0, 'Conferência': 0 }, 'entregue continua consumindo a sua parte da produção');
+ok(fails_with(await rpc(admin, `fab_salvar_pedido(${j({ id: pd2.id, clienteNome: 'x', itens: [item('G', 1)] })})`), 'Reabra'), 'pedido entregue não é editado');
+ok(fails_with(await rpc(admin, `fab_apagar_pedido('${pd2.id}')`), 'não pode ser excluído'), 'pedido entregue não é excluído');
+ok(fails_with(await rpc(admin, `fab_status_pedido('${pd2.id}', 'entregue', null)`), 'em aberto'), 'não entrega duas vezes');
+// edição, cancelamento, reabertura
+ok((await rpc(admin, `fab_salvar_pedido(${j({ id: pd1.id, clienteId: cliP, dataPedido: diaP(-5), entrega: diaP(12), obs: 'urgente', itens: [item('G', 10), item('M', 2)] })})`)).ok, 'edita pedido em aberto (troca itens)');
+peds = (await rpc(admin, 'fab_pedidos(120)')).data;
+ok(peds.find(x => x.id === pd1.id).itens.length === 2 && peds.find(x => x.id === pd1.id).numero === pd1.numero, 'mantém o número e troca os itens');
+ok((await rpc(admin, `fab_status_pedido('${pd3.id}', 'cancelado', null)`)).ok && (await rpc(admin, `fab_status_pedido('${pd3.id}', 'aberto', null)`)).ok, 'cancela e reabre');
+ok((await rpc(admin, `fab_apagar_pedido('${pd3.id}')`)).ok, 'exclui pedido em aberto');
+// permissões e isolamento
+ok(fails_with(await rpc(ana, 'fab_pedidos(120)'), 'FUNCAO_BLOQUEADA'), 'funcionário sem a função Pedidos não vê');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ pedidos: true })})`);
+ok((await rpc(carla, 'fab_pedidos(120)')).ok, 'com Pedidos liberado, gerente vê os pedidos');
+ok(fails_with(await rpc(carla, `fab_status_pedido('${pd1.id}', 'entregue', ${j({ contaId: conta, avista: true })})`), 'acesso ao Financeiro'), 'sem Financeiro não lança o recebimento');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ pedidos: false })})`);
+ok((await rpc(adminB, 'fab_pedidos(120)')).data.length === 0, 'outra empresa não vê os pedidos');
+ok(fails_with(await rpc(adminB, `fab_status_pedido('${pd1.id}', 'cancelado', null)`), 'não encontrado'), 'outra empresa não mexe no pedido');
+ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.alvo === 'pedidos'), 'pedidos ficam na auditoria');
+await q(`delete from fab.pedidos`); await q(`delete from fab.lancamentos where modelo = 'Calça Jeans' and cor = 'Branco'`);
+await q(`delete from fab.fin_lancamentos where id = '${recP.id}'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

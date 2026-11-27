@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, PedidoInput, PedidoReceber, PedidoStatus, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -105,6 +105,13 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     funcoesPessoa: async (login: string) => parseFuncoesPessoa(await call('funcoesPessoa', tok(), login)),
     salvarFuncoes: async (login: string, funcoes: Record<string, boolean>) => { await call('salvarFuncoes', tok(), login, funcoes); },
     renomearEmpresa: async (id: string, nome: string) => { await call('renomearEmpresa', tok(), id, nome); },
+
+    // ----- pedidos -----
+    pedidos: async (dias = 120) => parsePedidos(await call('pedidos', tok(), dias)),
+    pedidoOpcoes: async () => parsePedidoOpcoes(await call('pedidoOpcoes', tok())),
+    salvarPedido: async (o: PedidoInput) => { const r = rec(await call('salvarPedido', tok(), o)); return { id: str(r.id), numero: num(r.numero) }; },
+    statusPedido: async (id: string, status: PedidoStatus, receber: PedidoReceber = null) => { await call('statusPedido', tok(), id, status, receber); },
+    apagarPedido: async (id: string) => { await call('apagarPedido', tok(), id); },
 
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),

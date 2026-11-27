@@ -264,6 +264,38 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByText('Recebimento registrado.').waitFor();
   ok(await until(async () => (await page.getByText(/Venda a prazo e2e · parcela 1\/2/).count()) === 0) && await page.getByText(/Venda a prazo e2e · parcela 2\/2/).first().isVisible(), 'recebe a parcela e sobra a 2/2');
   await shot(page, '14a-a-receber');
+  // Pedidos: lista com andamento, novo pedido, fila de produção e entrega gerando conta a receber
+  await page.locator('.sidebar').getByRole('link', { name: 'Pedidos' }).click();
+  await page.getByRole('heading', { name: 'Pedidos em aberto' }).waitFor();
+  ok(await page.getByText(/Atrasados/).first().isVisible() && (await page.locator('.ped-barras').count()) > 0, 'pedidos mostram andamento por etapa');
+  await shot(page, '15-pedidos');
+  await page.getByRole('button', { name: 'Novo pedido' }).click();
+  const dp = page.locator('dialog[open]');
+  await dp.getByLabel('Cliente', { exact: true }).selectOption({ label: 'Loja Centro Modas' });
+  await dp.getByLabel('Modelo').selectOption('Camisa Polo');
+  await dp.getByLabel('Cor').selectOption('Preto');
+  ok(await dp.getByLabel('Preço por peça (R$)').inputValue() === '79,9', 'preço vem do cadastro do produto');
+  await dp.getByLabel('Item 1, tamanho M', { exact: true }).fill('30');
+  await dp.getByLabel('Item 1, tamanho G', { exact: true }).fill('20');
+  await dp.getByRole('button', { name: 'Salvar pedido' }).click();
+  await page.getByText(/Pedido #\d+ criado\./).waitFor();
+  ok(await until(() => page.getByRole('button', { name: /Loja Centro Modas/ }).first().isVisible()), 'novo pedido aparece na lista');
+  await page.getByRole('tab', { name: 'Fila de produção' }).click();
+  ok(await until(() => page.getByRole('heading', { name: 'Fila de produção' }).isVisible()) && await page.getByText(/Camisa Polo · Preto ·/).first().isVisible(), 'fila de produção soma o que falta');
+  await page.getByRole('tab', { name: /Em aberto/ }).click();
+  const nome = (await page.getByText(/^#\d+ · Loja Centro Modas$/).last().innerText());
+  await page.getByRole('button', { name: nome }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Entregar' }).click();
+  const de = page.locator('dialog[open]');
+  await de.getByLabel('Parcelas').fill('2');
+  await de.getByRole('button', { name: 'Confirmar entrega' }).click();
+  await page.getByText(/Pedido #\d+ entregue\./).waitFor();
+  await page.getByRole('tab', { name: 'Entregues' }).click();
+  ok(await until(() => page.getByRole('button', { name: nome }).isVisible()), 'pedido vai para Entregues');
+  await page.locator('.sidebar').getByRole('link', { name: 'Financeiro' }).click();
+  await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: 'A receber' }).click();
+  ok(await until(() => page.getByText(new RegExp(nome.replace('·', '.') + ' · parcela 1/2')).first().isVisible()), 'entrega gerou a conta a receber em 2x');
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();
