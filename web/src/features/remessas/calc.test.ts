@@ -3,7 +3,7 @@ import type { OrdemCorte, Remessa } from '../../api/types';
 import { contaRemessa, painelOficinas, rendimento, textoComprovante } from './calc';
 
 const R = (o: Partial<Remessa>): Remessa => ({ id: 'r', numero: 31, quem: 'Costura da Maria', login: null, oficinaId: 'o', telefone: '16 9', etapa: 'Costura', dataEnvio: '2026-11-20',
-  prazo: '2026-11-25', valorPeca: 2.5, descontoFaltante: 10, ordemId: 'o1', ordemNumero: 1, token: null, confirmacaoEnvio: null, status: 'aberta', fechadaEm: null, valorPago: null, noFinanceiro: false, obs: '',
+  prazo: '2026-11-25', valorPeca: 2.5, descontoFaltante: 10, ordemId: 'o1', ordemNumero: 1, token: null, confirmacaoEnvio: null, historico: [], status: 'aberta', fechadaEm: null, valorPago: null, noFinanceiro: false, obs: '',
   itens: [{ id: 'a', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 40, boas: 30, defeito: 2 }, { id: 'b', modelo: 'Calça', cor: 'Branco', tamanho: 'M', qtd: 50, boas: 50, defeito: 0 }],
   retornos: [], ...o });
 
@@ -54,7 +54,7 @@ describe('contagem às cegas', () => {
 });
 
 describe('resposta da oficina pelo link', () => {
-  const conf = (confere: boolean, itens: { itemId: string; qtd: number }[] = []) => ({ confere, em: '2026-11-27T10:00:00', nome: 'Maria', obs: '', itens });
+  const conf = (confere: boolean, itens: { itemId: string; qtd: number }[] = [], resolvida: { em: string; por: string; nota: string } | null = null) => ({ confere, em: '2026-11-27T10:00:00', nome: 'Maria', obs: '', itens, resolvida });
   it('situação de cada etapa', () => {
     expect(respostaOficina(null)).toBe('aguardando');
     expect(respostaOficina(conf(true))).toBe('confirmou');
@@ -67,6 +67,11 @@ describe('resposta da oficina pelo link', () => {
     expect(divergencias(r, 't1')).toEqual([{ itemId: 'b', descricao: 'Calça · Branco · M', fabrica: 50, oficina: 52 }]);
     expect(contestacoes(r)).toBe(2);
     expect(contestacoes(R({}))).toBe(0);
+    // resolvida pela fábrica: continua mostrando a diferença, mas não conta como em aberto
+    const res = R({ confirmacaoEnvio: conf(false, [{ itemId: 'a', qtd: 38 }], { em: '2026-11-28T10:00:00', por: 'Edson', nota: 'recontamos' }) });
+    expect(respostaOficina(res.confirmacaoEnvio)).toBe('resolvida');
+    expect(contestacoes(res)).toBe(0);
+    expect(divergencias(res, null)).toHaveLength(1);
   });
 });
 
@@ -88,7 +93,7 @@ describe('balanço da ordem de corte', () => {
   it('alertas: perda no corte, peças sumidas, envio maior que o corte e contestação', () => {
     const o = { ...O, itens: { P: 40, M: 50 } };            // tecido para 100, cortadas 90 = 10%
     const r = R({ status: 'fechada', itens: [{ id: 'a', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 45, boas: 35, defeito: 0 }],
-      confirmacaoEnvio: { confere: false, em: '', nome: '', obs: '', itens: [{ itemId: 'a', qtd: 40 }] } });
+      confirmacaoEnvio: { confere: false, em: '', nome: '', obs: '', itens: [{ itemId: 'a', qtd: 40 }], resolvida: null } });
     const b = balancoOrdem(o, [r], 3);
     expect(b.alertas).toEqual([
       'Perda no corte de 10%: o tecido dava 100 peças e saíram 90.',

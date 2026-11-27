@@ -59,7 +59,8 @@ function Resposta({ titulo, pergunta, linhas, conf, onEnviar }: {
           ? <p className="rp-ok"><Icon name="check" size={18} /> Você confirmou em {quando(conf.em)}.</p>
           : <div className="rp-dif"><b>Você informou diferença em {quando(conf.em)}.</b>
               <ul>{conf.itens.map(d => { const l = linhas.find(x => x.itemId === d.itemId); return <li key={d.itemId}>{l?.descricao ?? 'Peça'}: você contou {d.qtd}, a fábrica {l?.fabrica ?? '—'}</li>; })}</ul>
-              {conf.obs && <p>“{conf.obs}”</p>}<p>A fábrica foi avisada.</p></div>
+              {conf.obs && <p>“{conf.obs}”</p>}
+              {conf.resolvida ? <p className="rp-resposta"><b>A fábrica respondeu em {quando(conf.resolvida.em)}:</b> “{conf.resolvida.nota}”</p> : <p>A fábrica foi avisada.</p>}</div>
       ) : modo === 'pergunta' ? (
         <div className="rp-pergunta">
           <p>{pergunta}</p>

@@ -275,7 +275,7 @@ section.sem-resultado { display: none; }
         <div class="guia-passo" id="guia-passo-2" role="region" aria-labelledby="guia-titulo-2">
           <h3 id="guia-titulo-2">Passo 3 · Retorno: conferir o que voltou (às cegas)</h3>
           <ol class="passos">
-            <li>Abra a remessa e toque em <b>Registrar retorno</b>. Deixe marcada a <b>Contagem às cegas</b>: o formulário <b>não mostra</b> quantas peças deveriam voltar.</li>
+            <li>Abra a remessa e toque em <b>Registrar retorno</b>. Deixe marcada a <b>Contagem às cegas</b>: nem o formulário nem o detalhe da remessa mostram quantas peças deveriam voltar. Se alguém tocar em <b>Ver números</b> antes, aquele retorno não fica marcado como “às cegas”.</li>
             <li>Conte as peças de verdade e digite, por tamanho, as <b>boas</b> e as <b>com defeito</b>. Se a contagem passar do que foi enviado, o app pede para recontar, sem dizer o número.</li>
             <li>Toque em <b>Registrar retorno</b>. Só agora aparece a <b>conferência</b>: o que estava com a oficina, o que vocês contaram e o que <b>continua com ela</b>.</li>
             <li>Se a oficina diz que entregou tudo e a conferência mostra falta, <b>reconte na hora</b>, antes de guardar as peças. Pode registrar em várias vezes (parte hoje, parte amanhã).</li>
@@ -344,7 +344,8 @@ section.sem-resultado { display: none; }
       <figure><img src="img/balanco.webp" alt="Balanço da ordem de corte por tamanho com alerta de perda no corte e contestação" width="1280" height="656" loading="lazy"><figcaption>Balanço da ordem: onde cada peça está.</figcaption></figure>
       <div class="box dica"><b>Limite de perda e avisos na hora</b>
         <ul>
-          <li>Na aba <b>Balanço</b>, defina <b>Avisar acima de (%)</b>. O padrão é 3%.</li>
+          <li>Contestação: abra a remessa, confira a diferença e toque em <b>Resolver</b>, escrevendo o que foi decidido. A oficina vê a resposta pelo link. Enquanto a contestação está em aberto, a remessa <b>não pode ser acertada</b>, nem ter os itens mudados ou o retorno excluído.</li>
+          <li>Na aba <b>Balanço</b>, o administrador define <b>Avisar acima de (%)</b>. O padrão é 3%. Só o administrador muda esse limite.</li>
           <li>Quando um <b>corte</b> rende abaixo do que o tecido dava além do limite, ou uma <b>remessa fecha</b> com peças faltando acima do limite, quem cuida das remessas recebe aviso no celular na hora.</li>
           <li>O link é só daquela remessa. Se ele foi parar com outra pessoa, use <b>Trocar link</b>: o antigo para de funcionar.</li>
           <li>Cada etapa só pode ser respondida uma vez pela oficina. Se os itens da remessa mudarem antes do retorno, a confirmação do envio é pedida de novo.</li>

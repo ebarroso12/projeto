@@ -92,3 +92,11 @@ export const tempo = (seg: number) => {
   const m = Math.round(seg / 60);
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
 };
+
+/** Data e hora no fuso do aparelho a partir de um instante (timestamptz). Ex.: "27/11 às 21:30". */
+export function dataHoraBR(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+}

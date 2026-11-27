@@ -1052,11 +1052,44 @@ ok((await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === rd.i
 
 // 3) alerta ao fechar com falta acima do limite
 await q(`delete from fab.avisos_fila`);
+ok(fails_with(await rpc(admin, `fab_fechar_remessa('${rc.id}', null)`), 'resolva a contestação antes de acertar'), 'contestação em aberto impede o acerto');
+ok(fails_with(await rpc(admin, `fab_apagar_retorno('${ret1}')`), 'resolva a contestação antes de excluir'), 'contestação em aberto impede excluir o retorno');
+ok(fails_with(await rpc(admin, `fab_resolver_contestacao('${rc.id}', '${ret1}', 'ok')`), 'Escreva o que foi decidido'), 'resolver exige dizer o que foi decidido');
+ok(fails_with(await rpc(admin, `fab_resolver_contestacao('${rc.id}', null, 'recontamos')`), 'Não há contestação em aberto'), 'envio confirmado não tem o que resolver');
+ok((await rpc(admin, `fab_resolver_contestacao('${rc.id}', '${ret1}', 'Recontamos juntas: eram 9 do P mesmo')`)).ok, 'fábrica resolve a contestação');
+const rcRes = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === rc.id).retornos.find(t => t.id === ret1).confirmacao;
+ok(rcRes.confere === false && rcRes.resolvida && rcRes.resolvida.nota === 'Recontamos juntas: eram 9 do P mesmo' && rcRes.resolvida.por.length > 0 && Boolean(rcRes.resolvida.em), 'contestação fica registrada como resolvida (quem, quando e o que foi decidido)');
+ok((await rpc(null, `fab_remessa_publica('${lkR2}')`, { role: 'anon' })).data.retornos.find(t => t.id === ret1).confirmacao.resolvida.nota.startsWith('Recontamos'), 'oficina vê a resposta da fábrica pelo link');
+ok((await q(`select count(*)::int n from fab.eventos where tipo = 'contestacao_resolvida'`))[0].n === 1, 'resolução fica na Atividade');
 await rpc(admin, `fab_fechar_remessa('${rc.id}', null)`);   // voltou tudo: sem falta
 ok((await q(`select count(*)::int n from fab.avisos_fila where tipo = 'perda'`))[0].n === 0, 'remessa sem falta não avisa');
 await rpc(admin, `fab_fechar_remessa('${rd.id}', null)`);   // 6 enviadas, nada voltou
 const avF = await q(`select * from fab.avisos_fila where tipo = 'perda'`);
 ok(avF.length === 1 && avF[0].titulo === 'Peças faltando na remessa' && avF[0].texto === `Remessa #${rd.numero} (Costura da Maria) fechou com 6 de 6 peça(s) faltando (100,0%). Limite: 3,00%.`, 'remessa fechada com falta acima do limite avisa na hora');
+// contestação não some: editar só o prazo mantém; mudar os itens com contestação em aberto é bloqueado
+const re = (await rpc(admin, `fab_salvar_remessa(${j({ quem: { oficinaId: ofMaria }, etapa: 'Costura', dataEnvio: diaP(-1), valorPeca: 2, descontoFaltante: 5, itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 20 }] })})`)).data;
+const lkE = (await rpc(admin, `fab_remessa_link('${re.id}', false)`)).data;
+const reIt = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === re.id).itens[0];
+await rpc(null, `fab_remessa_confirmar('${lkE}', ${j({ confere: false, itens: [{ itemId: reIt.id, qtd: 18 }] })})`, { role: 'anon' });
+const reBase = { id: re.id, quem: { oficinaId: ofMaria }, etapa: 'Costura', dataEnvio: diaP(-1), valorPeca: 2, descontoFaltante: 5 };
+ok((await rpc(admin, `fab_salvar_remessa(${j({ ...reBase, prazo: diaP(9), obs: 'só o prazo', itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 20 }] })})`)).ok
+  && (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === re.id).confirmacaoEnvio?.confere === false, 'editar só o prazo não apaga a contestação');
+ok(fails_with(await rpc(admin, `fab_salvar_remessa(${j({ ...reBase, itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 18 }] })})`), 'resolva a contestação antes de mudar os itens'), 'mudar os itens com contestação em aberto é bloqueado');
+ok(fails_with(await rpc(admin, `fab_apagar_remessa('${re.id}')`), 'resolva a contestação antes de excluir'), 'excluir remessa contestada é bloqueado');
+await rpc(admin, `fab_resolver_contestacao('${re.id}', null, 'Mandamos 18 mesmo; corrigido')`);
+ok((await rpc(admin, `fab_salvar_remessa(${j({ ...reBase, itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 18 }] })})`)).ok, 'resolvida a contestação, a remessa pode ser corrigida');
+const reJ = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === re.id);
+ok(reJ.confirmacaoEnvio === null && reJ.historico.length === 1 && reJ.historico[0].confere === false && reJ.historico[0].resolvida.nota.startsWith('Mandamos 18') && reJ.historico[0].substituidaEm,
+  'itens corrigidos pedem nova confirmação e a contestação antiga fica no histórico');
+ok((await rpc(null, `fab_remessa_confirmar('${lkE}', ${j({ confere: true })})`, { role: 'anon' })).ok, 'oficina confirma o envio corrigido');
+// retorno excluído guarda a resposta da oficina como histórico
+const rtE = (await rpc(admin, `fab_registrar_retorno(${j({ remessaId: re.id, cega: true, itens: [{ itemId: (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === re.id).itens[0].id, boas: 5 }] })})`)).data;
+await rpc(null, `fab_remessa_confirmar('${lkE}', ${j({ retornoId: rtE, confere: true })})`, { role: 'anon' });
+ok((await rpc(admin, `fab_apagar_retorno('${rtE}')`)).ok && (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === re.id).historico.some(h => h.etapa === 'retorno' && h.confere === true), 'excluir o retorno não apaga a resposta da oficina');
+// limite de perda: só administrador
+await rpc(admin, `fab_salvar_funcoes('ana', ${j({ remessas: true })})`);
+ok((await rpc(ana, 'fab_remessas(120)')).ok && fails_with(await rpc(ana, 'fab_salvar_limite_perda(100)'), 'administrador'), 'quem tem Oficinas e remessas mas não é administrador não muda o limite');
+await rpc(admin, `fab_salvar_funcoes('ana', ${j({ remessas: false })})`);
 // cópia de segurança: confirmações entram, o token não
 const bkR = (await rpc(admin, 'fab_exportar()')).data;
 ok(bkR.tabelas.remessa_confirmacoes.length >= 4 && bkR.tabelas.remessas.length >= 2 && bkR.tabelas.remessas.every(x => !('token' in x)) && !JSON.stringify(bkR).includes(lkR2), 'cópia leva as confirmações e não leva o link');

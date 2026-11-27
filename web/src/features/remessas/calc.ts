@@ -85,10 +85,10 @@ export function conferenciaCega(itens: Remessa['itens'], contagem: Record<string
 }
 
 /** Situação da resposta da oficina (pelo link) a uma etapa: envio ou um retorno. */
-export type SituacaoResposta = 'aguardando' | 'confirmou' | 'contestou';
+export type SituacaoResposta = 'aguardando' | 'confirmou' | 'contestou' | 'resolvida';
 export interface Divergencia { itemId: string; descricao: string; fabrica: number; oficina: number }
 export function respostaOficina(c: ConfirmacaoOficina | null): SituacaoResposta {
-  return !c ? 'aguardando' : c.confere ? 'confirmou' : 'contestou';
+  return !c ? 'aguardando' : c.confere ? 'confirmou' : c.resolvida ? 'resolvida' : 'contestou';
 }
 /** Diferenças por item entre o que a fábrica registrou e o que a oficina disse (envio: enviadas; retorno: boas + defeito daquele retorno). */
 export function divergencias(r: Remessa, retornoId: string | null): Divergencia[] {
@@ -102,9 +102,10 @@ export function divergencias(r: Remessa, retornoId: string | null): Divergencia[
     return { itemId: d.itemId, descricao: it ? `${it.modelo} · ${it.cor} · ${it.tamanho}` : 'item', fabrica, oficina: d.qtd };
   });
 }
-/** Contestações ainda registradas na remessa (envio + retornos). */
+/** Contestações em aberto (não resolvidas) na remessa: envio + retornos. */
+const aberta = (c: ConfirmacaoOficina | null) => !!c && !c.confere && !c.resolvida;
 export function contestacoes(r: Remessa): number {
-  return (r.confirmacaoEnvio && !r.confirmacaoEnvio.confere ? 1 : 0) + r.retornos.filter(t => t.confirmacao && !t.confirmacao.confere).length;
+  return (aberta(r.confirmacaoEnvio) ? 1 : 0) + r.retornos.filter(t => aberta(t.confirmacao)).length;
 }
 
 /** Balanço de uma ordem de corte, do tecido à peça devolvida, por tamanho. */

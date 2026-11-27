@@ -550,3 +550,8 @@ details.balanco > summary .item-main small { color: var(--muted); }
 details.balanco-alerta > summary { box-shadow: inset 3px 0 0 var(--danger); }
 .balanco-selos { display: flex; gap: 6px; flex-wrap: wrap; }
 .balanco-corpo { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.numeros-ocultos { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--info-soft); color: var(--info); }
+.numeros-ocultos p { margin: 0; flex: 1 1 240px; color: inherit; }
+.historico-resp { font-size: 13px; color: var(--muted); }
+.historico-resp ul { margin: 6px 0 0; padding-left: 18px; }
+.rp-resposta { margin-top: 8px !important; padding-top: 8px; border-top: 1px solid currentColor; }

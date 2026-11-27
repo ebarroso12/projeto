@@ -214,6 +214,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     remessaOpcoes: async () => parseRemessaOpcoes(await rpc('fab_remessa_opcoes')),
     remessaLink: async (id, novo = false) => str(await rpc('fab_remessa_link', { p_id: id, p_novo: novo })),
     salvarLimitePerda: async limite => num(await rpc('fab_salvar_limite_perda', { p_limite: limite })),
+    resolverContestacao: async (remessaId, retornoId, nota) => { await rpc('fab_resolver_contestacao', { p_remessa: remessaId, p_retorno: retornoId, p_nota: nota }); },
     remessaPublica: async token => parseRemessaPublica(await rpc('fab_remessa_publica', { p_token: token })),
     remessaConfirmar: async (token, p) => { const r = rec(await rpc('fab_remessa_confirmar', { p_token: token, p })); return { confere: r.confere === true, fabrica: num(r.fabrica), oficina: num(r.oficina) }; },
     salvarOrdemCorte: async o => { const r = rec(await rpc('fab_salvar_ordem_corte', { p: o })); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },

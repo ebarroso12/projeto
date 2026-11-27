@@ -1253,7 +1253,8 @@ interface MRemessa {
   retornos: { id: string; data: string; obs: string; cega?: boolean; itens: { itemId: string; boas: number; defeito: number }[] }[];
   token?: string | null;
   /** respostas da oficina pelo link (retornoId null = envio) */
-  confirmacoes?: { retornoId: string | null; confere: boolean; em: string; nome: string; obs: string; itens: { itemId: string; qtd: number }[] }[];
+  confirmacoes?: { retornoId: string | null; etapa?: 'envio' | 'retorno'; confere: boolean; em: string; nome: string; obs: string; itens: { itemId: string; qtd: number }[];
+    resolvida?: { em: string; por: string; nota: string } | null; substituidaEm?: string | null }[];
 }
 let limitePerdaDemo = 3;
 const ordensDemo: MOrdem[] = [];
@@ -1300,15 +1301,21 @@ const remessaJson = (r: MRemessa) => ({
   ordemId: r.ordemId, ordemNumero: ordensDemo.find(o => o.id === r.ordemId)?.numero ?? null, status: r.status, fechadaEm: r.fechadaEm, valorPago: r.valorPago,
   noFinanceiro: !!r.finId && fin.lancamentos.some(l => l.id === r.finId && !l.apagado), obs: r.obs,
   token: r.token ?? null, confirmacaoEnvio: confDemo(r, null),
+  historico: (r.confirmacoes ?? []).filter(c => c.substituidaEm).map(c => ({ ...confJson(c), etapa: c.etapa ?? (c.retornoId ? 'retorno' : 'envio'), substituidaEm: c.substituidaEm })),
   itens: r.itens.map(i => ({ ...i, boas: r.retornos.flatMap(t => t.itens).filter(x => x.itemId === i.id).reduce((s, x) => s + x.boas, 0),
     defeito: r.retornos.flatMap(t => t.itens).filter(x => x.itemId === i.id).reduce((s, x) => s + x.defeito, 0) })),
   retornos: r.retornos.map(t => ({ id: t.id, data: t.data, obs: t.obs, boas: t.itens.reduce((s, x) => s + x.boas, 0), defeito: t.itens.reduce((s, x) => s + x.defeito, 0),
     cega: !!t.cega, itens: t.itens, confirmacao: confDemo(r, t.id) })),
 });
+type ConfDemo = NonNullable<MRemessa['confirmacoes']>[number];
+const confAtual = (r: MRemessa, retornoId: string | null) => (r.confirmacoes ?? []).find(x => !x.substituidaEm && (retornoId ? x.retornoId === retornoId : (x.etapa ?? 'envio') === 'envio' && x.retornoId === null));
+const confJson = (c: ConfDemo) => ({ confere: c.confere, em: c.em, nome: c.nome, obs: c.obs, itens: c.itens, resolvida: c.resolvida ?? null });
 function confDemo(r: MRemessa, retornoId: string | null) {
-  const c = (r.confirmacoes ?? []).find(x => x.retornoId === retornoId);
-  return c ? { confere: c.confere, em: c.em, nome: c.nome, obs: c.obs, itens: c.itens } : null;
+  const c = confAtual(r, retornoId);
+  return c ? confJson(c) : null;
 }
+const contestacaoAbertaDemo = (r: MRemessa, retornoId?: string) =>
+  (r.confirmacoes ?? []).some(c => !c.substituidaEm && !c.confere && !c.resolvida && (!retornoId || c.retornoId === retornoId));
 const remessaPorToken = (token: unknown) => {
   if (!/^[a-z0-9]{32}$/.test(String(token ?? ''))) throw fromServerMessage('LINK_INVALIDO: Link inválido. Peça um novo link para a fábrica.');
   const r = remessasDemo.find(x => x.token === token);
@@ -1319,7 +1326,7 @@ const consumoPecaDe = (matId: string, modelo: string) => {
   const m = materiaisDemo.find(x => x.id === matId);
   return m?.regras.find(r => r.etapa === 'Corte' && r.modelo === modelo)?.qtdPorPeca ?? m?.regras.find(r => r.etapa === 'Corte' && r.modelo === '')?.qtdPorPeca ?? null;
 };
-Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa', 'remessaLink', 'salvarLimitePerda'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
+Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa', 'remessaLink', 'salvarLimitePerda', 'resolverContestacao'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
 Object.assign(handlers, {
   remessas: ([t]: unknown[]) => {
     requireAdmin(userOf(String(t)));
@@ -1373,7 +1380,14 @@ Object.assign(handlers, {
     const base = { quem: quem.nome, login: quem.login, oficinaId: quem.oficinaId, etapa: r.etapa || 'Costura', dataEnvio: r.dataEnvio || today(), prazo: r.prazo || null,
       valorPeca: Number(r.valorPeca) || 0, descontoFaltante: Number(r.descontoFaltante) || 0, ordemId: r.ordemId || null, obs: r.obs ?? '',
       itens: r.itens.map((i, n) => ({ id: `ri${Date.now()}${n}`, modelo: i.modelo, cor: i.cor, tamanho: i.tamanho, qtd: Number(i.qtd) })) };
-    if (ex) { Object.assign(ex, base); ex.confirmacoes = (ex.confirmacoes ?? []).filter(c => c.retornoId !== null); return { id: ex.id, numero: ex.numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) }; }
+    if (ex) {
+      const chave = (l: { modelo: string; cor: string; tamanho: string; qtd: number }[]) => JSON.stringify(l.map(i => [i.modelo, i.cor, i.tamanho, Number(i.qtd)]).sort());
+      const mudou = chave(ex.itens) !== chave(base.itens);
+      if (mudou && contestacaoAbertaDemo(ex)) throw fromServerMessage('A oficina contestou esta remessa: resolva a contestação antes de mudar os itens.');
+      if (!mudou) base.itens = ex.itens;   // mesmos itens: mantém (e mantém a confirmação)
+      Object.assign(ex, base);
+      if (mudou) for (const c of ex.confirmacoes ?? []) if (!c.substituidaEm && (c.etapa ?? 'envio') === 'envio' && c.retornoId === null) c.substituidaEm = new Date().toISOString();
+      return { id: ex.id, numero: ex.numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) }; }
     const numero = Math.max(0, ...remessasDemo.map(x => x.numero)) + 1, id = `rm${Date.now()}`;
     remessasDemo.push({ id, numero, status: 'aberta', fechadaEm: null, valorPago: null, finId: null, retornos: [], ...base });
     return { id, numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) };
@@ -1385,10 +1399,20 @@ Object.assign(handlers, {
     return r.token;
   },
   salvarLimitePerda: ([t, limite]: unknown[]) => {
-    requireAdmin(userOf(String(t)));
+    if (userOf(String(t)).perfil !== 'admin') throw fromServerMessage('Apenas o administrador pode fazer isto.');   // quem é vigiado pelos avisos não muda o limite
     const n = Number(limite);
     if (!Number.isFinite(n) || n < 0 || n > 100) throw fromServerMessage('Informe um limite entre 0 e 100%.');
     limitePerdaDemo = Math.round(n * 100) / 100; return limitePerdaDemo;
+  },
+  resolverContestacao: ([t, remessaId, retornoId, nota]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const r = remessasDemo.find(x => x.id === remessaId); if (!r) throw fromServerMessage('Remessa não encontrada.');
+    const c = confAtual(r, (retornoId as string | null) || null);
+    if (!c || c.confere || c.resolvida) throw fromServerMessage('Não há contestação em aberto nesta etapa.');
+    const n = String(nota ?? '').trim();
+    if (n.length < 3) throw fromServerMessage('Escreva o que foi decidido (ex.: recontamos juntos, eram 88).');
+    c.resolvida = { em: new Date().toISOString(), por: u.nome, nota: n.slice(0, 300) };
+    return null;
   },
   remessaPublica: ([token]: unknown[]) => {
     const r = remessaPorToken(token); const j = remessaJson(r);
@@ -1403,7 +1427,7 @@ Object.assign(handlers, {
     const retornoId = p.retornoId || null;
     const ret = retornoId ? r.retornos.find(x => x.id === retornoId) : null;
     if (retornoId && !ret) throw fromServerMessage('Retorno inválido.');
-    if ((r.confirmacoes ?? []).some(c => c.retornoId === retornoId)) throw fromServerMessage('Esta etapa já foi respondida. Se precisar corrigir, fale com a fábrica.');
+    if (confAtual(r, retornoId)) throw fromServerMessage('Esta etapa já foi respondida. Se precisar corrigir, fale com a fábrica.');
     const esperado = new Map<string, number>(ret ? ret.itens.map(i => [i.itemId, i.boas + i.defeito] as [string, number]) : r.itens.map(i => [i.id, i.qtd] as [string, number]));
     const contado = new Map(esperado);
     if (!p.confere) {
@@ -1416,7 +1440,7 @@ Object.assign(handlers, {
     }
     const dif = [...contado].filter(([k, v]) => v !== esperado.get(k));
     const tot = (m: Map<string, number>) => [...m.values()].reduce((n, x) => n + x, 0);
-    (r.confirmacoes ??= []).push({ retornoId, confere: dif.length === 0, em: new Date().toISOString(), nome: String(p.nome ?? '').slice(0, 60), obs: String(p.obs ?? '').slice(0, 300),
+    (r.confirmacoes ??= []).push({ retornoId, etapa: retornoId ? 'retorno' : 'envio', confere: dif.length === 0, em: new Date().toISOString(), nome: String(p.nome ?? '').slice(0, 60), obs: String(p.obs ?? '').slice(0, 300),
       itens: dif.map(([itemId, qtd]) => ({ itemId, qtd })) });
     return { confere: dif.length === 0, fabrica: tot(esperado), oficina: tot(contado) };
   },
@@ -1424,6 +1448,7 @@ Object.assign(handlers, {
     requireAdmin(userOf(String(t)));
     const i = remessasDemo.findIndex(r => r.id === id); if (i < 0) throw fromServerMessage('Remessa não encontrada.');
     if (remessasDemo[i]!.retornos.length) throw fromServerMessage('A remessa já tem retorno: exclua os retornos antes.');
+    if (contestacaoAbertaDemo(remessasDemo[i]!)) throw fromServerMessage('A oficina contestou esta remessa: resolva a contestação antes de excluir.');
     remessasDemo.splice(i, 1); return null;
   },
   registrarRetorno: ([t, o]: unknown[]) => {
@@ -1448,12 +1473,15 @@ Object.assign(handlers, {
     requireAdmin(userOf(String(t)));
     const r = remessasDemo.find(x => x.retornos.some(y => y.id === id)); if (!r) throw fromServerMessage('Retorno não encontrado.');
     if (r.status !== 'aberta') throw fromServerMessage('A remessa já foi fechada. Reabra para corrigir.');
+    if (contestacaoAbertaDemo(r, String(id))) throw fromServerMessage('A oficina contestou esta devolução: resolva a contestação antes de excluir.');
+    for (const c of r.confirmacoes ?? []) if (c.retornoId === id && !c.substituidaEm) { c.substituidaEm = new Date().toISOString(); c.retornoId = null; c.etapa = 'retorno'; }
     r.retornos = r.retornos.filter(y => y.id !== id); return null;
   },
   fecharRemessa: ([t, id, pagar]: unknown[]) => {
     const u = userOf(String(t)); requireAdmin(u);
     const r = remessasDemo.find(x => x.id === id); if (!r) throw fromServerMessage('Remessa não encontrada.');
     if (r.status !== 'aberta') throw fromServerMessage('A remessa já está fechada.');
+    if (contestacaoAbertaDemo(r)) throw fromServerMessage('A oficina contestou uma contagem desta remessa: resolva a contestação antes de acertar.');
     const j = remessaJson(r);
     const env = j.itens.reduce((s, i) => s + i.qtd, 0), boas = j.itens.reduce((s, i) => s + i.boas, 0), def = j.itens.reduce((s, i) => s + i.defeito, 0);
     const falt = env - boas - def, valor = Math.max(0, Math.round((boas * r.valorPeca - falt * r.descontoFaltante) * 100) / 100);

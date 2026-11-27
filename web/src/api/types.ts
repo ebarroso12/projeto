@@ -300,7 +300,11 @@ export interface OrdemCorte {
 export interface OrdemCorteInput { quem: QuemFez; data: string; modelo: string; cor: string; materialId?: string | null; materialQtd?: number | null; obs: string; itens: { tamanho: string; qtd: number }[] }
 export interface RemessaItem { id: string; modelo: string; cor: string; tamanho: string; qtd: number; boas: number; defeito: number }
 /** Resposta da oficina pelo link: confere, ou a contagem dela nos itens em que discorda. */
-export interface ConfirmacaoOficina { confere: boolean; em: string; nome: string; obs: string; itens: { itemId: string; qtd: number }[] }
+export interface ConfirmacaoOficina {
+  confere: boolean; em: string; nome: string; obs: string; itens: { itemId: string; qtd: number }[];
+  /** contestação resolvida pela fábrica (quem, quando e o que foi decidido) */
+  resolvida: { em: string; por: string; nota: string } | null;
+}
 export interface RetornoRemessa { id: string; data: string; obs: string; boas: number; defeito: number; cega: boolean; itens: { itemId: string; boas: number; defeito: number }[]; confirmacao: ConfirmacaoOficina | null }
 export interface Remessa {
   id: string; numero: number; quem: string; login: string | null; oficinaId: string | null; telefone: string | null; etapa: string;
@@ -308,6 +312,8 @@ export interface Remessa {
   status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null; noFinanceiro: boolean; obs: string;
   /** link da oficina (null = ainda não gerado) */
   token: string | null; confirmacaoEnvio: ConfirmacaoOficina | null;
+  /** respostas antigas (envio refeito ou retorno excluído), guardadas como histórico */
+  historico: (ConfirmacaoOficina & { etapa: 'envio' | 'retorno'; substituidaEm: string })[];
   itens: RemessaItem[]; retornos: RetornoRemessa[];
 }
 /** O que a oficina vê pelo link (sem login). */

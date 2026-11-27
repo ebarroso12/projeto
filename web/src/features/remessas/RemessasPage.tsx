@@ -4,7 +4,7 @@ import type { OrdemCorte, QuemFez, Remessa, RemessaInput, RemessaOpcoes } from '
 import { useApi } from '../../app/auth';
 import { useBoot } from '../../app/boot';
 import { useAction } from '../../app/useAction';
-import { dataBR, formatBRL, formatNumber, isoDay } from '../../lib/format';
+import { dataBR, dataHoraBR, formatBRL, formatNumber, isoDay } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { Dialog, useConfirm } from '../../ui/Dialog';
@@ -196,7 +196,7 @@ function RemessaForm({ inicial, ordens, onClose }: { inicial?: Remessa; ordens: 
 const CHAVE_CEGA = 'fab_retorno_cega';
 const lerCega = () => { try { return localStorage.getItem(CHAVE_CEGA) !== '0'; } catch { return true; } };
 
-function RetornoDialog({ r, onClose }: { r: Remessa; onClose: () => void }) {
+function RetornoDialog({ r, viuNumeros, onClose }: { r: Remessa; viuNumeros: boolean; onClose: () => void }) {
   const api = useApi();
   const [data, setData] = useState(hoje());
   const [obs, setObs] = useState('');
@@ -207,10 +207,11 @@ function RetornoDialog({ r, onClose }: { r: Remessa; onClose: () => void }) {
   const setCega = (x: boolean) => { setCegaSt(x); try { localStorage.setItem(CHAVE_CEGA, x ? '1' : '0'); } catch { /* sem armazenamento */ } };
   const [resultado, setResultado] = useState<ReturnType<typeof conferenciaCega> | null>(null);
   const pend = (i: Remessa['itens'][number]) => i.qtd - i.boas - i.defeito;
-  const itens = r.itens.filter(i => pend(i) > 0);
+  const itens = r.itens;   // todos os itens: a lista não entrega quais ainda faltam
+  const cegaDeVerdade = cega && !viuNumeros;
   const num = (x: string | undefined) => Number(x) || 0;
   const contagem = () => Object.fromEntries(itens.map(i => [i.id, { boas: num(v[i.id]?.boas), defeito: num(v[i.id]?.defeito) }]));
-  const salvar = useAction((snap: { cont: Record<string, { boas: number; defeito: number }>; antes: Remessa['itens'] }) => api.registrarRetorno({ remessaId: r.id, data, obs: obs.trim(), cega,
+  const salvar = useAction((snap: { cont: Record<string, { boas: number; defeito: number }>; antes: Remessa['itens'] }) => api.registrarRetorno({ remessaId: r.id, data, obs: obs.trim(), cega: cegaDeVerdade,
     itens: Object.entries(snap.cont).map(([itemId, c]) => ({ itemId, ...c })).filter(i => i.boas + i.defeito > 0) }),
   { success: 'Retorno registrado. As peças boas entraram na produção.', invalidate: [KEY], onSuccess: (_d, snap) => setResultado(conferenciaCega(snap.antes, snap.cont)) });
   const set = (id: string, k: 'boas' | 'defeito', x: string) => setV(s => ({ ...s, [id]: { boas: s[id]?.boas ?? '', defeito: s[id]?.defeito ?? '', [k]: x.replace(/\D/g, '').slice(0, 6) } }));
@@ -251,6 +252,7 @@ function RetornoDialog({ r, onClose }: { r: Remessa; onClose: () => void }) {
         <input type="checkbox" checked={cega} onChange={e => setCega(e.target.checked)} />
         <span><b>Contagem às cegas</b> (recomendado): conte as peças sem ver quantas deveriam voltar. A diferença aparece depois de registrar.</span>
       </label>
+      {cega && viuNumeros && <Banner tone="warn">Os números desta remessa foram abertos antes da contagem, então este retorno não fica marcado como “às cegas”. Para valer, peça a outra pessoa para contar.</Banner>}
       <p className="muted" style={{ margin: 0 }}>{r.quem} · {r.etapa}. Conte o que voltou: peças boas (entram na produção e são pagas) e com defeito.</p>
       <div className="table-wrap">
         <table className="table">
@@ -260,8 +262,8 @@ function RetornoDialog({ r, onClose }: { r: Remessa; onClose: () => void }) {
               <tr key={i.id}>
                 <td>{i.modelo} · {i.cor} · <b>{i.tamanho}</b></td>
                 {!cega && <td className="num tnum">{pend(i)}</td>}
-                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Boas ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.boas ?? ''} onChange={e => set(i.id, 'boas', e.target.value)} /></td>
-                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Defeito ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.defeito ?? ''} onChange={e => set(i.id, 'defeito', e.target.value)} /></td>
+                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Boas ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.boas ?? ''} disabled={!cega && !pend(i)} onChange={e => set(i.id, 'boas', e.target.value)} /></td>
+                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Defeito ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.defeito ?? ''} disabled={!cega && !pend(i)} onChange={e => set(i.id, 'defeito', e.target.value)} /></td>
               </tr>
             ))}
           </tbody>
@@ -338,6 +340,10 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
   const boot = useBoot();
   const confirm = useConfirm();
   const [modal, setModal] = useState<'retorno' | 'acerto' | 'editar' | null>(null);
+  const [resolvendo, setResolvendo] = useState<{ id: string | null; nome: string } | null>(null);
+  // às cegas: quem vai conferir não vê os números antes de contar; abrir os números tira a marca "às cegas" do retorno
+  const [verNumeros, setVerNumeros] = useState(() => !(r.status === 'aberta' && lerCega()));
+  const [viuNumeros, setViuNumeros] = useState(false);
   const c = contaRemessa(r, hoje());
   const apagarRet = useAction((id: string) => api.apagarRetorno(id), { success: 'Retorno excluído.', invalidate: [KEY] });
   const reabrir = useAction(() => api.reabrirRemessa(r.id), { success: 'Remessa reaberta.', invalidate: [KEY, ['financeiro']] });
@@ -356,12 +362,9 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
       if (w) { w.opener = null; w.location.href = url; } else window.location.href = url;
     } catch { w?.close(); }
   };
-  const copiarLink = async () => {
-    try {
-      const tok = r.token ?? await link.mutateAsync(false);
-      await navigator.clipboard.writeText(urlDo(tok));
-      toast.success('Link copiado. Mande para a oficina.');
-    } catch { toast.error('Não foi possível copiar. Use o botão WhatsApp.'); }
+  // copiar no próprio clique (o iPhone só deixa copiar durante o toque); sem link ainda, primeiro "Gerar link"
+  const copiarLink = (tok: string) => {
+    navigator.clipboard.writeText(urlDo(tok)).then(() => toast.success('Link copiado. Mande para a oficina.'), () => toast.error('Não foi possível copiar. Use o botão WhatsApp.'));
   };
   const trocarLink = async () => {
     if (await confirm({ title: 'Trocar o link desta remessa?', message: 'O link antigo para de funcionar. Use se o link foi parar com outra pessoa.', confirmLabel: 'Trocar o link' })) {
@@ -373,7 +376,8 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
     ...r.retornos.map(t => ({ id: t.id as string | null, nome: `Devolução de ${dataBR(t.data)}`, conf: t.confirmacao })),
   ];
   const nCont = contestacoes(r);
-  if (modal === 'retorno') return <RetornoDialog r={r} onClose={() => setModal(null)} />;
+  if (modal === 'retorno') return <RetornoDialog r={r} viuNumeros={viuNumeros} onClose={() => setModal(null)} />;
+  if (resolvendo) return <ResolverDialog r={r} retornoId={resolvendo.id} etapa={resolvendo.nome} onClose={() => setResolvendo(null)} />;
   if (modal === 'acerto') return <AcertoDialog r={r} onClose={() => { setModal(null); onClose(); }} />;
   if (modal === 'editar') return <RemessaForm inicial={r} ordens={ordens} onClose={() => { setModal(null); onClose(); }} />;
   return (
@@ -387,13 +391,20 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
         <Button onClick={() => void zap()} icon={<Icon name="send" size={15} />}>WhatsApp + link</Button>
         {r.status === 'aberta' && !r.retornos.length && <Button onClick={() => setModal('editar')} icon={<Icon name="pencil" size={15} />}>Editar</Button>}
         {r.status === 'aberta' && c.pendentes > 0 && <Button onClick={() => setModal('retorno')}>Registrar retorno</Button>}
-        {r.status === 'aberta' && <Button variant="primary" onClick={() => setModal('acerto')}>Acertar</Button>}
+        {r.status === 'aberta' && <Button variant="primary" disabled={nCont > 0} title={nCont > 0 ? 'Resolva a contestação da oficina antes de acertar' : undefined} onClick={() => setModal('acerto')}>Acertar</Button>}
         {r.status === 'fechada' && <Button onClick={() => reabrir.mutate()} loading={reabrir.isPending}>Reabrir</Button>}
       </>}>
       <div className="row" style={{ gap: 8 }}>
         {r.status === 'fechada' ? <Badge tone="ok">Acertada em {dataBR(r.fechadaEm)}</Badge> : c.atraso !== null && c.atraso > 0 ? <Badge tone="danger">Atrasada {c.atraso} dia(s)</Badge> : <Badge tone="info">Aberta</Badge>}
         <span className="muted">{r.etapa} · enviada {dataBR(r.dataEnvio)}{r.prazo ? ` · devolver até ${dataBR(r.prazo)}` : ''}{r.ordemNumero ? ` · da ordem de corte #${r.ordemNumero}` : ''}</span>
       </div>
+      {nCont > 0 && <Banner tone="danger">A oficina contestou {nCont === 1 ? 'uma contagem' : `${nCont} contagens`}. Confira a diferença em “Resposta da oficina” e toque em <b>Resolver</b> com o que foi decidido. O acerto fica liberado depois.</Banner>}
+      {!verNumeros ? (
+        <div className="numeros-ocultos">
+          <p><b>Contagem às cegas ligada.</b> Os números desta remessa ficam escondidos para quem vai conferir o retorno.</p>
+          <Button size="sm" onClick={() => { setVerNumeros(true); setViuNumeros(true); }}>Ver números</Button>
+        </div>
+      ) : <>
       <div className="acerto">
         <div><span>Enviadas</span><b>{c.enviadas}</b></div>
         <div><span>Voltaram boas</span><b className="valor-pos">{c.boas}</b></div>
@@ -402,7 +413,6 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
         <div><span>{r.status === 'fechada' ? 'Pago' : 'Peças boas × valor'}</span><b>{formatBRL(c.aPagar)}</b></div>
       </div>
       {r.noFinanceiro && <p className="muted" style={{ margin: 0 }}><Icon name="wallet" size={14} /> Pagamento lançado no Financeiro.</p>}
-      {nCont > 0 && <Banner tone="danger">A oficina contestou {nCont === 1 ? 'uma contagem' : `${nCont} contagens`}. Confira as diferenças abaixo antes de acertar.</Banner>}
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>Item</th><th className="num">Enviadas</th><th className="num">Boas</th><th className="num">Defeito</th><th className="num">Faltam</th></tr></thead>
@@ -411,6 +421,7 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
               <td className="num tnum">{i.defeito}</td><td className={`num tnum${f ? ' valor-neg' : ''}`}>{f}</td></tr>); })}</tbody>
         </table>
       </div>
+      </>}
       <b>Retornos</b>
       {r.retornos.length === 0 ? <p className="muted" style={{ margin: 0 }}>Nada voltou ainda.</p> : (
         <div className="list" style={{ border: '1px solid var(--line)', borderRadius: 12 }}>
@@ -426,7 +437,9 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
       )}
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <b style={{ marginRight: 'auto' }}>Resposta da oficina (pelo link)</b>
-        <Button size="sm" variant="ghost" onClick={() => void copiarLink()} loading={link.isPending}><Icon name="copy" size={14} /> Copiar link</Button>
+        {r.token
+          ? <Button size="sm" variant="ghost" onClick={() => copiarLink(r.token!)}><Icon name="copy" size={14} /> Copiar link</Button>
+          : <Button size="sm" variant="ghost" loading={link.isPending} onClick={() => link.mutate(false, { onSuccess: () => toast.success('Link criado. Toque em “Copiar link” ou use o WhatsApp.') })}>Gerar link</Button>}
         {r.token && <Button size="sm" variant="ghost" onClick={() => void trocarLink()}>Trocar link</Button>}
       </div>
       {!r.token ? <p className="muted" style={{ margin: 0 }}>Ainda não foi mandado. Use “WhatsApp + link”: a oficina confere as peças e confirma, ou informa a contagem dela. Se ela discordar, você recebe um aviso.</p> : (
@@ -438,16 +451,42 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
               <div className="item" key={e.id ?? 'envio'} style={{ alignItems: 'flex-start' }}>
                 <div className="item-main">
                   <b>{e.nome}</b>
-                  <small>{sit === 'aguardando' ? 'A oficina ainda não respondeu.' : `${e.conf!.nome || r.quem} respondeu em ${dataBR(e.conf!.em.slice(0, 10))}${e.conf!.obs ? ` · “${e.conf!.obs}”` : ''}`}</small>
+                  <small>{sit === 'aguardando' ? 'A oficina ainda não respondeu.' : `${e.conf!.nome || r.quem} respondeu em ${dataHoraBR(e.conf!.em)}${e.conf!.obs ? ` · “${e.conf!.obs}”` : ''}`}</small>
                   {dif.length > 0 && <ul className="lista-dif">{dif.map(d => <li key={d.itemId}>{d.descricao}: fábrica <b>{d.fabrica}</b> · oficina <b className="valor-neg">{d.oficina}</b></li>)}</ul>}
+                  {e.conf?.resolvida && <small>Resolvida por {e.conf.resolvida.por} em {dataHoraBR(e.conf.resolvida.em)}: “{e.conf.resolvida.nota}”</small>}
                 </div>
-                {sit === 'confirmou' ? <Badge tone="ok">Confirmou</Badge> : sit === 'contestou' ? <Badge tone="danger">Contestou</Badge> : <Badge>Aguardando</Badge>}
+                {sit === 'contestou' && <Button size="sm" onClick={() => setResolvendo({ id: e.id, nome: e.nome })}>Resolver</Button>}
+                {sit === 'confirmou' ? <Badge tone="ok">Confirmou</Badge> : sit === 'contestou' ? <Badge tone="danger">Contestou</Badge> : sit === 'resolvida' ? <Badge tone="info">Resolvida</Badge> : <Badge>Aguardando</Badge>}
               </div>
             );
           })}
         </div>
       )}
+      {r.historico.length > 0 && (
+        <details className="historico-resp">
+          <summary>Respostas anteriores ({r.historico.length})</summary>
+          <ul>{r.historico.map((h, k) => (
+            <li key={k}>{h.etapa === 'envio' ? 'Recebimento' : 'Devolução excluída'} · {dataHoraBR(h.em)} · {h.confere ? 'confirmou' : 'contestou'}
+              {h.resolvida ? ` · resolvida: “${h.resolvida.nota}”` : ''} · substituída em {dataHoraBR(h.substituidaEm)}</li>))}</ul>
+        </details>
+      )}
       {r.obs && <p style={{ margin: 0 }}><b>Obs.:</b> {r.obs}</p>}
+    </Dialog>
+  );
+}
+
+function ResolverDialog({ r, retornoId, etapa, onClose }: { r: Remessa; retornoId: string | null; etapa: string; onClose: () => void }) {
+  const api = useApi();
+  const [nota, setNota] = useState('');
+  const dif = divergencias(r, retornoId);
+  const salvar = useAction(() => api.resolverContestacao(r.id, retornoId, nota.trim()), { success: 'Contestação resolvida. A oficina vê a resposta pelo link.', invalidate: [KEY], onSuccess: onClose });
+  return (
+    <Dialog open onClose={onClose} title={`Resolver contestação · ${etapa}`}
+      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={salvar.isPending} disabled={nota.trim().length < 3} onClick={() => salvar.mutate()}>Resolver</Button></>}>
+      {dif.length > 0 && <ul className="lista-dif" style={{ marginTop: 0 }}>{dif.map(d => <li key={d.itemId}>{d.descricao}: fábrica <b>{d.fabrica}</b> · oficina <b className="valor-neg">{d.oficina}</b></li>)}</ul>}
+      <TextAreaField label="O que foi decidido" value={nota} maxLength={300} onChange={e => setNota(e.target.value)}
+        placeholder="Ex.: recontamos juntas, eram 88; vamos corrigir o envio." />
+      <p className="muted" style={{ margin: 0 }}>Fica registrado com seu nome e a hora, na remessa e na Atividade. Se for preciso mudar os itens enviados, edite a remessa depois de resolver.</p>
     </Dialog>
   );
 }

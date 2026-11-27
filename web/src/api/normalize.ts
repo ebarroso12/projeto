@@ -339,7 +339,9 @@ const arrR = (x: unknown) => (Array.isArray(x) ? x : []).map(rec);
 export function parseConfirmacao(v: unknown): ConfirmacaoOficina | null {
   if (!v || typeof v !== 'object') return null;
   const c = rec(v);
-  return { confere: bool(c.confere), em: str(c.em), nome: str(c.nome), obs: str(c.obs), itens: arrR(c.itens).map(i => ({ itemId: str(i.itemId), qtd: num(i.qtd) })) };
+  const rs = c.resolvida && typeof c.resolvida === 'object' ? rec(c.resolvida) : null;
+  return { confere: bool(c.confere), em: str(c.em), nome: str(c.nome), obs: str(c.obs), itens: arrR(c.itens).map(i => ({ itemId: str(i.itemId), qtd: num(i.qtd) })),
+    resolvida: rs ? { em: str(rs.em), por: str(rs.por), nota: str(rs.nota) } : null };
 }
 const parseItemRemessa = (i: Record<string, unknown>) => ({ id: str(i.id), modelo: str(i.modelo), cor: str(i.cor), tamanho: str(i.tamanho), qtd: num(i.qtd), boas: num(i.boas), defeito: num(i.defeito) });
 export function parseRemessaPublica(v: unknown): RemessaPublica {
@@ -363,6 +365,7 @@ export function parseRemessasDados(v: unknown): RemessasDados {
       ordemId: strOrNull(m.ordemId), ordemNumero: numOrNull(m.ordemNumero), status: (str(m.status) === 'fechada' ? 'fechada' : 'aberta') as Remessa['status'], fechadaEm: strOrNull(m.fechadaEm),
       valorPago: numOrNull(m.valorPago), noFinanceiro: bool(m.noFinanceiro), obs: str(m.obs),
       token: strOrNull(m.token), confirmacaoEnvio: parseConfirmacao(m.confirmacaoEnvio),
+      historico: arrR(m.historico).map(h => ({ ...parseConfirmacao(h)!, etapa: (str(h.etapa) === 'retorno' ? 'retorno' : 'envio') as 'envio' | 'retorno', substituidaEm: str(h.substituidaEm) })),
       itens: arrR(m.itens).map(parseItemRemessa),
       retornos: arrR(m.retornos).map(t => ({ id: str(t.id), data: str(t.data), obs: str(t.obs), boas: num(t.boas), defeito: num(t.defeito),
         cega: bool(t.cega), itens: arrR(t.itens).map(i => ({ itemId: str(i.itemId), boas: num(i.boas), defeito: num(i.defeito) })), confirmacao: parseConfirmacao(t.confirmacao) })),
