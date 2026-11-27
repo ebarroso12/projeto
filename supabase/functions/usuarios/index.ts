@@ -33,7 +33,8 @@ const fail = (message: string, status = 400) => json({ error: message }, status)
 const emailDe = (empresa: string, login: string) => `${empresa}.${login}@fabrica.local`;
 const LOGIN_OK = /^[a-z0-9._-]{2,32}$/;
 const CODIGO_OK = /^[a-z0-9-]{2,30}$/;
-const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+// sem acento e minúsculo ("Fábrica" -> "fabrica"), igual ao que o app faz no login
+const norm = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 function validarLogin(login: string, senha: unknown): string | null {
   if (!LOGIN_OK.test(login)) return 'Login inválido: use 2 a 32 letras minúsculas, números, ponto, hífen ou sublinhado.';

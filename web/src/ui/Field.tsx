@@ -1,14 +1,27 @@
-import { useId, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useId, useState, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { Icon } from './Icon';
 
 interface Common { label: string; hint?: string; error?: string }
 
 export function TextField({ label, hint, error, id, ...rest }: Common & InputHTMLAttributes<HTMLInputElement>) {
   const auto = useId();
   const fid = id ?? auto;
+  const senha = rest.type === 'password';
+  const [ver, setVer] = useState(false);
+  const input = <input id={fid} {...rest} type={senha ? (ver ? 'text' : 'password') : (rest.type ?? 'text')} aria-invalid={error ? true : undefined} />;
   return (
     <div className="field">
       <label htmlFor={fid}>{label}</label>
-      <input id={fid} type="text" {...rest} aria-invalid={error ? true : undefined} />
+      {senha ? (
+        // campo de senha: sempre com o "olho" para mostrar/ocultar o que está sendo digitado
+        <div className="senha-wrap">
+          {input}
+          <button type="button" className="senha-olho" aria-label={ver ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={ver}
+            aria-controls={fid} onClick={() => setVer(v => !v)}>
+            <Icon name={ver ? 'eyeOff' : 'eye'} size={18} />
+          </button>
+        </div>
+      ) : input}
       {hint && <p className="hint">{hint}</p>}
       {error && <p className="err" role="alert">{error}</p>}
     </div>

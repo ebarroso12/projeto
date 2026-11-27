@@ -9,7 +9,7 @@
  *  - o link "só ver" (?k=) usa as funções *_chave, que não exigem login.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { MIN_SENHA } from '../lib/rules';
+import { MIN_SENHA, normalizar } from '../lib/rules';
 import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
@@ -20,7 +20,7 @@ import {
 import { ApiError, fromServerMessage } from './transport';
 import type { FaltaInput, LancamentoInput, LancamentoResultado, UsuarioInput } from './types';
 
-export const emailDe = (empresa: string, login: string) => `${empresa.trim().toLowerCase()}.${login.trim().toLowerCase()}@fabrica.local`;
+export const emailDe = (empresa: string, login: string) => `${normalizar(empresa)}.${normalizar(login)}@fabrica.local`;
 
 interface PgError { message: string; code?: string; status?: number }
 

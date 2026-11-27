@@ -319,3 +319,11 @@ dialog.dlg.drawer.wide { width: min(1080px, calc(100vw - 24px)); }
 .dlg .segmented { flex-shrink: 0; align-self: flex-start; }
 /* cartões de números dentro da ficha: 2 colunas no computador, 1 no celular */
 .kpi-ficha { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+/* senha com botão "olho" dentro do campo */
+.senha-wrap { position: relative; }
+.senha-wrap input { width: 100%; padding-right: 48px; }
+.senha-olho { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center;
+  border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.senha-olho:hover { color: var(--text); background: var(--surface-2); }
+.senha-olho:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }

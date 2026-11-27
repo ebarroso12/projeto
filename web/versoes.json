@@ -1,5 +1,13 @@
 [
   {
+    "versao": "1.6.1",
+    "data": "2026-11-27",
+    "novidades": [
+      "Todos os campos de senha têm o olho para mostrar ou ocultar o que está sendo digitado",
+      "Código da empresa e login aceitam acento e maiúscula: \"Fábrica\" e \"fabrica\" entram do mesmo jeito"
+    ]
+  },
+  {
     "versao": "1.6.0",
     "data": "2026-11-27",
     "novidades": [

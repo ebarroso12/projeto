@@ -3,6 +3,7 @@ import { storage } from '../lib/storage';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/Field';
 import { Banner } from '../ui/primitives';
+import { normalizar } from '../lib/rules';
 import { useAuth } from './auth';
 
 const EMPRESA_KEY = 'fab_empresa';
@@ -25,7 +26,7 @@ export function LoginPage() {
     setError('');
     try {
       await signIn(login, senha, precisaEmpresa ? empresa : undefined);
-      if (precisaEmpresa) storage.set(EMPRESA_KEY, empresa.trim().toLowerCase());
+      if (precisaEmpresa) storage.set(EMPRESA_KEY, normalizar(empresa));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível entrar.');
     } finally {

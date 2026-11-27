@@ -83,12 +83,16 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   // 3) Login errado e admin
   page = await newPage({ width: 1440, height: 900 });
   await page.getByLabel('Login').fill('admin');
-  await page.getByLabel('Senha').fill('errada');
+  await page.getByLabel('Senha', { exact: true }).fill('errada');
+  await page.getByRole('button', { name: 'Mostrar senha' }).click();
+  ok(await page.getByLabel('Senha', { exact: true }).getAttribute('type') === 'text', 'olho mostra a senha digitada');
+  await page.getByRole('button', { name: 'Ocultar senha' }).click();
+  ok(await page.getByLabel('Senha', { exact: true }).getAttribute('type') === 'password', 'olho oculta de novo');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByText(/incorretos/).waitFor();
   ok(true, 'login errado mostra mensagem');
   await shot(page, '06-login');
-  await page.getByLabel('Senha').fill('admin');
+  await page.getByLabel('Senha', { exact: true }).fill('admin');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByText('Presentes hoje').waitFor();
   ok(true, 'admin entra no Painel');
@@ -335,7 +339,7 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   // 4) Funcionária: Ponto
   page = await newPage({ width: 390, height: 844 });
   await page.getByLabel('Login').fill('carla');
-  await page.getByLabel('Senha').fill('1234');
+  await page.getByLabel('Senha', { exact: true }).fill('1234');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByText('Mensagem importante').waitFor();
   ok(true, 'mensagem importante abre na tela da funcionária');
