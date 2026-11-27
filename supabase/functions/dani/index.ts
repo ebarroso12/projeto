@@ -15,7 +15,9 @@ import conhecimento from './conhecimento.json' with { type: 'json' };
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const MODELOS_PADRAO = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+// Modelos "lite": respondem em 2–3 s no plano gratuito (os "flash" completos pensam antes e passam de 25 s).
+// Em ordem: o primeiro que responder vale. O dono pode escolher outro em Empresas > Assistente Dani.
+const MODELOS_PADRAO = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite'];
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -61,7 +63,7 @@ ${kb}`;
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ erro: 'falha', mensagem: 'Método não permitido.' }, 405);
-  let b: { pergunta?: unknown; historico?: unknown; tela?: unknown };
+  let b: { pergunta?: unknown; historico?: unknown; tela?: unknown; listarModelos?: unknown };
   try { b = await req.json(); } catch { return json({ erro: 'falha', mensagem: 'Corpo inválido.' }, 400); }
   const pergunta = String(b.pergunta ?? '').trim().slice(0, 1000);
   if (!pergunta) return json({ erro: 'falha', mensagem: 'Escreva a sua dúvida.' }, 400);
@@ -84,6 +86,14 @@ Deno.serve(async (req: Request) => {
   const { data: cfg } = await admin.rpc('fab_dani_chave');
   const chave = (cfg as { chave?: string } | null)?.chave;
   if (!chave) return json({ erro: 'nao_configurado', mensagem: 'A IA da Dani ainda não foi configurada.' });
+  // só o dono do sistema: quais modelos esta chave pode usar (para escolher o modelo em Empresas > Assistente Dani)
+  if ((b as { listarModelos?: unknown }).listarModelos === true && (ctx as { dono?: boolean }).dono === true) {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': chave }, signal: AbortSignal.timeout(15_000) });
+    const d = await r.json().catch(() => ({}));
+    const lista = ((d as { models?: { name: string; supportedGenerationMethods?: string[] }[] }).models ?? [])
+      .filter(m => (m.supportedGenerationMethods ?? []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''));
+    return json({ modelos: lista, status: r.status });
+  }
   const preferido = (cfg as { modelo?: string }).modelo;
   const modelos = [...new Set([preferido, ...MODELOS_PADRAO].filter(Boolean) as string[])];
 
@@ -94,26 +104,36 @@ Deno.serve(async (req: Request) => {
     generationConfig: { temperature: 0.3, maxOutputTokens: 900 },
   });
   let ultimo = '';
+  const inicio = Date.now();
+  const tentativas: { modelo: string; status: number | string; ms: number }[] = [];
   for (const modelo of modelos) {
+    // orçamento total ~40s (o app espera a resposta); cada modelo tem no máximo 25s
+    const resta = 40_000 - (Date.now() - inicio);
+    if (resta < 5_000) { ultimo = ultimo || 'sem tempo'; break; }
+    const t0 = Date.now();
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave }, body: corpo,
+        signal: AbortSignal.timeout(Math.min(25_000, resta)),
       });
+      tentativas.push({ modelo, status: r.status, ms: Date.now() - t0 });   // diagnóstico (sem chave, sem pergunta)
       if (r.status === 404) { ultimo = `modelo ${modelo} indisponível`; continue; }
       if (r.status === 429) return json({ erro: 'limite_gemini', mensagem: 'A cota gratuita da IA acabou por agora. Tente daqui a alguns minutos.' });
       if (r.status === 400 || r.status === 401 || r.status === 403) {
         const t = await r.text();
+        tentativas[tentativas.length - 1]!.status = `${r.status}: ${t.replace(/\s+/g, ' ').slice(0, 160)}`;
         if (/API key|API_KEY|permission|PERMISSION/i.test(t)) return json({ erro: 'nao_configurado', mensagem: 'A chave do Gemini não foi aceita. O responsável pelo sistema precisa conferir a chave.' });
         ultimo = `erro ${r.status}`; continue;
       }
-      if (!r.ok) { ultimo = `erro ${r.status}`; continue; }
+      if (!r.ok) { ultimo = `erro ${r.status}`; tentativas[tentativas.length - 1]!.status = `${r.status}: ${(await r.text()).replace(/\s+/g, ' ').slice(0, 160)}`; continue; }
       const d = await r.json();
       const texto = (d?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('').trim();
       if (!texto) { ultimo = 'resposta vazia'; continue; }
       return json({ resposta: texto, modelo });
     } catch (e) {
       ultimo = String(e);
+      tentativas.push({ modelo, status: ultimo.slice(0, 80), ms: Date.now() - t0 });
     }
   }
-  return json({ erro: 'falha', mensagem: 'A IA não respondeu agora.', detalhe: ultimo });
+  return json({ erro: 'falha', mensagem: 'A IA não respondeu agora.', detalhe: ultimo, tentativas });
 });

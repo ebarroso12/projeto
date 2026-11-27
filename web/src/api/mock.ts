@@ -1430,7 +1430,7 @@ Object.assign(handlers, {
     exigeDonoDemo(t);
     const k = String(chave ?? '').trim();
     if (k === '-') { daniDemo.configurada = false; daniDemo.final = null; }
-    else if (k) { if (!/^[A-Za-z0-9_-]{30,60}$/.test(k)) throw fromServerMessage('Chave do Gemini inválida: copie a chave inteira do Google AI Studio (começa com AIza).'); daniDemo.configurada = true; daniDemo.final = k.slice(-4); }
+    else if (k) { if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{29,119}$/.test(k)) throw fromServerMessage('Chave do Gemini inválida: copie a chave inteira do Google AI Studio (começa com AIza ou AQ.).'); daniDemo.configurada = true; daniDemo.final = k.slice(-4); }
     daniDemo.modelo = String(modelo ?? '').trim();
     return null;
   },

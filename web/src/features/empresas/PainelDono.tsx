@@ -102,12 +102,12 @@ export function DaniCard() {
           : <Banner tone="warn">IA desligada: a Dani está respondendo pelo manual.</Banner>)}
         <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>
           <li>Abra <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a> com uma conta Google.</li>
-          <li>Toque em <b>Create API key</b> (gratuita) e copie a chave (começa com <code>AIza</code>).</li>
+          <li>Toque em <b>Create API key</b> (gratuita) e copie a chave (começa com <code>AQ.</code> ou <code>AIza</code>).</li>
           <li>Cole abaixo e salve. A chave fica guardada no servidor e não aparece mais na tela.</li>
         </ol>
         <div className="form-grid" style={{ gridTemplateColumns: '2fr 1fr auto', alignItems: 'end' }}>
-          <TextField label={c?.configurada ? 'Nova chave do Gemini (para trocar)' : 'Chave do Gemini'} type="password" autoComplete="off" value={chave} onChange={e => setChave(e.target.value.trim())} placeholder="AIza…" />
-          <TextField label="Modelo (opcional)" value={modelo ?? c?.modelo ?? ''} onChange={e => setModelo(e.target.value)} placeholder="automático" hint="Ex.: gemini-2.5-flash" />
+          <TextField label={c?.configurada ? 'Nova chave do Gemini (para trocar)' : 'Chave do Gemini'} type="password" autoComplete="off" value={chave} onChange={e => setChave(e.target.value.trim())} placeholder="AQ.… ou AIza…" />
+          <TextField label="Modelo (opcional)" value={modelo ?? c?.modelo ?? ''} onChange={e => setModelo(e.target.value)} placeholder="automático" hint="Vazio = automático (gemini-3.5-flash-lite, rápido)" />
           <Button variant="primary" loading={salvar.isPending} disabled={!chave && modelo === null} onClick={() => salvar.mutate({ chave, modelo: (modelo ?? c?.modelo ?? '').trim() })}>Salvar</Button>
         </div>
         {c?.configurada && <div><Button size="sm" variant="ghost" onClick={() => salvar.mutate({ chave: '-', modelo: c.modelo })}>Remover chave</Button></div>}

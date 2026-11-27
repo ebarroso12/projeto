@@ -31,7 +31,12 @@ const GERAIS = ['Por onde começo a montar a empresa?', 'Como instalo o app e li
 function Texto({ texto, onIr }: { texto: string; onIr: (rota: string) => void }) {
   const atalhos: { rota: string; nome: string }[] = [];
   const limpo = texto.replace(/\[\[ir:(\/[a-z-]*)\|([^\]]{1,60})\]\]/g, (_m, rota: string, nome: string) => { atalhos.push({ rota, nome }); return ''; }).trim();
-  const inline = (s: string) => s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => (p.startsWith('**') && p.endsWith('**') ? <b key={i}>{p.slice(2, -2)}</b> : <Fragment key={i}>{p}</Fragment>));
+  // **negrito**, *itálico* e `código` (o Gemini usa os três)
+  const inline = (s: string) => s.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|`[^`]+`)/g).map((p, i) => (
+    p.startsWith('**') && p.endsWith('**') && p.length > 4 ? <b key={i}>{p.slice(2, -2)}</b>
+      : p.startsWith('*') && p.endsWith('*') && p.length > 2 ? <i key={i}>{p.slice(1, -1)}</i>
+        : p.startsWith('`') && p.endsWith('`') && p.length > 2 ? <code key={i}>{p.slice(1, -1)}</code>
+          : <Fragment key={i}>{p}</Fragment>));
   const blocos: ReactNode[] = [];
   let lista: { tipo: 'ol' | 'ul'; itens: string[] } | null = null;
   const fecha = () => { if (lista) { const L = lista; blocos.push(L.tipo === 'ol' ? <ol key={blocos.length}>{L.itens.map((x, i) => <li key={i}>{inline(x)}</li>)}</ol> : <ul key={blocos.length}>{L.itens.map((x, i) => <li key={i}>{inline(x)}</li>)}</ul>); lista = null; } };
