@@ -1,5 +1,14 @@
 [
   {
+    "versao": "1.5.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Cadastros de produtos (preço, custo e margem; entram no Lançar), clientes, fornecedores e bancos",
+      "Dados dos funcionários: CPF, telefone, e-mail, nascimento, admissão, cargo e endereço",
+      "Mensagens: administrador e gerente enviam recados para uma pessoa ou para todos; ícone ao lado do nome mostra as não lidas"
+    ]
+  },
+  {
     "versao": "1.4.1",
     "data": "2026-11-27",
     "novidades": [

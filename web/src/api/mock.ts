@@ -133,7 +133,8 @@ const newSession = (u: MUser) => { const t = `t_${u.login}_${Math.random().toStr
 let funcaoAtual: string | null = null;
 const funcaoDaChamada = (fn: string): string | null =>
   fn.startsWith('fin') ? 'financeiro' : fn.startsWith('dre') ? 'resultado'
-  : ['listarUsuarios', 'salvarUsuario', 'salvarListas', 'criarChave', 'revogarChaves', 'exportar', 'funcoesPessoa', 'salvarFuncoes', 'verWifi', 'salvarWifi'].includes(fn) ? 'cadastros'
+  : ['listarUsuarios', 'salvarUsuario', 'salvarListas', 'criarChave', 'revogarChaves', 'exportar', 'funcoesPessoa', 'salvarFuncoes', 'verWifi', 'salvarWifi', 'registros', 'salvarRegistro', 'apagarRegistro', 'dadosPessoas', 'salvarDadosPessoa'].includes(fn) ? 'cadastros'
+  : ['enviarMensagem', 'mensagensEnviadas', 'apagarMensagem', 'destinatarios'].includes(fn) ? 'mensagens'
   : ['acessos', 'acessosPendentes', 'decidirAcesso', 'encerrarSessao', 'revogarAparelho', 'configAcesso', 'bloquearPessoa'].includes(fn) ? 'acessos'
   : fn === 'relatorio' ? 'relatorio' : fn === 'painel' ? 'painel' : null;
 /** Administrador passa; não-admin só passa se a função desta chamada foi liberada para ele. */
@@ -723,7 +724,7 @@ Object.assign(handlers, {
 });
 
 // ---------------------------------------------------------------- funções por pessoa (demonstração)
-const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'financeiro', 'resultado', 'cadastros', 'acessos', 'empresas'];
+const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'financeiro', 'resultado', 'cadastros', 'acessos', 'mensagens', 'empresas'];
 const extras: Record<string, Record<string, boolean>> = {};
 const padraoDe = (u: MUser, f: string) => (f === 'empresas' ? u.login === 'admin' : ['lancar', 'ponto', 'falta'].includes(f) ? true : u.perfil === 'admin');
 function funcoesDe(u: MUser): Record<string, boolean> {
@@ -750,3 +751,64 @@ Object.assign(handlers, {
     return null;
   },
 });
+
+// ---------------------------------------------------------------- cadastros gerais e mensagens (demonstração)
+const registrosDemo: Record<string, unknown>[] = [
+  { id: 'r1', tipo: 'produto', nome: 'Camisa Polo', documento: '', telefone: '', email: '', cidade: '', obs: '', dados: { referencia: 'CP-100', preco: '79.90', custo: '32.40', unidade: 'peça', cores: 'Preto, Branco, Azul Marinho', tamanhos: 'P, M, G, GG' }, ativo: true, criadoEm: '2026-10-02' },
+  { id: 'r2', tipo: 'produto', nome: 'Jaqueta Corta-vento', documento: '', telefone: '', email: '', cidade: '', obs: '', dados: { referencia: 'JC-210', preco: '159.00', custo: '71.80', unidade: 'peça', cores: 'Cinza, Preto', tamanhos: 'M, G, GG' }, ativo: true, criadoEm: '2026-10-05' },
+  { id: 'r3', tipo: 'cliente', nome: 'Loja Centro Modas', documento: '12.345.678/0001-90', telefone: '(16) 99999-1000', email: 'compras@centromodas.com', cidade: 'Franca/SP', obs: 'Paga com 30 dias', dados: { contato: 'Marta' }, ativo: true, criadoEm: '2026-09-12' },
+  { id: 'r4', tipo: 'cliente', nome: 'Atacado Bom Preço', documento: '98.765.432/0001-10', telefone: '(11) 3333-2000', email: '', cidade: 'São Paulo/SP', obs: '', dados: { contato: 'Rui' }, ativo: true, criadoEm: '2026-10-20' },
+  { id: 'r5', tipo: 'fornecedor', nome: 'Tecelagem Sul', documento: '11.222.333/0001-44', telefone: '(47) 3030-4040', email: 'vendas@tecsul.com', cidade: 'Blumenau/SC', obs: '', dados: { contato: 'Pedro', produtos: 'Malha, moletom', prazo: '28 dias' }, ativo: true, criadoEm: '2026-08-30' },
+  { id: 'r6', tipo: 'fornecedor', nome: 'Aviamentos Franca', documento: '', telefone: '(16) 3721-0000', email: '', cidade: 'Franca/SP', obs: 'Zíper e botões', dados: { produtos: 'Zíper, botões, etiquetas', prazo: 'à vista' }, ativo: true, criadoEm: '2026-09-02' },
+  { id: 'r7', tipo: 'banco', nome: 'Banco do Brasil', documento: '', telefone: '', email: '', cidade: '', obs: 'Conta principal', dados: { agencia: '1234-5', conta: '98765-0', tipoConta: 'Corrente PJ', pix: '12.345.678/0001-90', titular: 'Confecção Demonstração' }, ativo: true, criadoEm: '2026-08-01' },
+];
+const dadosPessoasDemo: Record<string, Record<string, string>> = { ana: { cpf: '123.456.789-00', telefone: '(16) 98888-1111', admissao: '2024-02-05', cargo: 'Costureira' } };
+const mensagensDemo: { id: string; autor: string; paraLogin: string; titulo: string; texto: string; importante: boolean; em: string; leram: string[] }[] = [
+  { id: 'msg1', autor: 'Edson', paraLogin: '', titulo: 'Inventário sexta-feira', texto: 'Sexta às 14h vamos fazer inventário do estoque. Todos ajudam.', importante: true, em: agoraIso(240).slice(0, 16), leram: ['ana'] },
+  { id: 'msg2', autor: 'Edson', paraLogin: 'carla', titulo: 'Lote 121', texto: 'Carla, priorize a conferência do lote 121 hoje.', importante: false, em: agoraIso(60).slice(0, 16), leram: [] },
+];
+const nomeLogin = (l: string) => state.users.find(u => u.login === l)?.nome ?? l;
+Object.assign(handlers, {
+  registros: ([t, tipo]: unknown[]) => { requireAdmin(userOf(String(t))); return registrosDemo.filter(r => r.tipo === tipo); },
+  salvarRegistro: ([t, o]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = o as Record<string, unknown>;
+    if (!String(r.nome ?? '').trim()) throw fromServerMessage('Preencha o nome.');
+    const ex = registrosDemo.find(x => x.id === r.id);
+    if (ex) Object.assign(ex, r); else registrosDemo.push({ ...r, id: `r${Date.now()}`, criadoEm: today() });
+    if (r.tipo === 'produto' && r.ativo !== false) {
+      const d = (r.dados ?? {}) as Record<string, string>;
+      if (!state.modelos.includes(String(r.nome))) state.modelos.push(String(r.nome));
+      for (const c of String(d.cores ?? '').split(',').map(x => x.trim()).filter(Boolean)) if (!state.cores.includes(c)) state.cores.push(c);
+      for (const z of String(d.tamanhos ?? '').split(',').map(x => x.trim()).filter(Boolean)) if (!state.tamanhos.includes(z)) state.tamanhos.push(z);
+    }
+    return String(ex?.id ?? registrosDemo[registrosDemo.length - 1]!.id);
+  },
+  apagarRegistro: ([t, id]: unknown[]) => { requireAdmin(userOf(String(t))); const i = registrosDemo.findIndex(x => x.id === id); if (i >= 0) registrosDemo.splice(i, 1); return null; },
+  dadosPessoas: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return dadosPessoasDemo; },
+  salvarDadosPessoa: ([t, login, dados]: unknown[]) => { requireAdmin(userOf(String(t))); dadosPessoasDemo[String(login)] = dados as Record<string, string>; return null; },
+  minhasMensagens: ([t]: unknown[]) => {
+    const u = userOf(String(t));
+    return mensagensDemo.filter(m => !m.paraLogin || m.paraLogin === u.login)
+      .map(m => ({ id: m.id, autor: m.autor, para: m.paraLogin ? nomeLogin(m.paraLogin) : 'Todos', titulo: m.titulo, texto: m.texto, importante: m.importante, em: m.em, lida: m.autor === u.nome || m.leram.includes(u.login) }));
+  },
+  marcarLidas: ([t, ids]: unknown[]) => { const u = userOf(String(t)); for (const m of mensagensDemo) if ((ids as string[]).includes(m.id) && !m.leram.includes(u.login)) m.leram.push(u.login); return null; },
+  destinatarios: ([t]: unknown[]) => { const u = userOf(String(t)); requireMensagens(u); return state.users.filter(x => !x.leitura && x.ativo && x.login !== u.login).map(x => ({ login: x.login, nome: x.nome, setor: x.setor })); },
+  enviarMensagem: ([t, para, titulo, texto, importante]: unknown[]) => {
+    const u = userOf(String(t)); requireMensagens(u);
+    if (!String(texto ?? '').trim()) throw fromServerMessage('Escreva a mensagem.');
+    mensagensDemo.unshift({ id: `msg${Date.now()}`, autor: u.nome, paraLogin: String(para ?? ''), titulo: String(titulo ?? ''), texto: String(texto), importante: Boolean(importante), em: agoraIso(0).slice(0, 16), leram: [u.login] });
+    return mensagensDemo[0]!.id;
+  },
+  mensagensEnviadas: ([t]: unknown[]) => {
+    const u = userOf(String(t)); requireMensagens(u);
+    const todos = state.users.filter(x => !x.leitura && x.ativo);
+    return mensagensDemo.map(m => {
+      const alvo = todos.filter(x => (m.paraLogin ? x.login === m.paraLogin : true) && x.nome !== m.autor);
+      return { id: m.id, autor: m.autor, para: m.paraLogin ? nomeLogin(m.paraLogin) : 'Todos', titulo: m.titulo, texto: m.texto, importante: m.importante, em: m.em,
+        leram: alvo.filter(x => m.leram.includes(x.login)).map(x => x.nome), faltam: alvo.filter(x => !m.leram.includes(x.login)).map(x => x.nome) };
+    });
+  },
+  apagarMensagem: ([t, id]: unknown[]) => { requireMensagens(userOf(String(t))); const i = mensagensDemo.findIndex(m => m.id === id); if (i >= 0) mensagensDemo.splice(i, 1); return null; },
+});
+function requireMensagens(u: MUser) { if (!funcoesDe(u).mensagens) throw fromServerMessage('Você não tem acesso a esta função. Fale com o administrador.'); }

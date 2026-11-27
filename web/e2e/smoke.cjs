@@ -129,8 +129,31 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => page.getByRole('cell', { name: 'teste', exact: true }).isVisible()), 'cria pessoa e lista na tabela');
   ok((await page.locator('code', { hasText: '••••' }).count()) > 0, 'senhas mascaradas por padrão');
   await shot(page, '09-cadastros');
+  // cadastros gerais: produto e cliente
+  await page.getByRole('tab', { name: 'Produtos' }).click();
+  await page.getByRole('button', { name: 'Novo produto' }).click();
+  await page.locator('dialog[open]').getByLabel('Nome do produto (modelo)').fill('Moletom Canguru');
+  await page.locator('dialog[open]').getByLabel('Preço de venda (R$)').fill('89,90');
+  await page.locator('dialog[open]').getByLabel('Custo (R$)').fill('41.50');
+  await page.locator('dialog[open]').getByLabel('Cores').fill('Cinza, Vinho');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Produto salvo.').waitFor();
+  ok(await until(() => page.getByText(/R\$\s?89,90 · margem 54%/).isVisible()), 'cadastra produto com preço, custo e margem');
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+  await page.getByRole('button', { name: 'Novo cliente' }).click();
+  await page.locator('dialog[open]').getByLabel('Nome / razão social').fill('Boutique Aurora');
+  await page.locator('dialog[open]').getByLabel('Telefone / WhatsApp').fill('(16) 99999-2222');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Cliente salvo.').waitFor();
+  ok(await until(() => page.getByText('Boutique Aurora').isVisible()), 'cadastra cliente');
+  await page.getByRole('tab', { name: 'Fornecedores' }).click();
+  ok(await until(() => page.getByText('Tecelagem Sul').isVisible()), 'lista fornecedores');
+  await page.getByRole('tab', { name: 'Bancos' }).click();
+  ok(await until(() => page.getByText('Banco do Brasil').isVisible()), 'lista bancos');
+  await shot(page, '09c-produtos');
+
   // funções por pessoa: clicar no nome abre as funções
-  await page.getByRole('tab', { name: 'Pessoas' }).click();
+  await page.getByRole('tab', { name: 'Funcionários' }).click();
   await page.locator('.link-empresa', { hasText: 'Carla Dias' }).click();
   await page.getByText('Funções de Carla Dias').waitFor();
   ok(await page.getByRole('switch', { name: /Financeiro: bloqueado/ }).isVisible(), 'funções da pessoa: financeiro bloqueado por padrão');
@@ -143,6 +166,16 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByRole('tab', { name: 'Cópia de segurança' }).click();
   const [bk] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar cópia de segurança' }).click()]);
   ok(/^backup-.*\.json$/.test(bk.suggestedFilename()), 'baixa a cópia de segurança (' + bk.suggestedFilename() + ')');
+
+  // mensagens: admin envia para todos
+  await page.locator('.btn-msg').click();
+  await page.locator('dialog[open]').getByRole('tab', { name: 'Nova mensagem' }).click();
+  await page.locator('dialog[open]').getByLabel('Mensagem').fill('Amanhã o expediente começa às 7h.');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Enviar' }).click();
+  await page.getByText('Mensagem enviada para todos.').waitFor();
+  ok(await until(() => page.locator('dialog[open]').getByText(/Lida por 0 de \d+/).first().isVisible()), 'admin envia mensagem e vê quem leu');
+  await shot(page, '11d-mensagens');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Fechar' }).first().click();
 
   // versão e atualizar
   ok(await page.getByRole('button', { name: /^Atualizar/ }).isVisible(), 'botão Atualizar ao lado do nome do usuário');
@@ -289,6 +322,10 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByLabel('Login').fill('carla');
   await page.getByLabel('Senha').fill('1234');
   await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByText('Mensagem importante').waitFor();
+  ok(true, 'mensagem importante abre na tela da funcionária');
+  await page.getByRole('button', { name: 'Li e entendi' }).click();
+  ok(await until(async () => (await page.locator('.btn-msg .count').count()) === 1), 'contador mostra a outra mensagem não lida');
   await page.getByRole('button', { name: 'Marcar ENTRADA' }).waitFor();
   ok(page.url().endsWith('#/ponto'), 'funcionária cai na tela de Ponto');
   await shot(page, '11-ponto-celular');

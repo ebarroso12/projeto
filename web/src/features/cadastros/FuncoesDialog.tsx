@@ -15,6 +15,7 @@ const DESCRICAO: Record<string, string> = {
   financeiro: 'Entradas, saídas, contas, cartões e metas', resultado: 'DRE: vendas, custos e lucro do mês',
   cadastros: 'Pessoas, listas, links e cópia de segurança', acessos: 'Liberar entradas, ver atividade e métricas',
   empresas: 'Empresas clientes, links TESTE/PRO e fichas (gestão do sistema)',
+  mensagens: 'Enviar mensagens para um funcionário ou para todos (libere para o gerente)',
 };
 
 /** O administrador liga/desliga cada função do sistema para uma pessoa. */
@@ -42,7 +43,7 @@ export function FuncoesDialog({ login, onClose }: { login: string; onClose: () =
                   {d.perfil === 'admin' ? 'Administrador' : 'Funcionário'}: ligue o que a pessoa pode usar. O que estiver desligado some do menu e é recusado pelo servidor.
                 </p>}
             <ul className="funcoes">
-              {features.filter(x => x.id !== 'empresas' || d.possoEmpresas).map(x => {
+              {[...features.filter(x => x.id !== 'empresas'), { id: 'mensagens', label: 'Enviar mensagens', icon: 'chat' as const }, ...features.filter(x => x.id === 'empresas' && d.possoEmpresas)].map(x => {
                 const on = f[x.id] === true, mudou = x.id !== 'empresas' && on !== d.padrao[x.id];
                 return (
                   <li key={x.id} className={on ? 'on' : ''}>

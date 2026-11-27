@@ -13,7 +13,7 @@ import { MIN_SENHA } from '../lib/rules';
 import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
-  parseAcessos, parseConvites, parseEmpresaDetalhe, parseFuncoesPessoa, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -165,6 +165,17 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     validarConvite: async convite => { const r = rec(await rpc('fab_validar_convite', { p_token: convite })); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async o => { await edge({ action: 'teste', ...o }); },
     bloquearPessoa: async (login, bloquear) => { await rpc('fab_bloquear_pessoa', { p_login: login, p_bloquear: bloquear }); },
+    registros: async tipo => parseRegistros(await rpc('fab_registros', { p_tipo: tipo })),
+    salvarRegistro: async o => str(await rpc('fab_salvar_registro', { p: o })),
+    apagarRegistro: async id => { await rpc('fab_apagar_registro', { p_id: id }); },
+    dadosPessoas: async () => parseDadosPessoas(await rpc('fab_dados_pessoas')),
+    salvarDadosPessoa: async (login, dados) => { await rpc('fab_salvar_dados_pessoa', { p_login: login, p_dados: dados }); },
+    minhasMensagens: async () => (chave ? [] : parseMensagens(await rpc('fab_minhas_mensagens'))),
+    marcarLidas: async ids => { if (ids.length) await rpc('fab_marcar_lidas', { p_ids: ids }); },
+    destinatarios: async () => parseDestinatarios(await rpc('fab_destinatarios')),
+    enviarMensagem: async (para, titulo, texto, importante) => str(await rpc('fab_enviar_mensagem', { p_para: para, p_titulo: titulo, p_texto: texto, p_importante: importante })),
+    mensagensEnviadas: async () => parseEnviadas(await rpc('fab_mensagens_enviadas')),
+    apagarMensagem: async id => { await rpc('fab_apagar_mensagem', { p_id: id }); },
     funcoesPessoa: async login => parseFuncoesPessoa(await rpc('fab_funcoes_pessoa', { p_login: login })),
     salvarFuncoes: async (login, funcoes) => { await rpc('fab_salvar_funcoes', { p_login: login, p_funcoes: funcoes }); },
     renomearEmpresa: async (id, nome) => { await rpc('fab_renomear_empresa', { p_id: id, p_nome: nome }); },

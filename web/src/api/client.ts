@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
-  parseAcessos, parseConvites, parseEmpresaDetalhe, parseFuncoesPessoa, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  NovaEmpresaInput, NovaEmpresaTesteInput, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -89,6 +89,19 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     validarConvite: async (convite: string) => { const r = rec(await call('validarConvite', convite)); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async (o: NovaEmpresaTesteInput) => { await call('criarEmpresaTeste', o); },
     bloquearPessoa: async (login: string, bloquear: boolean) => { await call('bloquearPessoa', tok(), login, bloquear); },
+    // ----- cadastros gerais -----
+    registros: async (tipo: TipoRegistro) => parseRegistros(await call('registros', tok(), tipo)),
+    salvarRegistro: async (o: RegistroInput) => str(await call('salvarRegistro', tok(), o)),
+    apagarRegistro: async (id: string) => { await call('apagarRegistro', tok(), id); },
+    dadosPessoas: async () => parseDadosPessoas(await call('dadosPessoas', tok())),
+    salvarDadosPessoa: async (login: string, dados: DadosPessoa) => { await call('salvarDadosPessoa', tok(), login, dados); },
+    // ----- mensagens -----
+    minhasMensagens: async () => parseMensagens(await call('minhasMensagens', tok())),
+    marcarLidas: async (ids: string[]) => { await call('marcarLidas', tok(), ids); },
+    destinatarios: async () => parseDestinatarios(await call('destinatarios', tok())),
+    enviarMensagem: async (para: string, titulo: string, texto: string, importante: boolean) => str(await call('enviarMensagem', tok(), para, titulo, texto, importante)),
+    mensagensEnviadas: async () => parseEnviadas(await call('mensagensEnviadas', tok())),
+    apagarMensagem: async (id: string) => { await call('apagarMensagem', tok(), id); },
     funcoesPessoa: async (login: string) => parseFuncoesPessoa(await call('funcoesPessoa', tok(), login)),
     salvarFuncoes: async (login: string, funcoes: Record<string, boolean>) => { await call('salvarFuncoes', tok(), login, funcoes); },
     renomearEmpresa: async (id: string, nome: string) => { await call('renomearEmpresa', tok(), id, nome); },

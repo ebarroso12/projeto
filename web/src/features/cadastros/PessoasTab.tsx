@@ -22,17 +22,32 @@ const SIM_NAO = ['Sim', 'Não'];
 
 const randomPin = () => String(Math.floor(100000 + Math.random() * 900000));
 
+const CAMPOS_PESSOA: { k: string; label: string; tipo?: string; meia?: boolean }[] = [
+  { k: 'cpf', label: 'CPF', meia: true }, { k: 'telefone', label: 'Telefone / WhatsApp', meia: true },
+  { k: 'email', label: 'E-mail', meia: true }, { k: 'nascimento', label: 'Nascimento', tipo: 'date', meia: true },
+  { k: 'admissao', label: 'Admissão', tipo: 'date', meia: true }, { k: 'cargo', label: 'Cargo / função', meia: true },
+  { k: 'endereco', label: 'Endereço' }, { k: 'obs', label: 'Observações' },
+];
+
 function UserDrawer({ user, onClose }: { user: Usuario | null; onClose: () => void }) {
   const api = useApi();
+  const { demo } = useAuth();
+  const completo = api.precisaEmpresa || demo;
+  const dadosQ = useQuery({ queryKey: ['dados-pessoas'], queryFn: () => api.dadosPessoas(), enabled: completo && user !== null });
+  const [dados, setDados] = useState<Record<string, string> | null>(null);
+  const dadosAtuais = dados ?? (user ? dadosQ.data?.[user.login] : undefined) ?? {};
   const novo = user === null;
   const [f, setF] = useState<UsuarioInput>(() => ({
     novo, nome: user?.nome ?? '', login: user?.login ?? '', senha: novo ? randomPin() : '', setor: user?.setor ?? 'Costureira',
     perfil: user?.perfil ?? 'funcionario', ativo: user?.ativo === false ? 'Não' : 'Sim', podeFalta: user?.podeFalta ? 'Sim' : 'Não',
   }));
   const [error, setError] = useState('');
-  const save = useAction(api.salvarUsuario, {
+  const save = useAction(async (v: UsuarioInput) => {
+    await api.salvarUsuario(v);
+    if (completo && dados) await api.salvarDadosPessoa(v.login.trim().toLowerCase(), dados);
+  }, {
     success: (_d, v) => (v.senha ? `Salvo! Login: ${v.login.trim().toLowerCase()} · Senha: ${v.senha}` : 'Salvo!'),
-    invalidate: [['usuarios']], onSuccess: onClose,
+    invalidate: [['usuarios'], ['dados-pessoas']], onSuccess: onClose,
   });
   const set = <K extends keyof UsuarioInput>(k: K, v: UsuarioInput[K]) => setF(s => ({ ...s, [k]: v }));
   const setores = user && !SETORES.includes(user.setor) && user.setor ? [...SETORES, user.setor] : SETORES;
@@ -58,6 +73,17 @@ function UserDrawer({ user, onClose }: { user: Usuario | null; onClose: () => vo
         <SelectField label="Ativo" value={f.ativo} onChange={e => set('ativo', e.target.value as 'Sim' | 'Não')} options={SIM_NAO} />
       </div>
       <SelectField label="Pode colocar itens em falta?" value={f.podeFalta} onChange={e => set('podeFalta', e.target.value as 'Sim' | 'Não')} options={SIM_NAO} />
+      {completo && <>
+        <p className="secao-form">Dados do funcionário</p>
+        <div className="form-grid">
+          {CAMPOS_PESSOA.map(c => (
+            <div key={c.k} style={c.meia ? undefined : { gridColumn: '1 / -1' }}>
+              <TextField label={c.label} type={c.tipo ?? 'text'} value={dadosAtuais[c.k] ?? ''}
+                onChange={e => setDados({ ...dadosAtuais, [c.k]: e.target.value })} />
+            </div>
+          ))}
+        </div>
+      </>}
       {error && <p className="err" role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
     </Dialog>
   );

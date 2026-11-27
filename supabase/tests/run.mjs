@@ -532,6 +532,49 @@ await q(`delete from fab.donos where not principal`);
 await q(`update fab.perfis set ativo = false where id = $1`, [adm2]);
 ok((await q(`select count(*)::int n from fab.perfis where empresa_id = $1 and funcoes <> '{}'`, [empA]))[0].n === 0, '(9) estado limpo para as amostras do app');
 
+// ============ 21. cadastros gerais, dados de funcionários e mensagens ============
+console.log('\n--- cadastros e mensagens ---');
+const idCli = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'cliente', nome: 'Loja Centro', documento: '12.345.678/0001-90', telefone: '(16) 99999-0000', cidade: 'Franca' })})`)).data;
+ok(Boolean(idCli), 'cadastra cliente');
+ok((await rpc(admin, `fab_salvar_registro(${j({ tipo: 'fornecedor', nome: 'Tecelagem Sul', dados: { prazo: '30 dias' } })})`)).ok, 'cadastra fornecedor');
+ok((await rpc(admin, `fab_salvar_registro(${j({ tipo: 'banco', nome: 'Banco do Brasil', dados: { agencia: '1234-5', conta: '9876-0', pix: 'cnpj' } })})`)).ok, 'cadastra banco');
+ok((await rpc(admin, `fab_salvar_registro(${j({ tipo: 'produto', nome: 'Moletom Canguru', dados: { referencia: 'MC-01', preco: 89.9, custo: 41.5, cores: 'Cinza, Vinho', tamanhos: 'P, M, G, GG' } })})`)).ok, 'cadastra produto');
+const listas = (await q(`select tipo, nome from fab.itens_lista where empresa_id = $1`, [empA])).map(x => `${x.tipo}:${x.nome}`);
+ok(listas.includes('modelo:Moletom Canguru') && listas.includes('cor:Vinho') && listas.includes('tamanho:GG'), 'produto entra nas listas do Lançar (modelo, cores e tamanhos)');
+eq((await rpc(admin, `fab_registros('cliente')`)).data.map(x => x.nome), ['Loja Centro'], 'lista clientes');
+ok((await rpc(admin, `fab_registros('cliente')`)).data[0].dados !== undefined && (await rpc(adminB, `fab_registros('cliente')`)).data.length === 0, 'outra empresa não vê os cadastros');
+ok(fails_with(await rpc(ana, `fab_registros('cliente')`), 'FUNCAO_BLOQUEADA'), 'funcionário sem Cadastros não vê');
+ok(fails_with(await rpc(admin, `fab_salvar_registro(${j({ tipo: 'ouro', nome: 'x' })})`), 'Tipo de cadastro inválido'), 'tipo inválido recusado');
+ok((await rpc(admin, `fab_apagar_registro('${idCli}')`)).ok && (await rpc(admin, `fab_registros('cliente')`)).data.length === 0, 'apaga cadastro');
+ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.alvo === 'registros' && e.tipo === 'apagou'), 'cadastros ficam na auditoria');
+ok((await rpc(admin, `fab_salvar_dados_pessoa('ana', ${j({ cpf: '123.456.789-00', telefone: '16 9999', admissao: '2025-03-01', cargo: 'Costureira', senha: 'x' })})`)).ok, 'salva dados da funcionária');
+const dp = (await rpc(admin, 'fab_dados_pessoas()')).data;
+ok(dp.ana.cpf === '123.456.789-00' && dp.ana.admissao === '2025-03-01' && !('senha' in dp.ana), 'dados da funcionária (só campos permitidos)');
+// mensagens
+ok(fails_with(await rpc(ana, `fab_enviar_mensagem('', 'Oi', 'teste', false)`), 'FUNCAO_BLOQUEADA'), 'funcionário não envia mensagem');
+const m1 = (await rpc(admin, `fab_enviar_mensagem('', 'Reunião', 'Reunião às 15h no galpão.', true)`)).data;
+const m2 = (await rpc(admin, `fab_enviar_mensagem('ana', 'Para você', 'Ana, passe no escritório.', false)`)).data;
+ok(Boolean(m1) && Boolean(m2), 'admin envia para todos e para uma pessoa');
+let mb = (await rpc(bruno, 'fab_minhas_mensagens()')).data;
+ok(mb.some(x => x.id === m1 && x.para === 'Todos' && !x.lida) && !mb.some(x => x.id === m2), 'Bruno recebe a de todos, não a da Ana');
+let ma = (await rpc(ana, 'fab_minhas_mensagens()')).data;
+ok(ma.some(x => x.id === m2 && x.para === 'Ana Souza'), 'Ana recebe a mensagem dela');
+ok((await rpc(ana, `fab_marcar_lidas(array['${m1}','${m2}']::uuid[])`)).ok && (await rpc(ana, 'fab_minhas_mensagens()')).data.every(x => x.lida), 'Ana marca como lidas');
+const env = (await rpc(admin, 'fab_mensagens_enviadas()')).data.find(x => x.id === m1);
+ok(env.leram.includes('Ana Souza') && env.faltam.includes('Bruno Lima') && !env.faltam.includes('Edson'), 'admin vê quem leu e quem falta');
+ok((await rpc(adminB, 'fab_minhas_mensagens()')).data.every(x => x.id !== m1), 'mensagem não vaza para outra empresa');
+ok(fails_with(await rpc(ana, `fab_marcar_lidas(array['${m1}']::uuid[])`), '') === false, 'ok');
+// gerente: funcionário com a função Mensagens liberada
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ mensagens: true })})`);
+ok((await rpc(carla, `fab_enviar_mensagem('bruno', '', 'Bruno, confira o corte do lote 12.', false)`)).ok, 'gerente (Mensagens liberada) envia');
+ok((await rpc(carla, 'fab_destinatarios()')).data.some(x => x.login === 'bruno'), 'gerente escolhe destinatário');
+ok(fails_with(await rpc(carla, `fab_apagar_mensagem('${m1}')`), 'Só quem enviou'), 'gerente não apaga mensagem do admin');
+ok((await rpc(admin, `fab_apagar_mensagem('${m2}')`)).ok, 'admin apaga mensagem');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ mensagens: false })})`);
+ok(fails_with(await rpc(carla, `fab_enviar_mensagem('', '', 'x', false)`), 'FUNCAO_BLOQUEADA'), 'sem a função, gerente volta a não enviar');
+await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
+await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG')`);
+
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {
   const out = join(here, '../../web/src/api/__fixtures__');

@@ -17,6 +17,7 @@ import { pode, visibleFeatures, features } from './registry';
 import { useTheme } from './theme';
 import { PendentesBanner, usePendentes, usePresenca } from './acessoVivo';
 import { BotaoAtualizar, Rodape } from './Versao';
+import { MensagensBotao } from './Mensagens';
 
 function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
@@ -143,6 +144,7 @@ export function AppShell() {
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
             </Button>
             <BotaoAtualizar />
+            <MensagensBotao />
             <UserMenu onPassword={() => setPwd(true)} />
           </div>
         </header>

@@ -202,3 +202,17 @@ export interface AcessosDados {
 }
 
 export interface FuncoesPessoa { nome: string; perfil: string; eu: boolean; protegido: boolean; possoEmpresas: boolean; funcoes: Record<string, boolean>; padrao: Record<string, boolean> }
+
+// =====================================================================
+// Cadastros gerais e mensagens
+// =====================================================================
+export type TipoRegistro = 'produto' | 'cliente' | 'fornecedor' | 'banco';
+export interface Registro2 {
+  id: string; tipo: TipoRegistro; nome: string; documento: string; telefone: string; email: string; cidade: string; obs: string;
+  dados: Record<string, string>; ativo: boolean; criadoEm: string;
+}
+export type RegistroInput = Omit<Registro2, 'id' | 'criadoEm'> & { id?: string };
+export type DadosPessoa = Record<string, string>;
+export interface Mensagem { id: string; autor: string; para: string; titulo: string; texto: string; importante: boolean; em: string; lida: boolean }
+export interface MensagemEnviada extends Omit<Mensagem, 'lida'> { leram: string[]; faltam: string[] }
+export interface Destinatario { login: string; nome: string; setor: string }

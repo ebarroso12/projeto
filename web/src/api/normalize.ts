@@ -3,7 +3,7 @@
  * então campos podem faltar ou vir com outro tipo. Nenhum componente recebe `undefined`.
  */
 import type {
-  AcessosDados, Convite, EmpresaDetalhe, FuncoesPessoa, SessaoAcesso, StatusAcesso,
+  AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
   Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
@@ -235,3 +235,17 @@ export const parseEmpresaDetalhe = (v: unknown): EmpresaDetalhe => {
     eventos: parseAcessos({ eventos: r.eventos }).eventos,
   };
 };
+
+// ---------------------------------------------------------------- cadastros gerais e mensagens
+const TIPOS_REG = ['produto', 'cliente', 'fornecedor', 'banco'];
+export const parseRegistros = (v: unknown): Registro2[] => list(v, r => ({
+  id: str(r.id), tipo: (TIPOS_REG.includes(str(r.tipo)) ? str(r.tipo) : 'cliente') as TipoRegistro, nome: str(r.nome),
+  documento: str(r.documento), telefone: str(r.telefone), email: str(r.email), cidade: str(r.cidade), obs: str(r.obs),
+  dados: Object.fromEntries(Object.entries(rec(r.dados)).map(([k, x]) => [k, str(x)])), ativo: bool(r.ativo, true), criadoEm: str(r.criadoEm),
+}));
+export const parseDadosPessoas = (v: unknown): Record<string, DadosPessoa> =>
+  Object.fromEntries(Object.entries(rec(v)).map(([login, d]) => [login, Object.fromEntries(Object.entries(rec(d)).map(([k, x]) => [k, str(x)]))]));
+const msg = (r: R) => ({ id: str(r.id), autor: str(r.autor), para: str(r.para, 'Todos'), titulo: str(r.titulo), texto: str(r.texto), importante: bool(r.importante), em: str(r.em) });
+export const parseMensagens = (v: unknown): Mensagem[] => list(v, r => ({ ...msg(r), lida: bool(r.lida) }));
+export const parseEnviadas = (v: unknown): MensagemEnviada[] => list(v, r => ({ ...msg(r), leram: strings(r.leram), faltam: strings(r.faltam) }));
+export const parseDestinatarios = (v: unknown): Destinatario[] => list(v, r => ({ login: str(r.login), nome: str(r.nome), setor: str(r.setor) }));
