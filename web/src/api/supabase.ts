@@ -14,7 +14,7 @@ import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import { ApiError, fromServerMessage } from './transport';
@@ -184,6 +184,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     finDados: async () => parseFin(await rpc('fin_dados')),
     finSalvarLancamento: async o => str(await rpc('fin_salvar_lancamento', { p: o })),
     finContrapartes: async () => parseContrapartes(await rpc('fin_contrapartes')),
+    finContraparteLancamentos: async id => parseLancamentos(await rpc('fin_contraparte_lancamentos', { p_id: id })),
+    finContrapartesTotais: async ano => parseContrapartesTotais(await rpc('fin_contrapartes_totais', { p_ano: ano })),
     finApagarLancamento: async id => { await rpc('fin_apagar_lancamento', { p_id: id }); },
     finPagarParcela: async (id, data, valor, contaId) => { await rpc('fin_pagar_parcela', { p_id: id, p_data: data, p_valor: valor, p_conta: contaId }); },
     finPagarFatura: async (cartaoId, vencimento, valor, contaId, data) => {

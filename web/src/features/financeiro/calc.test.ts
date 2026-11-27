@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DreCategoria, FinDados, FinLancamento } from '../../api/types';
 import { calcularDre, pendencias } from '../dre/calc';
 import {
-  addMeses, compromissos, porContraparte, faturasAbertas, fluxoMes, parcelasEmAberto, realizadoMes, saldoConta, saldoTotal, totalGuardado, vencimentoParcela,
+  addMeses, compromissos, historicoContraparte, porContraparte, faturasAbertas, fluxoMes, parcelasEmAberto, realizadoMes, saldoConta, saldoTotal, totalGuardado, vencimentoParcela,
 } from './calc';
 
 const L = (o: Partial<FinLancamento>): FinLancamento => ({
@@ -114,5 +114,22 @@ describe('clientes e fornecedores no financeiro', () => {
     ]);
     expect(porContraparte(d, '2026-11', 'entrada')).toEqual([['Loja B', 1500], ['Loja A', 750], ['Não informado', 9000]]);
     expect(porContraparte(d, '2026-11', 'saida')).toEqual([['Tecelagem', 300]]);
+  });
+});
+
+describe('ficha do cliente/fornecedor', () => {
+  it('soma o ano, compara com o anterior, separa por mês e calcula o que falta pagar', () => {
+    const lancs = [
+      L({ tipo: 'saida', data: '2026-03-04', valor: 5400 }),
+      L({ tipo: 'saida', data: '2026-11-06', valor: 600 }),
+      L({ tipo: 'saida', data: '2025-07-01', valor: 2000 }),
+      L({ tipo: 'programada', data: '2026-10-15', valor: 6300, parcelas: 3, valorParcela: 2100, diaVencimento: 15, parcelasPagas: 1, contaId: 'cc' }),
+    ];
+    const h = historicoContraparte(lancs, '2026', '2026-11-26');
+    expect([h.pago, h.pagoAnterior, h.recebido, h.qtd, h.ultimo]).toEqual([6000, 2000, 0, 3, '2026-11-06']);
+    expect(h.porMes[2]).toBe(5400);
+    expect(h.porMes[10]).toBe(600);
+    expect([h.emAberto, h.parcelasAbertas]).toEqual([4200, 2]);
+    expect(h.doAno.map(l => l.data)).toEqual(['2026-11-06', '2026-10-15', '2026-03-04']);
   });
 });

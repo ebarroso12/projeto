@@ -241,6 +241,18 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
     ok(true, 'paga parcela/fatura');
   }
   await shot(page, '14-financeiro-apagar');
+  // ficha do fornecedor em Cadastros: histórico do Financeiro
+  await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
+  await page.getByRole('tab', { name: 'Fornecedores' }).click();
+  ok(await until(() => page.getByRole('columnheader', { name: /Pago em \d{4}/ }).isVisible()), 'lista de fornecedores com o total pago no ano');
+  await page.getByRole('button', { name: /Aviamentos Franca/ }).first().click();
+  await page.locator('dialog[open]').getByRole('tab', { name: 'Compras e contas' }).click();
+  ok(await until(() => page.locator('dialog[open]').getByText('Linha de costura e2e').isVisible()), 'ficha do fornecedor mostra o lançamento do Financeiro');
+  ok(await page.locator('dialog[open]').getByText(/Pago em \d{4}/).first().isVisible(), 'ficha mostra o total do ano');
+  await shot(page, '14b-ficha-fornecedor');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Fechar' }).last().click();
+  await page.locator('.sidebar').getByRole('link', { name: 'Financeiro' }).click();
+  await page.getByText('Saldo em contas').waitFor();
   for (const t of ['Contas e cartões', 'Metas', 'Planejamento', 'Ajustes']) {
     await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: t }).click();
     await page.waitForTimeout(150);

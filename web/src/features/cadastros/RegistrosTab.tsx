@@ -5,15 +5,16 @@ import { useApi } from '../../app/auth';
 import { useBoot } from '../../app/boot';
 import { pode } from '../../app/registry';
 import { useAction } from '../../app/useAction';
-import { formatBRL } from '../../lib/format';
+import { dataBR, formatBRL } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { Dialog, useConfirm } from '../../ui/Dialog';
 import { SelectField, TextAreaField, TextField } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
-import { Badge, Card } from '../../ui/primitives';
+import { Badge, Card, Segmented } from '../../ui/primitives';
 import { BOOT_KEY } from '../../app/boot';
+import { HistoricoContraparte } from './HistoricoContraparte';
 
 interface Campo { k: string; label: string; tipo?: 'texto' | 'moeda' | 'longo'; dica?: string; meia?: boolean }
 interface Config {
@@ -65,6 +66,8 @@ function Formulario({ tipo, inicial, onClose }: { tipo: TipoRegistro; inicial: R
   const cfg = CONFIG[tipo];
   const [f, setF] = useState<RegistroInput>(() => (inicial ? { ...inicial } : vazio(tipo)));
   const [contaFin, setContaFin] = useState(false);
+  const comHistorico = !!inicial && (tipo === 'cliente' || tipo === 'fornecedor') && pode(eu, 'financeiro');
+  const [aba, setAba] = useState<'dados' | 'historico'>('dados');
   const [erro, setErro] = useState('');
   const set = (k: keyof RegistroInput, v: string | boolean) => setF(s => ({ ...s, [k]: v }));
   const setD = (k: string, v: string) => setF(s => ({ ...s, dados: { ...s.dados, [k]: v } }));
@@ -75,9 +78,14 @@ function Formulario({ tipo, inicial, onClose }: { tipo: TipoRegistro; inicial: R
   }, { success: `${cfg.singular[0]!.toUpperCase()}${cfg.singular.slice(1)} salvo.`, invalidate: [['registros', tipo], BOOT_KEY, ['financeiro']], onSuccess: onClose });
   const moeda = (s: string) => s.replace(',', '.').replace(/[^\d.]/g, '');
   return (
-    <Dialog open onClose={onClose} title={inicial ? `Editar ${cfg.singular}` : `Novo ${cfg.singular}`} variant="drawer"
-      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={salvar.isPending}
+    <Dialog open onClose={onClose} title={inicial ? (comHistorico ? inicial.nome : `Editar ${cfg.singular}`) : `Novo ${cfg.singular}`} variant="drawer"
+      footer={aba === 'historico' ? <Button onClick={onClose}>Fechar</Button> : <><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={salvar.isPending}
         onClick={() => (f.nome.trim() ? (setErro(''), salvar.mutate(f)) : setErro('Preencha o nome.'))}>Salvar</Button></>}>
+      {comHistorico && (
+        <Segmented label={`Ficha do ${cfg.singular}`} value={aba} onChange={setAba}
+          options={[{ value: 'dados', label: 'Dados' }, { value: 'historico', label: tipo === 'cliente' ? 'Compras e pagamentos' : 'Compras e contas' }]} />
+      )}
+      {aba === 'historico' && inicial ? <HistoricoContraparte registro={inicial} /> : <>
       <TextField label={cfg.nome} value={f.nome} autoFocus onChange={e => set('nome', e.target.value)} />
       {cfg.documento && <TextField label={cfg.documento} value={f.documento} onChange={e => set('documento', e.target.value)} />}
       {cfg.contato && <>
@@ -102,6 +110,7 @@ function Formulario({ tipo, inicial, onClose }: { tipo: TipoRegistro; inicial: R
       )}
       {tipo === 'produto' && <p className="muted" style={{ fontSize: 13, margin: 0 }}>Ao salvar, o produto, as cores e os tamanhos passam a aparecer no Lançar.</p>}
       {erro && <p className="err" role="alert" style={{ color: 'var(--danger)' }}>{erro}</p>}
+      </>}
     </Dialog>
   );
 }
@@ -111,12 +120,27 @@ export function RegistrosTab({ tipo }: { tipo: TipoRegistro }) {
   const confirm = useConfirm();
   const cfg = CONFIG[tipo];
   const q = useQuery({ queryKey: ['registros', tipo], queryFn: () => api.registros(tipo) });
+  const { eu } = useBoot();
+  const ano = new Date().getFullYear();
+  const comFin = (tipo === 'cliente' || tipo === 'fornecedor') && pode(eu, 'financeiro');
+  const totais = useQuery({ queryKey: ['financeiro', 'totais', ano], queryFn: () => api.finContrapartesTotais(ano), enabled: comFin });
+  const totalDe = (id: string) => {
+    const t = totais.data?.find(x => x.id === id);
+    return { valor: t ? (tipo === 'cliente' ? t.recebido : t.pago) : 0, ultimo: t?.ultimo ?? null };
+  };
   const [editando, setEditando] = useState<Registro2 | null | undefined>(undefined);
   const apagar = useAction((id: string) => api.apagarRegistro(id), { success: 'Excluído.', invalidate: [['registros', tipo]] });
   const cols: Column<Registro2>[] = [
     { id: 'nome', header: cfg.titulo.slice(0, -1).replace(/e$/, 'e'), value: r => r.nome,
       cell: r => <button type="button" className="link-empresa" onClick={() => setEditando(r)}><b>{r.nome}</b>{!r.ativo && <Badge>inativo</Badge>}<small>{cfg.colunas(r).sub || '—'}</small></button> },
     { id: 'extra', header: tipo === 'produto' ? 'Preço' : tipo === 'banco' ? 'PIX' : 'Contato', value: r => cfg.colunas(r).extra ?? '', cell: r => cfg.colunas(r).extra || '—' },
+    ...(comFin ? [{
+      id: 'ano', header: tipo === 'cliente' ? `Recebido em ${ano}` : `Pago em ${ano}`, numeric: true, value: (r: Registro2) => totalDe(r.id).valor,
+      cell: (r: Registro2) => {
+        const t = totalDe(r.id);
+        return <>{t.valor ? <b className="tnum">{formatBRL(t.valor)}</b> : <span className="muted">—</span>}<small>{t.ultimo ? `último ${dataBR(t.ultimo)}` : 'sem lançamentos'}</small></>;
+      },
+    }] : []),
     { id: 'obs', header: 'Observação', value: r => r.obs, cell: r => <span className="muted">{r.obs || '—'}</span> },
     {
       id: 'acoes', header: '', cell: r => (

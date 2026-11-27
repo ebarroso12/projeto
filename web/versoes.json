@@ -1,5 +1,15 @@
 [
   {
+    "versao": "1.6.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Ficha do cliente e do fornecedor (Cadastros): histórico de lançamentos do Financeiro, total do ano comparado ao ano anterior e gráfico mês a mês",
+      "Fornecedor: quanto ainda falta pagar (parcelas em aberto)",
+      "Listas de Clientes e Fornecedores mostram o recebido / pago no ano e a data do último lançamento",
+      "Gráficos de barras mais legíveis no celular"
+    ]
+  },
+  {
     "versao": "1.5.1",
     "data": "2026-11-27",
     "novidades": [

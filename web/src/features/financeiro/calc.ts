@@ -150,3 +150,30 @@ export function porContraparte(d: FinDados, mes: string, tipo: 'entrada' | 'said
 export function gastosPorCategoria(d: FinDados, mes: string): [string, number][] {
   return Object.entries(realizadoMes(d, mes).saidas).sort((a, b) => b[1] - a[1]);
 }
+
+/** Ficha do cliente/fornecedor: totais de um ano, comparação com o ano anterior, mês a mês e o que ainda falta pagar. */
+export interface HistoricoContraparte {
+  recebido: number; pago: number; recebidoAnterior: number; pagoAnterior: number;
+  porMes: number[]; qtd: number; ultimo: string | null; emAberto: number; parcelasAbertas: number;
+  doAno: FinLancamento[];
+}
+export function historicoContraparte(lancs: FinLancamento[], ano: string, hoje: string): HistoricoContraparte {
+  const anterior = String(Number(ano) - 1);
+  const h: HistoricoContraparte = { recebido: 0, pago: 0, recebidoAnterior: 0, pagoAnterior: 0, porMes: Array(12).fill(0), qtd: 0, ultimo: null, emAberto: 0, parcelasAbertas: 0, doAno: [] };
+  for (const l of lancs) {
+    if (l.data.startsWith(ano)) { h.qtd++; h.doAno.push(l); }
+    if (l.tipo === 'programada') {
+      // na conta: parcelasPagas controla; no cartão: o que ainda não venceu
+      for (const p of parcelasEmAberto(l)) if (!l.cartaoId || p.data >= hoje) { h.emAberto += p.valor; h.parcelasAbertas++; }
+      continue;
+    }
+    if (!h.ultimo || l.data > h.ultimo) h.ultimo = l.data;
+    const campo = l.tipo === 'entrada' ? 'recebido' : 'pago';
+    if (l.data.startsWith(ano)) { h[campo] += l.valor; h.porMes[Number(l.data.slice(5, 7)) - 1]! += l.valor; }
+    if (l.data.startsWith(anterior)) h[campo === 'recebido' ? 'recebidoAnterior' : 'pagoAnterior'] += l.valor;
+  }
+  for (const k of ['recebido', 'pago', 'recebidoAnterior', 'pagoAnterior', 'emAberto'] as const) h[k] = arred(h[k]);
+  h.porMes = h.porMes.map(arred);
+  h.doAno.sort((a, b) => b.data.localeCompare(a.data));
+  return h;
+}

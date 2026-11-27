@@ -99,9 +99,11 @@ export function BarrasComparadas({ grupos, series, titulo, formato = (n: number)
   const id = useId();
   const [tip, setTip] = useState<Tip | null>(null);
   const [box, W] = useLargura<HTMLDivElement>();
-  const max = niceMax(Math.max(1, ...grupos.flatMap(g => g.valores)));
+  const maxV = Math.max(0, ...grupos.flatMap(g => g.valores));
+  const max = niceMax(Math.max(1, maxV));
+  // rótulo de valor só cabe se a coluna for larga o bastante; senão mostra só o maior (o resto fica no toque/tabela)
   const H = altura, L = 44, B = 28, T = 22, plotH = H - B - T, plotW = W - L - 8;
-  const gw = plotW / Math.max(1, grupos.length), bw = Math.min(46, (gw - 20) / series.length);
+  const gw = plotW / Math.max(1, grupos.length), bw = Math.min(46, Math.max(gw - 20, gw * 0.6) / series.length);
   const y = (v: number) => T + plotH - (v / max) * plotH;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => f * max);
   return (
@@ -124,7 +126,7 @@ export function BarrasComparadas({ grupos, series, titulo, formato = (n: number)
                     <g key={si}>
                       <path d={barPath(x, y(v), bw, h)} fill={series[si]!.color}
                         onMouseMove={e => { const b = e.currentTarget.ownerSVGElement!.parentElement!.getBoundingClientRect(); setTip({ x: e.clientX - b.left, y: e.clientY - b.top, content: <><b>{g.label}</b><br />{series[si]!.label}: {formato(v)}</> }); }} />
-                      {si === g.valores.length - 1 && v > 0 && <text x={x + bw / 2} y={y(v) - 6} textAnchor="middle" className="viz-label">{formato(v)}</text>}
+                      {si === g.valores.length - 1 && v > 0 && (gw >= formato(v).length * 6.5 || v === maxV) && <text x={x + bw / 2} y={y(v) - 6} textAnchor="middle" className="viz-label">{formato(v)}</text>}
                     </g>
                   );
                 })}

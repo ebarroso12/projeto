@@ -314,3 +314,8 @@ dialog.dlg.drawer.wide { width: min(1080px, calc(100vw - 24px)); }
   .topbar-right > .btn-ghost.btn-icon { display: none; } /* tema: continua na busca rápida (lupa) */
   .topbar-right .menu > .btn span { max-width: 72px !important; }
 }
+
+/* abas dentro de janelas/gavetas: não deixa o flex achatar (overflow-x permite encolher até ~0) */
+.dlg .segmented { flex-shrink: 0; align-self: flex-start; }
+/* cartões de números dentro da ficha: 2 colunas no computador, 1 no celular */
+.kpi-ficha { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }

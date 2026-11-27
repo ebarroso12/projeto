@@ -594,6 +594,18 @@ fin = (await rpc(admin, 'fin_dados()')).data;
 const lc = fin.lancamentos.find(l => l.id === lCli);
 ok(lc.contraparteId === idCli2 && lc.contraparte === 'Loja Centro', 'fin_dados devolve o cliente do lançamento');
 ok(fin.lancamentos.some(l => l.origemId === progForn && l.contraparteId === idForn && l.contraparte === 'Aviamentos Norte'), 'parcela paga herda o fornecedor');
+// ficha do cliente/fornecedor
+let hist = (await rpc(admin, `fin_contraparte_lancamentos('${idForn}')`)).data;
+ok(hist.length === 2 && hist.some(l => l.tipo === 'programada') && hist.some(l => l.tipo === 'saida' && l.valor === 100), 'histórico do fornecedor: compra parcelada e parcela paga');
+ok(fails_with(await rpc(admin, `fin_contraparte_lancamentos('${idProd}')`), 'não encontrado'), 'produto não tem histórico');
+ok(fails_with(await rpc(admin, `fin_contraparte_lancamentos('${idCliB}')`), 'não encontrado'), 'não vê histórico de cliente de outra empresa');
+ok(fails_with(await rpc(ana, `fin_contraparte_lancamentos('${idForn}')`), 'FUNCAO_BLOQUEADA'), 'funcionário sem Financeiro não vê histórico');
+let tot = (await rpc(admin, 'fin_contrapartes_totais(2026)')).data;
+const tc = tot.find(x => x.id === idCli2), tf = tot.find(x => x.id === idForn);
+ok(tc.recebido === 1200 && tc.pago === 0 && tc.qtd === 1 && tc.ultimo === '2026-11-12', 'totais do ano do cliente');
+ok(tf.pago === 100 && tf.recebido === 0 && tf.qtd === 2 && tf.ultimo === '2026-11-10', 'totais do ano do fornecedor (só o que foi pago)');
+ok((await rpc(admin, 'fin_contrapartes_totais(2025)')).data.every(x => x.qtd === 0 && x.recebido === 0), 'outro ano zerado');
+ok((await rpc(adminB, 'fin_contrapartes_totais(2026)')).data.every(x => x.id !== idCli2), 'totais não vazam para outra empresa');
 ok((await rpc(admin, `fin_salvar_lancamento(${j({ id: lCli, tipo: 'entrada', data: '2026-11-12', descricao: 'Venda Loja Centro', valor: 1200, contaId: conta })})`)).ok, 'edita tirando o cliente');
 fin = (await rpc(admin, 'fin_dados()')).data;
 ok(fin.lancamentos.find(l => l.id === lCli).contraparteId === null, 'cliente removido do lançamento');
@@ -605,7 +617,7 @@ ok(lc2.contraparteId === null && lc2.contraparte === 'Loja Centro', 'lançamento
 await rpc(admin, `fin_apagar_lancamento('${lCli}')`); await rpc(admin, `fin_apagar_lancamento('${progForn}')`);
 await q(`delete from fab.fin_lancamentos where origem_id = '${progForn}'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
-await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG')`);
+await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {

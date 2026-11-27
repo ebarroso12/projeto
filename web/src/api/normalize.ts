@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinDados, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -151,7 +151,7 @@ export const parseConvites = (v: unknown): Convite[] =>
     expiraEm: str(r.expiraEm), criadoEm: str(r.criadoEm), empresas: strings(r.empresas),
   }));
 
-const finLancamento = (r: R): FinLancamento => ({
+export const finLancamento = (r: R): FinLancamento => ({
   id: str(r.id), tipo: (['entrada', 'saida', 'programada'].includes(str(r.tipo)) ? str(r.tipo) : 'saida') as FinLancamento['tipo'],
   data: str(r.data), descricao: str(r.descricao), valor: num(r.valor),
   contaId: strOrNull(r.contaId), cartaoId: strOrNull(r.cartaoId),
@@ -161,6 +161,9 @@ const finLancamento = (r: R): FinLancamento => ({
   contraparteId: strOrNull(r.contraparteId), contraparte: str(r.contraparte),
 });
 
+export const parseLancamentos = (v: unknown): FinLancamento[] => (Array.isArray(v) ? v : []).map(rec).map(finLancamento);
+export const parseContrapartesTotais = (v: unknown): FinContraparteTotal[] =>
+  (Array.isArray(v) ? v : []).map(rec).map(r => ({ id: str(r.id), recebido: num(r.recebido), pago: num(r.pago), qtd: num(r.qtd), ultimo: strOrNull(r.ultimo) }));
 export const parseContrapartes = (v: unknown): FinContraparte[] =>
   (Array.isArray(v) ? v : []).map(rec).map(r => ({
     id: str(r.id), tipo: (str(r.tipo) === 'fornecedor' ? 'fornecedor' : 'cliente') as FinContraparte['tipo'], nome: str(r.nome), documento: str(r.documento),

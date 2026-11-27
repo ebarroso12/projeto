@@ -144,6 +144,8 @@ export interface FinLancamento {
   contraparteId: string | null; contraparte: string;
 }
 /** Cliente ou fornecedor ativo, para escolher no lançamento. */
+/** Totais do ano de um cliente/fornecedor (lista de Cadastros). `ultimo` = data do último lançamento realizado (qualquer ano). */
+export interface FinContraparteTotal { id: string; recebido: number; pago: number; qtd: number; ultimo: string | null }
 export interface FinContraparte { id: string; tipo: 'cliente' | 'fornecedor'; nome: string; documento: string }
 export interface FinPagamentoFatura { id: string; cartaoId: string; vencimento: string; valor: number; contaId: string; data: string }
 export interface FinMeta { id: string; nome: string; valorMeta: number; dataAlvo: string | null; ativa: boolean }

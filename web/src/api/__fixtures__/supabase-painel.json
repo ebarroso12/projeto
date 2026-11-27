@@ -39,7 +39,7 @@
       "cor": "Preto",
       "qtd": 9,
       "data": "2026-11-27",
-      "hist": "09:42 7→9",
+      "hist": "09:50 7→9",
       "nome": "Bruno Lima",
       "etapa": "Corte",
       "modelo": "Camisa Polo",
@@ -57,10 +57,10 @@
     },
     {
       "nome": "Bruno Lima",
-      "extra": "9:42",
-      "saida": "09:42",
+      "extra": "9:50",
+      "saida": "09:50",
       "setor": "Cortador",
-      "entrada": "09:42"
+      "entrada": "09:50"
     },
     {
       "nome": "Carla Dias",

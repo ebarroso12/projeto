@@ -47,27 +47,26 @@
   "horaFim": "17:30",
   "modelos": [
     "Camisa Polo",
-    "Calça Jeans",
-    "Camiseta Básica"
+    "Calça Jeans"
   ],
   "meusHoje": [
     {
-      "id": "d14a8d44-ba54-4baa-a49c-bf9a94113ab1",
+      "id": "d9485fc6-336d-4a1e-bcf5-26856300efb6",
       "cor": "Preto",
       "qtd": 8,
       "hist": "",
-      "hora": "09:42",
+      "hora": "09:50",
       "etapa": "Conferência",
       "modelo": "Camisa Polo",
       "edicoes": 0,
       "tamanho": "M"
     },
     {
-      "id": "a6280d90-7809-4edc-a1fb-b3969cdd522a",
+      "id": "168fbb5e-d0f4-4f33-a80e-4f476231a383",
       "cor": "Preto",
       "qtd": 12,
       "hist": "",
-      "hora": "09:42",
+      "hora": "09:50",
       "etapa": "Conferência",
       "modelo": "Camisa Polo",
       "edicoes": 0,

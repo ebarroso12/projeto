@@ -2,7 +2,7 @@
   "hoje": "2026-11-27",
   "metas": [
     {
-      "id": "13ac5169-0be5-4081-a686-018d7999e5b1",
+      "id": "cec7649f-6f8a-4a83-9480-89dc79321026",
       "nome": "Reserva de emergência",
       "ativa": true,
       "dataAlvo": null,
@@ -11,19 +11,19 @@
   ],
   "contas": [
     {
-      "id": "9b97b326-30c1-425f-a229-70e4f360bbb7",
+      "id": "6a14c311-b1c5-4eaa-8757-eb88a2277fe4",
       "nome": "Caixa",
       "ativa": true,
       "saldoInicial": 0
     },
     {
-      "id": "36867ec2-6108-4d4b-95eb-9d1c11932fa1",
+      "id": "48aac34a-f0a6-47d2-89b5-8cae562c1fac",
       "nome": "Caixa da Carla",
       "ativa": true,
       "saldoInicial": 0
     },
     {
-      "id": "b3868678-bdc0-4815-8762-d85ad506d86a",
+      "id": "d3a6bfb2-4ee5-41f7-87f1-596dc07a03eb",
       "nome": "Conta corrente",
       "ativa": true,
       "saldoInicial": 0
@@ -59,7 +59,7 @@
   },
   "cartoes": [
     {
-      "id": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
+      "id": "aba5fa5d-5395-4fb4-bc15-ce71b4aab71b",
       "nome": "Visa Empresa",
       "ativo": true,
       "diaFechamento": 25,
@@ -69,7 +69,7 @@
   "dataInicio": "2026-11-27",
   "lancamentos": [
     {
-      "id": "55dca037-0852-46fa-94fc-dc5a3f2df837",
+      "id": "010f3a74-ffc8-4dfe-bb57-b46dddd9a03f",
       "obs": "",
       "data": "2026-11-26",
       "tipo": "saida",
@@ -77,7 +77,7 @@
       "valor": 300,
       "centro": "",
       "contaId": null,
-      "cartaoId": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
+      "cartaoId": "aba5fa5d-5395-4fb4-bc15-ce71b4aab71b",
       "origemId": null,
       "parcelas": null,
       "categoria": "Matéria-prima",
@@ -91,7 +91,7 @@
       "vencimentoFatura": "2027-01-05"
     },
     {
-      "id": "c71d7ac7-8b3e-4f26-ab14-f8662119d1ce",
+      "id": "d933cd0b-a0ad-402c-aea9-bacfb60f575b",
       "obs": "",
       "data": "2026-11-20",
       "tipo": "saida",
@@ -99,7 +99,7 @@
       "valor": 50,
       "centro": "",
       "contaId": null,
-      "cartaoId": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
+      "cartaoId": "aba5fa5d-5395-4fb4-bc15-ce71b4aab71b",
       "origemId": null,
       "parcelas": null,
       "categoria": "",
@@ -113,16 +113,16 @@
       "vencimentoFatura": "2026-12-05"
     },
     {
-      "id": "d9267578-c7cf-48d2-b298-06f7c64a8417",
+      "id": "af55b7c2-8e0e-4055-b96d-46cf2a6ed3d4",
       "obs": "",
       "data": "2026-11-15",
       "tipo": "saida",
       "forma": "",
       "valor": 1000,
       "centro": "",
-      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
+      "contaId": "d3a6bfb2-4ee5-41f7-87f1-596dc07a03eb",
       "cartaoId": null,
-      "origemId": "28cea7d8-fbf5-4952-9ea3-25d414577cfc",
+      "origemId": "464e8939-a5ba-4980-8d59-2a23aa9545a6",
       "parcelas": null,
       "categoria": "",
       "descricao": "Máquina de costura · parcela 1/3",
@@ -135,14 +135,14 @@
       "vencimentoFatura": null
     },
     {
-      "id": "4bc005eb-10a4-4ef4-aad8-67fae6d16e8e",
+      "id": "11e8829b-08f0-44a2-bc76-4531bf572630",
       "obs": "",
       "data": "2026-11-10",
       "tipo": "entrada",
       "forma": "",
       "valor": 5000,
       "centro": "",
-      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
+      "contaId": "d3a6bfb2-4ee5-41f7-87f1-596dc07a03eb",
       "cartaoId": null,
       "origemId": null,
       "parcelas": null,
@@ -157,14 +157,14 @@
       "vencimentoFatura": null
     },
     {
-      "id": "28cea7d8-fbf5-4952-9ea3-25d414577cfc",
+      "id": "464e8939-a5ba-4980-8d59-2a23aa9545a6",
       "obs": "",
       "data": "2026-11-01",
       "tipo": "programada",
       "forma": "",
       "valor": 3000,
       "centro": "",
-      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
+      "contaId": "d3a6bfb2-4ee5-41f7-87f1-596dc07a03eb",
       "cartaoId": null,
       "origemId": null,
       "parcelas": 3,
@@ -191,21 +191,21 @@
   ],
   "movimentosMeta": [
     {
-      "id": "3b65fc27-2c6e-4dba-bc6e-8ba14c19b0ea",
+      "id": "de0c2726-6fff-45eb-9f12-05e0c584886f",
       "data": "2026-11-20",
       "tipo": "deposito",
       "valor": 800,
-      "metaId": "13ac5169-0be5-4081-a686-018d7999e5b1",
-      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a"
+      "metaId": "cec7649f-6f8a-4a83-9480-89dc79321026",
+      "contaId": "d3a6bfb2-4ee5-41f7-87f1-596dc07a03eb"
     }
   ],
   "pagamentosFatura": [
     {
-      "id": "dc5fde42-df69-45ac-88c1-f62605e10202",
+      "id": "304cb025-0bba-4c1b-8dcf-01c17cb001b2",
       "data": "2026-12-05",
       "valor": 50,
-      "contaId": "b3868678-bdc0-4815-8762-d85ad506d86a",
-      "cartaoId": "c31b83c3-fd57-4e7c-8f03-3abca43f6197",
+      "contaId": "d3a6bfb2-4ee5-41f7-87f1-596dc07a03eb",
+      "cartaoId": "aba5fa5d-5395-4fb4-bc15-ce71b4aab71b",
       "vencimento": "2026-12-05"
     }
   ]

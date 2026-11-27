@@ -410,6 +410,14 @@ const fin = {
   L({ tipo: 'saida', data: `${m}-18`, descricao: 'Anúncios Instagram', valor: 450, cartaoId: 'visa', categoria: 'Marketing', centro: 'Comercial', vencimentoFatura: vencFatura(`${m}-18`, 25, 5) });
   L({ tipo: 'programada', data: `${p}-20`, descricao: 'Máquina overloque', valor: 7200, contaId: 'cc', parcelas: 6, valorParcela: 1200, diaVencimento: 20, parcelasPagas: 1, categoria: 'Manutenção', forma: 'Boleto' });
   L({ tipo: 'programada', data: `${m}-02`, descricao: 'Contador (mensal)', valor: 900, contaId: 'cc', parcelas: 12, valorParcela: 900, diaVencimento: 15, categoria: 'Outros', centro: 'Administrativo', forma: 'PIX' });
+  // histórico de clientes e fornecedores (ficha em Cadastros)
+  const p2 = mesMenos(2), p3 = mesMenos(3);
+  L({ tipo: 'entrada', data: `${p3}-12`, descricao: 'Venda lote 109 · Loja Centro', valor: 9600, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'Boleto', contraparteId: 'r3', contraparte: 'Loja Centro Modas' });
+  L({ tipo: 'entrada', data: `${p2}-09`, descricao: 'Venda lote 113 · Loja Centro', valor: 12300, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'Boleto', contraparteId: 'r3', contraparte: 'Loja Centro Modas' });
+  L({ tipo: 'entrada', data: `${m}-03`, descricao: 'Venda lote 120 · Loja Centro', valor: 11250, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'PIX', contraparteId: 'r3', contraparte: 'Loja Centro Modas' });
+  L({ tipo: 'saida', data: `${p3}-04`, descricao: 'Malha piquet 200 kg', valor: 5400, contaId: 'cc', categoria: 'Matéria-prima', forma: 'Boleto', contraparteId: 'r5', contraparte: 'Tecelagem Sul' });
+  L({ tipo: 'saida', data: `${p2}-06`, descricao: 'Ribana e malha 150 kg', valor: 3900, contaId: 'cc', categoria: 'Matéria-prima', forma: 'Boleto', contraparteId: 'r5', contraparte: 'Tecelagem Sul' });
+  L({ tipo: 'saida', data: `${m}-08`, descricao: 'Zíperes e botões', valor: 640, contaId: 'cc', categoria: 'Matéria-prima', forma: 'PIX', contraparteId: 'r6', contraparte: 'Aviamentos Franca' });
   fin.movimentosMeta.push({ id: uid(), metaId: 'm1', tipo: 'deposito', valor: 3000, data: `${p}-28`, contaId: 'cc' });
   fin.expectativas.push({ mes: m, entradas: 32000, saidas: { 'Folha de pagamento': 9500, Aluguel: 4800, 'Matéria-prima': 8000, 'Energia e água': 1600, Marketing: 600 } });
 })();
@@ -772,6 +780,28 @@ const mensagensDemo: { id: string; autor: string; paraLogin: string; titulo: str
 ];
 const nomeLogin = (l: string) => state.users.find(u => u.login === l)?.nome ?? l;
 Object.assign(handlers, {
+  finContraparteLancamentos: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    if (!registrosDemo.some(r => r.id === id && (r.tipo === 'cliente' || r.tipo === 'fornecedor'))) throw fromServerMessage('Cliente ou fornecedor não encontrado.');
+    return fin.lancamentos.filter(l => !l.apagado && l.contraparteId === id).sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  },
+  finContrapartesTotais: ([t, ano]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const tot = new Map<string, { id: string; recebido: number; pago: number; qtd: number; ultimo: string | null }>();
+    for (const l of fin.lancamentos) {
+      if (l.apagado || !l.contraparteId) continue;
+      const id = String(l.contraparteId), data = String(l.data);
+      const x = tot.get(id) ?? { id, recebido: 0, pago: 0, qtd: 0, ultimo: null };
+      if (data.startsWith(String(ano))) {
+        x.qtd++;
+        if (l.tipo === 'entrada') x.recebido += Number(l.valor);
+        if (l.tipo === 'saida') x.pago += Number(l.valor);
+      }
+      if (l.tipo !== 'programada' && (!x.ultimo || data > x.ultimo)) x.ultimo = data;
+      tot.set(id, x);
+    }
+    return [...tot.values()];
+  },
   finContrapartes: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return registrosDemo.filter(r => (r.tipo === 'cliente' || r.tipo === 'fornecedor') && r.ativo !== false).map(r => ({ id: r.id, tipo: r.tipo, nome: r.nome, documento: r.documento })); },
   registros: ([t, tipo]: unknown[]) => { requireAdmin(userOf(String(t))); return registrosDemo.filter(r => r.tipo === tipo); },
   salvarRegistro: ([t, o]: unknown[]) => {
