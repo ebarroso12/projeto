@@ -64,6 +64,7 @@ export function LoginPage() {
             autoComplete="current-password" error={error} />
           <Button type="submit" variant="primary" size="lg" block loading={busy}>Entrar</Button>
           <p className="login-legal">Ao entrar, seu acesso fica registrado (data, hora e aparelho).</p>
+          <p className="login-legal"><a href="?conheca">Conheça o Fábrica e teste grátis →</a></p>
       </form>
       </main>
     </div>

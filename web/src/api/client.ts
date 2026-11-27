@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, MaterialInput, MovMaterialInput, PedidoInput, PedidoReceber, PedidoStatus, ValorPeca, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, MaterialInput, MovMaterialInput, PedidoInput, PedidoReceber, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -86,6 +86,11 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     revogarConvite: async (id: string) => { await call('revogarConvite', tok(), id); },
     ajustarTeste: async (empresaId: string, dias: number | null) => { await call('ajustarTeste', tok(), empresaId, dias); },
     meuTeste: async () => str(await call('meuTeste', tok())),
+    vitrine: async (): Promise<Vitrine> => { const r = rec(await call('vitrine')); return { convite: r.convite ? str(r.convite) : null, dias: num(r.dias), whatsapp: r.whatsapp ? str(r.whatsapp) : null }; },
+    vitrineAdmin: async (): Promise<VitrineAdmin> => parseVitrineAdmin(await call('vitrineAdmin', tok())),
+    linkPublicoCriar: async (dias: number, usos: number, nota: string) => str(await call('linkPublicoCriar', tok(), dias, usos, nota)),
+    linkPublicoDesativar: async () => { await call('linkPublicoDesativar', tok()); },
+    salvarContatoVitrine: async (whatsapp: string) => { await call('salvarContatoVitrine', tok(), whatsapp); },
     validarConvite: async (convite: string) => { const r = rec(await call('validarConvite', convite)); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async (o: NovaEmpresaTesteInput) => { await call('criarEmpresaTeste', o); },
     bloquearPessoa: async (login: string, bloquear: boolean) => { await call('bloquearPessoa', tok(), login, bloquear); },

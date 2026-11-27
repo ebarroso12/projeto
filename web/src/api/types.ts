@@ -277,3 +277,12 @@ export interface MovMaterial { id: string; tipo: 'entrada' | 'saida' | 'ajuste';
 export interface MovMaterialInput { materialId: string; tipo: 'entrada' | 'saida' | 'ajuste'; qtd?: number; contado?: number; data: string; valor?: number | null; fornecedorId?: string | null; contaId?: string | null; obs: string }
 export interface HistoricoMaterial { movimentos: MovMaterial[]; consumoMensal: { mes: string; qtd: number }[] }
 export interface MaterialOpcoes { fornecedores: { id: string; nome: string }[]; contas: { id: string; nome: string }[] }
+
+// =====================================================================
+// Página de apresentação (vitrine) e link público de teste
+// =====================================================================
+export interface Vitrine { convite: string | null; dias: number; whatsapp: string | null }
+export interface VitrineAdmin {
+  link: { token: string; dias: number; usos: number; usosMax: number; valido: boolean; empresas: number } | null;
+  whatsapp: string | null;
+}

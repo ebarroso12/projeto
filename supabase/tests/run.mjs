@@ -835,6 +835,32 @@ ok(nDia >= 1 && doAdmin && /conta\(s\) a pagar atrasada/.test(doAdmin.texto) && 
 ok(!diarios.some(d => d.users[0] === ana), 'quem não tem as funções não recebe o resumo');
 await q(`delete from fab.pedidos where id = $1`, [pedAtr.id]); await q(`delete from fab.materiais where id = $1`, [matB]);
 await q(`delete from fab.fin_lancamentos where descricao = 'Conta atrasada'`);
+// ============ 29. página de apresentação e link público ============
+console.log('\n--- vitrine ---');
+ok(fails_with(await rpc(adminB, `fab_link_publico_criar(7, 50, '')`), 'responsável pelo sistema'), 'só o dono publica o link');
+let vit = (await rpc(null, 'fab_vitrine()', { role: 'anon' })).data;
+ok(vit.convite === null && vit.whatsapp === null, 'sem link publicado, a página não oferece teste');
+const tokPub = (await rpc(admin, `fab_link_publico_criar(7, 50, 'Site')`)).data;
+ok(tokPub && tokPub.length >= 32, 'dono publica o link de teste');
+ok((await rpc(admin, `fab_salvar_contato_vitrine('(16) 99999-1234')`)).ok, 'dono informa o WhatsApp');
+ok(fails_with(await rpc(admin, `fab_salvar_contato_vitrine('123')`), 'WhatsApp inválido'), 'WhatsApp curto recusado');
+vit = (await rpc(null, 'fab_vitrine()', { role: 'anon' })).data;
+ok(vit.convite === tokPub && vit.dias === 7 && vit.whatsapp === '5516999991234', 'página pública recebe o link, os dias e o WhatsApp (com 55)');
+const valPub = (await rpc(null, `fab_validar_convite('${tokPub}')`, { role: 'anon' })).data;
+ok(valPub.valido && valPub.tipo === 'teste', 'link público é válido');
+// prazo conta do cadastro: simula link publicado há 20 dias
+await q(`update fab.convites set criado_em = now() - interval '20 days' where publico`);
+const idPub = (await rpc(null, `fab_criar_empresa_teste('${tokPub}', 'vitrine-x', 'Vitrine X')`, { role: 'service_role' })).data;
+const [{ dias: diasPub }] = await q(`select round(extract(epoch from (teste_ate - now())) / 86400)::int as dias from fab.empresas where id = $1`, [idPub]);
+eq(diasPub, 7, 'no link público o teste conta do cadastro (7 dias a partir de hoje), não da publicação');
+let va = (await rpc(admin, 'fab_vitrine_admin()')).data;
+ok(va.link.usos === 1 && va.link.empresas === 1 && va.link.valido && va.whatsapp === '5516999991234', 'painel do dono: usos e empresas do link público');
+const tokPub2 = (await rpc(admin, `fab_link_publico_criar(14, 10, '')`)).data;
+ok((await rpc(null, 'fab_vitrine()', { role: 'anon' })).data.convite === tokPub2 && !(await rpc(null, `fab_validar_convite('${tokPub}')`, { role: 'anon' })).data.valido,
+  'trocar o link desativa o anterior');
+ok((await rpc(admin, 'fab_link_publico_desativar()')).ok && (await rpc(null, 'fab_vitrine()', { role: 'anon' })).data.convite === null, 'tirar o link da página');
+ok(fails_with(await rpc(null, 'fab_vitrine_admin()', { role: 'anon' }), 'permission denied'), 'anônimo não vê o painel do link');
+await q(`delete from fab.empresas where id = $1`, [idPub]); await q(`delete from fab.sistema where chave = 'vitrine_whatsapp'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

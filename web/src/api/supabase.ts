@@ -14,7 +14,7 @@ import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import { ApiError, fromServerMessage } from './transport';
@@ -162,6 +162,11 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     revogarConvite: async id => { await rpc('fab_revogar_convite', { p_id: id }); },
     ajustarTeste: async (empresaId, dias) => { await rpc('fab_ajustar_teste', { p_empresa: empresaId, p_dias: dias }); },
     meuTeste: async () => (chave ? '' : str(await rpc('fab_meu_teste'))),
+    vitrine: async () => { const r = rec(await rpc('fab_vitrine')); return { convite: r.convite ? str(r.convite) : null, dias: num(r.dias), whatsapp: r.whatsapp ? str(r.whatsapp) : null }; },
+    vitrineAdmin: async () => parseVitrineAdmin(await rpc('fab_vitrine_admin')),
+    linkPublicoCriar: async (dias, usos, nota) => str(await rpc('fab_link_publico_criar', { p_dias: dias, p_usos: usos, p_nota: nota })),
+    linkPublicoDesativar: async () => { await rpc('fab_link_publico_desativar'); },
+    salvarContatoVitrine: async whatsapp => { await rpc('fab_salvar_contato_vitrine', { p_whatsapp: whatsapp }); },
     validarConvite: async convite => { const r = rec(await rpc('fab_validar_convite', { p_token: convite })); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async o => { await edge({ action: 'teste', ...o }); },
     bloquearPessoa: async (login, bloquear) => { await rpc('fab_bloquear_pessoa', { p_login: login, p_bloquear: bloquear }); },

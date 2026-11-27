@@ -1216,3 +1216,27 @@ Object.assign(handlers, {
   pushCancelar: ([t, ep]: unknown[]) => { userOf(String(t)); pushDemo.delete(String(ep)); return null; },
   pushStatus: ([t, ep]: unknown[]) => { userOf(String(t)); return { esteAparelho: pushDemo.has(String(ep)), aparelhos: pushDemo.size, configurado: false }; },
 });
+
+// ---------------------------------------------------------------- vitrine (demonstração)
+const vitrineDemo: { token: string | null; dias: number; usos: number; usosMax: number; whatsapp: string | null } = { token: 'demo-publico-'.padEnd(40, 'x'), dias: 7, usos: 3, usosMax: 50, whatsapp: null };
+const exigeDonoDemo = (t: unknown) => { if (userOf(String(t)).login !== 'admin') throw fromServerMessage('Apenas o responsável pelo sistema pode fazer isto.'); };
+Object.assign(handlers, {
+  vitrine: () => ({ convite: vitrineDemo.token, dias: vitrineDemo.dias, whatsapp: vitrineDemo.whatsapp }),
+  vitrineAdmin: ([t]: unknown[]) => {
+    exigeDonoDemo(t);
+    return { link: vitrineDemo.token ? { token: vitrineDemo.token, dias: vitrineDemo.dias, usos: vitrineDemo.usos, usosMax: vitrineDemo.usosMax, valido: vitrineDemo.usos < vitrineDemo.usosMax, empresas: vitrineDemo.usos } : null, whatsapp: vitrineDemo.whatsapp };
+  },
+  linkPublicoCriar: ([t, dias, usos]: unknown[]) => {
+    exigeDonoDemo(t);
+    Object.assign(vitrineDemo, { token: `demo-${Date.now()}`.padEnd(40, 'y'), dias: Number(dias), usos: 0, usosMax: Number(usos) });
+    return vitrineDemo.token;
+  },
+  linkPublicoDesativar: ([t]: unknown[]) => { exigeDonoDemo(t); vitrineDemo.token = null; return null; },
+  salvarContatoVitrine: ([t, w]: unknown[]) => {
+    exigeDonoDemo(t);
+    const v = String(w ?? '').replace(/\D/g, '');
+    if (v && (v.length < 10 || v.length > 13)) throw fromServerMessage('WhatsApp inválido: informe DDD e número (com 55 opcional).');
+    vitrineDemo.whatsapp = v ? (v.length <= 11 ? `55${v}` : v) : null;
+    return null;
+  },
+});

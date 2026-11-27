@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './app/auth';
 import { BootGate, FullLoading, useBoot } from './app/boot';
 import { LoginPage } from './app/LoginPage';
 import { TestePage } from './app/TestePage';
+import { LandingPage } from './app/LandingPage';
 import { homePath, visibleFeatures } from './app/registry';
 import { ThemeProvider } from './app/theme';
 import { ConfirmProvider } from './ui/Dialog';
@@ -31,8 +32,15 @@ function AuthedRoutes() {
 function Root() {
   const { token, booting } = useAuth();
   const [convite, setConvite] = useState(() => new URLSearchParams(window.location.search).get('convite'));
+  const [conheca, setConheca] = useState(() => new URLSearchParams(window.location.search).has('conheca'));
+  const entrar = () => {
+    const u = new URL(window.location.href); u.searchParams.delete('conheca');
+    window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+    setConheca(false);
+  };
   if (booting) return <FullLoading text="Entrando…" />;
   if (!token && convite) return <TestePage convite={convite} onVoltar={() => setConvite(null)} />;
+  if (!token && conheca) return <LandingPage onEntrar={entrar} />;
   if (!token) return <LoginPage />;
   return <BootGate><AuthedRoutes /></BootGate>;
 }

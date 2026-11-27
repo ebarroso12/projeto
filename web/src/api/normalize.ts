@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, VitrineAdmin, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -324,4 +324,13 @@ export function parseMaterialOpcoes(v: unknown): MaterialOpcoes {
   const r = rec(v);
   const l = (x: unknown) => (Array.isArray(x) ? x : []).map(rec).map(o => ({ id: str(o.id), nome: str(o.nome) }));
   return { fornecedores: l(r.fornecedores), contas: l(r.contas) };
+}
+
+export function parseVitrineAdmin(v: unknown): VitrineAdmin {
+  const r = rec(v);
+  const l = r.link ? rec(r.link) : null;
+  return {
+    link: l ? { token: str(l.token), dias: num(l.dias), usos: num(l.usos), usosMax: num(l.usosMax), valido: bool(l.valido), empresas: num(l.empresas) } : null,
+    whatsapp: r.whatsapp ? str(r.whatsapp) : null,
+  };
 }

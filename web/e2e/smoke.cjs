@@ -367,6 +367,14 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => page.getByRole('button', { name: 'Salvar em PDF' }).isEnabled(), 20000), 'botão salvar em PDF');
   await shot(page, '19-relatorio-mes');
 
+  // Empresas (dono): funil e página de apresentação
+  await page.locator('.sidebar').getByRole('link', { name: 'Empresas' }).click();
+  ok(await until(() => page.getByText('Funil e atenção').isVisible()) && await page.getByText('Vieram pelo link de teste').isVisible(), 'painel do dono com funil');
+  await page.getByLabel('WhatsApp de contato (aparece na página)').fill('(16) 99999-1234');
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await page.getByText('WhatsApp salvo.').waitFor();
+  ok(true, 'dono salva o WhatsApp da página');
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();
@@ -478,6 +486,15 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.context().close();
 
   ok(errors.length === 0, 'sem erros no console: ' + errors.join(' | '));
+  // Página de apresentação pública (/?conheca) com o teste grátis
+  {
+    const pg = await newPage({ width: 390, height: 844 }, BASE + '?conheca');
+    ok(await until(async () => (await pg.getByRole('heading', { name: /Sua fábrica inteira/ }).isVisible()) && (await pg.getByRole('link', { name: /Testar 7 dias grátis/ }).first().isVisible()), 8000), 'página de apresentação com teste grátis');
+    ok((await pg.getByRole('link', { name: /Testar 7 dias grátis/ }).first().getAttribute('href')).includes('?convite='), 'botão leva ao cadastro pelo link público');
+    await pg.getByRole('button', { name: /Já tenho acesso/ }).click();
+    ok(await until(() => pg.getByLabel('Login').isVisible()), 'da apresentação vai para o login');
+    await pg.context().close();
+  }
   // App instalável: service worker guarda o app e ele abre sem internet
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });

@@ -1,5 +1,16 @@
 [
   {
+    "versao": "1.8.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "App instalável na tela do celular, abre mesmo sem internet",
+      "Avisos no celular com o app fechado: pedidos de acesso, mensagens e resumo diário às 8h (contas, recebimentos, pedidos atrasados e matéria-prima para comprar)",
+      "Relatório do mês: produção, pedidos, financeiro, resultado, produtividade e estoque em uma página; salvar em PDF ou enviar resumo pelo WhatsApp",
+      "Página de apresentação pública (?conheca) com teste grátis e contato",
+      "Empresas: funil teste → cliente, conversão e lista de quem precisa de atenção; link público de teste controlado pelo dono"
+    ]
+  },
+  {
     "versao": "1.7.0",
     "data": "2026-11-27",
     "novidades": [

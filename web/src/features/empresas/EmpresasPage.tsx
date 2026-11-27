@@ -14,6 +14,7 @@ import { Ficha, ImplantacaoBarra } from './Ficha';
 import { TextField } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
+import { PainelDonoCard, VitrineCard } from './PainelDono';
 import { Badge, Banner, Card, PageHeader, Stat } from '../../ui/primitives';
 
 const KEY = ['empresas'];
@@ -220,10 +221,12 @@ function Lista({ empresas }: { empresas: Empresa[] }) {
         <Stat label="Usuários ativos" value={ativas.reduce((s, e) => s + e.usuarios, 0)} hint="nas empresas ativas" />
         <Stat label="Uso nos últimos 7 dias" value={tempo(empresas.reduce((s, e) => s + e.tempo7d, 0))} hint={`${empresas.reduce((s, e) => s + e.acoes7d, 0)} ações`} />
       </div>
+      <PainelDonoCard empresas={empresas} onAjustar={(id, dias) => ajustar.mutate({ id, dias })} onFicha={setFicha} />
       <Card title="Empresas clientes" subtitle="Cada empresa só enxerga os próprios dados." flush
         actions={<Button variant="primary" icon={<Icon name="plus" size={16} />} onClick={() => setNova(true)}>Nova empresa</Button>}>
         <DataTable label="Empresas" columns={cols} rows={empresas} searchable rowKey={e => e.id} empty="Nenhuma empresa ainda." initialSort={{ id: 'nome', dir: 1 }} />
       </Card>
+      <VitrineCard />
       <LinksTeste />
       {ficha && <Ficha empresa={ficha} onClose={() => setFicha(null)} />}
       {nova && <NovaEmpresa onClose={() => setNova(false)} />}
