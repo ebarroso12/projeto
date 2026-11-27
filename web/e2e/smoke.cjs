@@ -359,6 +359,14 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await page.locator('dialog[open]').getByText('Avisos neste aparelho').isVisible() && await page.locator('dialog[open]').getByText('Pedidos de acesso para liberar').isVisible(), 'sino abre avisos e instalação');
   await page.locator('dialog[open]').getByRole('button', { name: 'Fechar' }).last().click();
 
+  // Relatório do mês: página única pronta para PDF
+  await page.locator('.sidebar').getByRole('link', { name: 'Relatório do mês' }).click();
+  const secao = n => page.getByRole('heading', { name: n, exact: true });
+  ok(await until(async () => (await secao('Produção').isVisible()) && (await secao('Pedidos').isVisible()) && (await secao('Financeiro').isVisible()), 20000),
+    'relatório do mês junta produção, pedidos e financeiro');
+  ok(await until(() => page.getByRole('button', { name: 'Salvar em PDF' }).isEnabled(), 20000), 'botão salvar em PDF');
+  await shot(page, '19-relatorio-mes');
+
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();
