@@ -211,3 +211,17 @@ kbd {
   .bottomnav a.active::before { content: ""; position: absolute; top: 3px; width: 18px; height: 3px; border-radius: 3px; background: var(--accent); }
 }
 @media print { .page > *, .stat { animation: none !important; } .stat::after, .cmd-trigger { display: none; } body { background: #fff; } }
+
+/* ---------------- período de teste e links ---------------- */
+.teste-faixa { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 16px; border-radius: 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); font-size: 14px; }
+.tf-selo { background: var(--accent); color: #fff; font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 999px; letter-spacing: .02em; }
+.tf-dica { color: var(--muted); font-size: 13px; margin-left: auto; }
+.link-box { background: var(--surface-2); border: 1px dashed var(--line-strong); border-radius: 12px; padding: 12px 14px; word-break: break-all; }
+.link-box code { font-size: 13px; }
+a.btn { text-decoration: none; }
+.lb-selo { display: inline-block; margin-bottom: 14px; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; color: #1a0b00; background: linear-gradient(90deg, #ff9a4d, #ffcf8a); }
+.lb-passos { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.lb-passos li { display: flex; align-items: center; gap: 12px; font-weight: 600; color: rgba(255, 255, 255, .88); animation: subir .5s ease both; }
+.lb-passos li:nth-child(2) { animation-delay: .08s; } .lb-passos li:nth-child(3) { animation-delay: .16s; }
+.lb-passos b { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); color: #ffb15c; font-family: var(--font-display); }

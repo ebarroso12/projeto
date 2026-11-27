@@ -17,6 +17,7 @@ export function fromServerMessage(raw: string): ApiError {
   if (raw.includes('ACESSO_PENDENTE')) return new ApiError('PENDENTE', 'Aguardando o administrador liberar seu acesso.');
   if (raw.includes('ACESSO_NEGADO')) return new ApiError('SESSAO', 'O administrador não liberou este acesso. Fale com ele e tente de novo.');
   if (raw.includes('WIFI')) return new ApiError('WIFI', 'Conecte-se ao Wi-Fi da fábrica.');
+  if (raw.includes('EMPRESA_TESTE_EXPIRADO')) return new ApiError('SESSAO', 'O período de teste desta empresa terminou. Fale com o responsável pelo sistema para continuar usando.');
   if (raw.includes('EMPRESA_BLOQUEADA')) return new ApiError('SESSAO', 'O acesso desta empresa está suspenso. Fale com o responsável pelo sistema.');
   if (raw.includes('SESSAO')) return new ApiError('SESSAO', 'Sua sessão expirou. Entre de novo.');
   return new ApiError('SERVIDOR', raw.replace(/^Error:\s*/, '').trim() || 'O servidor recusou a operação.');

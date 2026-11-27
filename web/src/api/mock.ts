@@ -358,9 +358,13 @@ function vencFatura(data: string, fech: number, venc: number): string {
 }
 
 const empresasDemo = [
-  { id: 'e1', codigo: 'demo', nome: 'Confecção Demonstração', ativa: true, motivo: '', criadaEm: '2026-09-01', usuarios: 6, admins: 1, ultimoAcesso: `${today()}T08:10` },
-  { id: 'e2', codigo: 'malharia-sul', nome: 'Malharia Sul', ativa: true, motivo: '', criadaEm: '2026-10-12', usuarios: 14, admins: 2, ultimoAcesso: `${today()}T07:55` },
-  { id: 'e3', codigo: 'jeans-norte', nome: 'Jeans Norte', ativa: false, motivo: 'Mensalidade em atraso', criadaEm: '2026-08-03', usuarios: 9, admins: 1, ultimoAcesso: '2026-11-02T17:20' },
+  { id: 'e1', codigo: 'demo', nome: 'Confecção Demonstração', ativa: true, motivo: '', criadaEm: '2026-09-01', usuarios: 6, admins: 1, ultimoAcesso: `${today()}T08:10`, testeAte: '', porLink: false, tempo7d: 86400, entradas7d: 41, acoes7d: 312 },
+  { id: 'e2', codigo: 'malharia-sul', nome: 'Malharia Sul', ativa: true, motivo: '', criadaEm: '2026-10-12', usuarios: 14, admins: 2, ultimoAcesso: `${today()}T07:55`, testeAte: '', porLink: false, tempo7d: 151200, entradas7d: 88, acoes7d: 640 },
+  { id: 'e3', codigo: 'jeans-norte', nome: 'Jeans Norte', ativa: false, motivo: 'Mensalidade em atraso', criadaEm: '2026-08-03', usuarios: 9, admins: 1, ultimoAcesso: '2026-11-02T17:20', testeAte: '', porLink: false, tempo7d: 0, entradas7d: 0, acoes7d: 0 },
+  { id: 'e4', codigo: 'estamparia-leste', nome: 'Estamparia Leste', ativa: true, motivo: '', criadaEm: isoDay(addDays(new Date(), -3)), usuarios: 3, admins: 1, ultimoAcesso: `${today()}T09:40`, testeAte: `${isoDay(addDays(new Date(), 4))}T09:00`, porLink: true, tempo7d: 12600, entradas7d: 9, acoes7d: 57 },
+] as Record<string, unknown>[];
+const convitesDemo: Record<string, unknown>[] = [
+  { id: 'c1', nota: 'Feira de confecção', diasTeste: 7, usosMax: 10, usos: 1, ativo: true, expiraEm: `${isoDay(addDays(new Date(), 25))}T09:00`, criadoEm: `${isoDay(addDays(new Date(), -5))}T10:00`, empresas: ['Estamparia Leste'] },
 ];
 
 const fin = {
@@ -567,11 +571,11 @@ const acessoDemo = {
     { id: 'p1', nome: 'Bruno Lima', login: 'bruno', setor: 'Cortador', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.7', status: 'pendente', tela: '', ativoSeg: 0, inicio: agoraIso(1), ultimo: agoraIso(1), decididoPor: '', confiavel: false },
   ] as Record<string, unknown>[],
   sessoes: [
-    { id: 's1', nome: 'Ana Souza', login: 'ana', setor: 'Costureira', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.9', status: 'aprovada', tela: 'Lançar', ativoSeg: 5400, inicio: agoraIso(130), ultimo: agoraIso(0), decididoPor: 'Edson', confiavel: true },
-    { id: 's2', nome: 'Carla Dias', login: 'carla', setor: 'Conferente', perfil: 'funcionario', aparelho: 'Safari · iPhone', ip: '189.40.12.11', status: 'aprovada', tela: 'Em falta', ativoSeg: 2700, inicio: agoraIso(75), ultimo: agoraIso(1), decididoPor: 'Edson', confiavel: false },
-    { id: 's3', nome: 'Edson', login: 'admin', setor: 'Administração', perfil: 'admin', aparelho: 'Edge · Windows', ip: '189.40.12.2', status: 'aprovada', tela: 'Acessos', ativoSeg: 3900, inicio: agoraIso(95), ultimo: agoraIso(0), decididoPor: '', confiavel: false },
+    { id: 's1', nome: 'Ana Souza', login: 'ana', setor: 'Costureira', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.9', status: 'aprovada', tela: 'Lançar', ativoSeg: 5400, logadoSeg: 7800, inicio: agoraIso(130), ultimo: agoraIso(0), decididoPor: 'Edson', confiavel: true },
+    { id: 's2', nome: 'Carla Dias', login: 'carla', setor: 'Conferente', perfil: 'funcionario', aparelho: 'Safari · iPhone', ip: '189.40.12.11', status: 'aprovada', tela: 'Em falta', ativoSeg: 2700, logadoSeg: 4500, inicio: agoraIso(75), ultimo: agoraIso(1), decididoPor: 'Edson', confiavel: false },
+    { id: 's3', nome: 'Edson', login: 'admin', setor: 'Administração', perfil: 'admin', aparelho: 'Edge · Windows', ip: '189.40.12.2', status: 'aprovada', tela: 'Acessos', ativoSeg: 3900, logadoSeg: 5700, inicio: agoraIso(95), ultimo: agoraIso(0), decididoPor: '', confiavel: false },
     { id: 's4', nome: 'Dóris Prado', login: 'doris', setor: 'Costureira', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '177.20.3.4', status: 'negada', tela: '', ativoSeg: 0, inicio: agoraIso(300), ultimo: agoraIso(300), decididoPor: 'Edson', confiavel: false },
-    { id: 's5', nome: 'Bruno Lima', login: 'bruno', setor: 'Cortador', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.7', status: 'encerrada', tela: 'Ponto', ativoSeg: 9800, inicio: agoraIso(1500), ultimo: agoraIso(1300), decididoPor: 'Edson', confiavel: false },
+    { id: 's5', nome: 'Bruno Lima', login: 'bruno', setor: 'Cortador', perfil: 'funcionario', aparelho: 'Chrome · Android', ip: '189.40.12.7', status: 'encerrada', tela: 'Ponto', ativoSeg: 9800, logadoSeg: 12000, inicio: agoraIso(1500), ultimo: agoraIso(1300), decididoPor: 'Edson', confiavel: false },
   ] as Record<string, unknown>[],
   eventos: [] as Record<string, unknown>[],
   aparelhos: [{ login: 'ana', nome: 'Ana Souza', aparelho: 'demo-aparelho-ana', descricao: 'Chrome · Android', desde: agoraIso(2000).slice(0, 16), por: 'Edson' }] as Record<string, unknown>[],
@@ -600,7 +604,8 @@ const metricasDemo = () => state.users.filter(u => !u.leitura).map(u => {
   const ss = acessoDemo.sessoes.filter(s => s.login === u.login);
   const ev = acessoDemo.eventos.filter(e => e.quem === u.nome);
   return {
-    nome: u.nome, login: u.login, perfil: u.perfil, ativo: u.ativo,
+    nome: u.nome, login: u.login, perfil: u.perfil, ativo: u.ativo, eu: u.login === 'admin',
+    logadoSeg: ss.reduce((t, s) => t + Math.round(Number(s.ativoSeg) * 1.35), 0),
     entradas: ss.filter(s => s.status === 'aprovada' || s.status === 'encerrada').length, negados: ss.filter(s => s.status === 'negada').length,
     tempoSeg: ss.reduce((t, s) => t + Number(s.ativoSeg), 0),
     criou: ev.filter(e => e.tipo === 'criou').length, alterou: ev.filter(e => e.tipo === 'alterou').length, apagou: ev.filter(e => e.tipo === 'apagou').length,
@@ -634,5 +639,46 @@ Object.assign(handlers, {
     requireAdmin(userOf(String(t)));
     const online = acessoDemo.sessoes.filter(s => s.status === 'aprovada' && String(s.ultimo) >= agoraIso(3));
     return { exigir: acessoDemo.exigir, pendentes: acessoDemo.pendentes, online, sessoes: acessoDemo.sessoes, eventos: acessoDemo.eventos, aparelhos: acessoDemo.aparelhos, metricas: metricasDemo() };
+  },
+});
+
+Object.assign(handlers, {
+  convites: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return convitesDemo; },
+  criarConvite: ([t, dias, usos, validade, nota]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const token = `demo${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.padEnd(40, 'x');
+    convitesDemo.unshift({ id: token, nota: String(nota ?? ''), diasTeste: Number(dias), usosMax: Number(usos), usos: 0, ativo: true, expiraEm: `${isoDay(addDays(new Date(), Number(validade)))}T23:59`, criadoEm: `${today()}T${hhmm()}`, empresas: [] });
+    return token;
+  },
+  revogarConvite: ([t, id]: unknown[]) => { requireAdmin(userOf(String(t))); const c = convitesDemo.find(x => x.id === id); if (c) c.ativo = false; return null; },
+  ajustarTeste: ([t, id, dias]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const e = empresasDemo.find(x => x.id === id);
+    if (e) e.testeAte = dias === null ? '' : `${isoDay(addDays(new Date(Math.max(Date.now(), e.testeAte ? Date.parse(String(e.testeAte)) : 0)), Number(dias)))}T09:00`;
+    return null;
+  },
+  meuTeste: ([t]: unknown[]) => { userOf(String(t)); return ''; },
+  validarConvite: ([conv]: unknown[]) => {
+    const c = convitesDemo.find(x => x.id === conv) ?? (String(conv) === 'demo-teste' ? { diasTeste: 7, ativo: true, usos: 0, usosMax: 99 } : null);
+    return c && c.ativo && Number(c.usos) < Number(c.usosMax) ? { valido: true, dias: c.diasTeste } : { valido: false, dias: 0 };
+  },
+  criarEmpresaTeste: ([o]: unknown[]) => {
+    const r = o as { convite: string; codigo: string; nome: string; adminNome: string; adminLogin: string; adminSenha: string };
+    if (empresasDemo.some(e => e.codigo === r.codigo)) throw fromServerMessage('Já existe uma empresa com esse código. Escolha outro.');
+    if (r.adminSenha.length < MIN_SENHA) throw fromServerMessage(`A senha precisa ter pelo menos ${MIN_SENHA} caracteres.`);
+    if (state.users.some(u => u.login === r.adminLogin)) throw fromServerMessage('Esse login já existe nesta empresa.');
+    empresasDemo.push({ id: `e${Date.now()}`, codigo: r.codigo, nome: r.nome, ativa: true, motivo: '', criadaEm: today(), usuarios: 1, admins: 1, ultimoAcesso: '', testeAte: `${isoDay(addDays(new Date(), 7))}T${hhmm()}`, porLink: true, tempo7d: 0, entradas7d: 0, acoes7d: 0 });
+    state.users.push({ login: r.adminLogin, nome: r.adminNome, setor: 'Administração', perfil: 'admin', ativo: true, podeFalta: true, senha: r.adminSenha } as MUser);
+    const c = convitesDemo.find(x => x.id === r.convite); if (c) { c.usos = Number(c.usos) + 1; (c.empresas as string[]).push(r.nome); }
+    return null;
+  },
+  bloquearPessoa: ([t, login, bloquear]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    if (login === u.login) throw fromServerMessage('Você não pode bloquear a sua própria conta.');
+    const alvo = state.users.find(x => x.login === login);
+    if (!alvo) throw fromServerMessage('Pessoa não encontrada.');
+    alvo.ativo = !bloquear;
+    acessoDemo.eventos.unshift({ id: Date.now(), quem: u.nome, tipo: bloquear ? 'pessoa_bloqueada' : 'pessoa_desbloqueada', alvo: alvo.nome, detalhe: {}, em: agoraIso(0) });
+    return null;
   },
 });

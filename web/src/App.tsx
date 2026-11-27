@@ -1,10 +1,11 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { Api } from './api/client';
 import { AppShell } from './app/AppShell';
 import { AuthProvider, useAuth } from './app/auth';
 import { BootGate, FullLoading, useBoot } from './app/boot';
 import { LoginPage } from './app/LoginPage';
+import { TestePage } from './app/TestePage';
 import { homePath, visibleFeatures } from './app/registry';
 import { ThemeProvider } from './app/theme';
 import { ConfirmProvider } from './ui/Dialog';
@@ -29,7 +30,9 @@ function AuthedRoutes() {
 
 function Root() {
   const { token, booting } = useAuth();
+  const [convite, setConvite] = useState(() => new URLSearchParams(window.location.search).get('convite'));
   if (booting) return <FullLoading text="Entrando…" />;
+  if (!token && convite) return <TestePage convite={convite} onVoltar={() => setConvite(null)} />;
   if (!token) return <LoginPage />;
   return <BootGate><AuthedRoutes /></BootGate>;
 }

@@ -35,10 +35,10 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (144 verificações)
-cd web && npm install && npm run typecheck && npm test      # app: 45 testes
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (173 verificações)
+cd web && npm install && npm run typecheck && npm test      # app: 52 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 45 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
+node web/e2e/smoke.cjs                         # 55 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)
@@ -77,6 +77,13 @@ node web/e2e/smoke.cjs                         # 45 verificações no navegador 
 - Conferido no servidor: `fab.eu()` exige a sessão (o `session_id` do token) liberada. Negar ou **Derrubar** tira a pessoa na hora.
 - **Online agora** (tela atual e tempo ativo, por sinal enviado a cada minuto), **Entradas** (aparelho, IP, duração, quem liberou),
   **Atividade** (gatilho de auditoria em todas as tabelas: quem criou, alterou ou apagou o quê, com antes → depois) e **Métricas** por pessoa.
+
+## Link de teste (7 dias) — tela **Empresas**, só o dono do sistema
+- **Gerar link de teste**: dias de teste (7/14/30), quantas empresas podem usar (1 a 100) e validade do link.
+  O link (`?convite=...`) aparece uma vez; no banco fica só o hash. Botões Copiar, WhatsApp e Compartilhar.
+- Quem abre cria a própria empresa e já entra como administrador. Uma faixa mostra quantos dias faltam.
+- Vencido o prazo, ninguém da empresa entra (`EMPRESA_TESTE_EXPIRADO`). Em Empresas: **+7 dias** ou **Tornar cliente**.
+- Empresas mostra também: cliente/teste/vencido, uso dos últimos 7 dias (tempo, entradas e ações) e os links gerados.
 
 ## Proteção dos dados
 - **Cadastros → Cópia de segurança**: o administrador baixa um arquivo com todos os dados da empresa (sem senhas).

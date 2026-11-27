@@ -3,7 +3,7 @@
  * então campos podem faltar ou vir com outro tipo. Nenhum componente recebe `undefined`.
  */
 import type {
-  AcessosDados, SessaoAcesso, StatusAcesso,
+  AcessosDados, Convite, SessaoAcesso, StatusAcesso,
   Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
@@ -134,6 +134,12 @@ export const parseEmpresas = (v: unknown): Empresa[] =>
   list(v, r => ({
     id: str(r.id), codigo: str(r.codigo), nome: str(r.nome), ativa: bool(r.ativa, true), motivo: str(r.motivo),
     criadaEm: str(r.criadaEm), usuarios: num(r.usuarios), admins: num(r.admins), ultimoAcesso: str(r.ultimoAcesso),
+    testeAte: str(r.testeAte), porLink: bool(r.porLink), tempo7d: num(r.tempo7d), entradas7d: num(r.entradas7d), acoes7d: num(r.acoes7d),
+  }));
+export const parseConvites = (v: unknown): Convite[] =>
+  list(v, r => ({
+    id: str(r.id), nota: str(r.nota), diasTeste: num(r.diasTeste, 7), usosMax: num(r.usosMax, 1), usos: num(r.usos), ativo: bool(r.ativo, true),
+    expiraEm: str(r.expiraEm), criadoEm: str(r.criadoEm), empresas: strings(r.empresas),
   }));
 
 const finLancamento = (r: R): FinLancamento => ({
@@ -188,7 +194,7 @@ export const parseStatusAcesso = (v: unknown): StatusAcesso => {
 };
 const sessao = (r: R): SessaoAcesso => ({
   id: str(r.id), nome: str(r.nome), login: str(r.login), setor: str(r.setor), perfil: str(r.perfil),
-  aparelho: str(r.aparelho), ip: str(r.ip), status: parseStatusAcesso(r.status), tela: str(r.tela), ativoSeg: num(r.ativoSeg),
+  aparelho: str(r.aparelho), ip: str(r.ip), status: parseStatusAcesso(r.status), tela: str(r.tela), ativoSeg: num(r.ativoSeg), logadoSeg: num(r.logadoSeg),
   inicio: str(r.inicio), ultimo: str(r.ultimo), decididoPor: str(r.decididoPor), confiavel: bool(r.confiavel),
 });
 export const parseSessoes = (v: unknown): SessaoAcesso[] => list(v, sessao);
@@ -199,8 +205,8 @@ export const parseAcessos = (v: unknown): AcessosDados => {
     eventos: list(r.eventos, e => ({ id: num(e.id), quem: str(e.quem), tipo: str(e.tipo), alvo: str(e.alvo), detalhe: rec(e.detalhe), em: str(e.em) })),
     aparelhos: list(r.aparelhos, a => ({ login: str(a.login), nome: str(a.nome), aparelho: str(a.aparelho), descricao: str(a.descricao), desde: str(a.desde), por: str(a.por) })),
     metricas: list(r.metricas, m => ({
-      nome: str(m.nome), login: str(m.login), perfil: str(m.perfil), ativo: bool(m.ativo, true),
-      entradas: num(m.entradas), negados: num(m.negados), tempoSeg: num(m.tempoSeg), criou: num(m.criou), alterou: num(m.alterou), apagou: num(m.apagou), ultimo: str(m.ultimo),
+      nome: str(m.nome), login: str(m.login), perfil: str(m.perfil), ativo: bool(m.ativo, true), eu: bool(m.eu),
+      entradas: num(m.entradas), logadoSeg: num(m.logadoSeg), negados: num(m.negados), tempoSeg: num(m.tempoSeg), criou: num(m.criou), alterou: num(m.alterou), apagou: num(m.apagou), ultimo: str(m.ultimo),
     })),
   };
 };

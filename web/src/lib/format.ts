@@ -86,3 +86,9 @@ export function saudacao(d = new Date()): string {
 export const primeiroNome = (nome: string) => nome.trim().split(/\s+/)[0] ?? nome;
 /** "Edson Barroso" -> "EB". */
 export const iniciais = (nome: string) => nome.trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
+
+/** Duração em segundos -> "5 min" / "1h30". */
+export const tempo = (seg: number) => {
+  const m = Math.round(seg / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+};

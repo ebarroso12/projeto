@@ -146,6 +146,14 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   }
   await page.getByRole('tablist', { name: 'Seções' }).getByRole('tab', { name: 'Atividade' }).click();
   ok(await page.getByText('qtd: 30 → 35').first().isVisible(), 'atividade mostra o antes e depois de uma edição');
+  await page.getByRole('tablist', { name: 'Tipo de registro' }).getByRole('tab', { name: 'Exclusões' }).click();
+  ok((await page.locator('table[aria-label="Atividade"] tbody tr').count()) === 1, 'filtro de exclusões');
+  await page.getByRole('tablist', { name: 'Seções' }).getByRole('tab', { name: 'Métricas' }).click();
+  await page.getByRole('row', { name: /Dóris Prado/ }).getByRole('button', { name: 'Bloquear' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Bloquear' }).click();
+  await page.getByText(/Pessoa bloqueada/).waitFor();
+  ok(await until(() => page.getByRole('row', { name: /Dóris Prado/ }).getByRole('button', { name: 'Desbloquear' }).isVisible()), 'admin bloqueia e pode desbloquear uma pessoa');
+  ok(await page.getByText('Tempo logado').first().isVisible(), 'métricas mostram tempo logado');
   await shot(page, '11c-acessos');
 
   // Dashboard mensal (gráficos)
@@ -208,7 +216,31 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await shot(page, '17-empresa-criada');
   await page.locator('dialog[open]').getByRole('button', { name: 'Concluir' }).click();
   ok(await until(() => page.getByText('Malharia Teste').first().isVisible()), 'empresa criada aparece na lista');
+  ok(await page.getByText('Teste · 4 dia(s)').isVisible() || await page.getByText(/Teste · \d+ dia/).first().isVisible(), 'empresa em teste mostra os dias restantes');
+  await page.getByRole('button', { name: 'Gerar link de teste' }).click();
+  await page.locator('dialog[open]').getByLabel('Para quem (anotação)').fill('Malharia do João');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Gerar link' }).click();
+  await page.getByText('Link de teste pronto').waitFor();
+  const linkTeste = await page.locator('.link-box code').innerText();
+  ok(/\?convite=\w{20,}/.test(linkTeste), 'gera link de teste para enviar');
+  ok(await page.getByRole('link', { name: 'Enviar no WhatsApp' }).getAttribute('href').then(h => h.startsWith('https://wa.me/?text=')), 'botão de enviar no WhatsApp');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Concluir' }).click();
+  ok(await until(() => page.getByText('Malharia do João').first().isVisible()), 'link aparece na lista de links');
   await shot(page, '18-empresas');
+  await page.context().close();
+
+  // 3b) Visitante abre o link de teste e cria a própria empresa
+  page = await newPage({ width: 1440, height: 900 }, BASE + '?convite=demo-teste');
+  await page.getByText('Comece seu teste grátis').waitFor();
+  await shot(page, '12-link-teste');
+  await page.getByLabel('Nome da empresa').fill('Confecção Aurora');
+  ok(await page.getByLabel('Código da empresa').inputValue() === 'confeccao-aurora', 'código sugerido a partir do nome');
+  await page.getByLabel('Seu nome').fill('Rita Gomes');
+  await page.getByLabel('Senha', { exact: true }).fill('aurora1');
+  await page.getByLabel('Repita a senha').fill('aurora1');
+  await page.getByRole('button', { name: 'Criar minha empresa e entrar' }).click();
+  await page.getByText(/Boa (tarde|noite)|Bom dia/).first().waitFor();
+  ok(true, 'visitante cria a empresa pelo link e já entra como administradora');
   await page.context().close();
 
   // 4) Funcionária: Ponto

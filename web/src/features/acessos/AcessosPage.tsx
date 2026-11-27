@@ -4,7 +4,7 @@ import type { AcessosDados, EventoAcesso, MetricaPessoa, SessaoAcesso } from '..
 import { useApi } from '../../app/auth';
 import { PENDENTES_KEY } from '../../app/acessoVivo';
 import { useAction } from '../../app/useAction';
-import { dataBR, isoDay } from '../../lib/format';
+import { dataBR, isoDay, tempo } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { BarrasHorizontais } from '../../ui/charts';
 import { DataTable, type Column } from '../../ui/DataTable';
@@ -18,11 +18,7 @@ const KEY = 'acessos';
 type Aba = 'pedidos' | 'online' | 'entradas' | 'atividade' | 'metricas' | 'aparelhos';
 type Periodo = 'hoje' | '7' | '30';
 
-/** 5400 -> "1h30"; 300 -> "5 min". */
-export const tempo = (seg: number) => {
-  const m = Math.round(seg / 60);
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
-};
+
 const quando = (iso: string) => (iso ? `${dataBR(iso.slice(0, 10))} ${iso.slice(11, 16)}` : '—');
 
 const TABELAS: Record<string, string> = {
@@ -37,6 +33,7 @@ const TIPOS: Record<string, { rotulo: string; tom: 'ok' | 'warn' | 'danger' | 'i
   acesso_pedido: { rotulo: 'Pediu acesso', tom: 'warn' }, acesso_liberado: { rotulo: 'Liberou acesso de', tom: 'ok' },
   acesso_negado: { rotulo: 'Negou acesso de', tom: 'danger' }, sessao_encerrada: { rotulo: 'Derrubou a sessão de', tom: 'danger' },
   aparelho_revogado: { rotulo: 'Revogou aparelho de', tom: 'warn' },
+  pessoa_bloqueada: { rotulo: 'Bloqueou', tom: 'danger' }, pessoa_desbloqueada: { rotulo: 'Desbloqueou', tom: 'ok' },
   criou: { rotulo: 'Criou', tom: 'info' }, alterou: { rotulo: 'Alterou', tom: 'warn' }, apagou: { rotulo: 'Apagou', tom: 'danger' },
 };
 const ROTULOS: Record<string, string> = {
@@ -148,6 +145,7 @@ function Entradas({ d }: { d: AcessosDados }) {
     { id: 'aparelho', header: 'Aparelho', value: s => s.aparelho, cell: s => <>{s.aparelho || '—'}{s.confiavel && <small>confiável</small>}</> },
     { id: 'ip', header: 'IP', value: s => s.ip, cell: s => <code>{s.ip || '—'}</code> },
     { id: 'status', header: 'Situação', value: s => s.status, cell: s => <Badge tone={STATUS[s.status]!.tom}>{STATUS[s.status]!.rotulo}</Badge> },
+    { id: 'logado', header: 'Tempo logado', numeric: true, value: s => s.logadoSeg, cell: s => tempo(s.logadoSeg) },
     { id: 'tempo', header: 'Tempo ativo', numeric: true, value: s => s.ativoSeg, cell: s => tempo(s.ativoSeg) },
     { id: 'ultimo', header: 'Último sinal', value: s => s.ultimo, cell: s => quando(s.ultimo), nowrap: true },
     { id: 'por', header: 'Liberado por', value: s => s.decididoPor, cell: s => s.decididoPor || (s.perfil === 'admin' ? 'admin (direto)' : '—') },
@@ -162,10 +160,10 @@ function Entradas({ d }: { d: AcessosDados }) {
 // ---------------------------------------------------------------- atividade
 function Atividade({ d }: { d: AcessosDados }) {
   const [pessoa, setPessoa] = useState('');
-  const [tipo, setTipo] = useState<'todos' | 'acesso' | 'mudancas'>('todos');
+  const [tipo, setTipo] = useState<'todos' | 'acesso' | 'criou' | 'alterou' | 'apagou'>('todos');
   const pessoas = useMemo(() => [...new Set(d.eventos.map(e => e.quem))].sort(), [d.eventos]);
   const linhas = d.eventos.filter(e => (!pessoa || e.quem === pessoa)
-    && (tipo === 'todos' || (tipo === 'mudancas' ? ['criou', 'alterou', 'apagou'].includes(e.tipo) : !['criou', 'alterou', 'apagou'].includes(e.tipo))));
+    && (tipo === 'todos' || (tipo === 'acesso' ? !['criou', 'alterou', 'apagou'].includes(e.tipo) : e.tipo === tipo)));
   const cols: Column<EventoAcesso>[] = [
     { id: 'em', header: 'Quando', value: e => e.em, cell: e => quando(e.em), nowrap: true },
     { id: 'quem', header: 'Quem', value: e => e.quem, cell: e => e.quem },
@@ -179,7 +177,7 @@ function Atividade({ d }: { d: AcessosDados }) {
     <Card title="Tudo o que foi feito" subtitle="Entradas, liberações e cada criação, alteração ou exclusão, com quem fez e quando" flush>
       <DataTable label="Atividade" columns={cols} rows={linhas} rowKey={e => String(e.id)} searchable exportName="atividade" empty="Nada registrado no período." initialSort={{ id: 'em', dir: -1 }}
         toolbar={<span className="row no-print" style={{ gap: 8 }}>
-          <Segmented label="Tipo de registro" value={tipo} onChange={setTipo} options={[{ value: 'todos', label: 'Tudo' }, { value: 'mudancas', label: 'Mudanças' }, { value: 'acesso', label: 'Acessos' }]} />
+          <Segmented label="Tipo de registro" value={tipo} onChange={setTipo} options={[{ value: 'todos', label: 'Tudo' }, { value: 'acesso', label: 'Acessos' }, { value: 'criou', label: 'Criações' }, { value: 'alterou', label: 'Edições' }, { value: 'apagou', label: 'Exclusões' }]} />
           <span style={{ minWidth: 180 }}><SelectField label="Pessoa" value={pessoa} onChange={e => setPessoa(e.target.value)} options={pessoas} placeholder="Todas" /></span>
         </span>} />
     </Card>
@@ -188,24 +186,42 @@ function Atividade({ d }: { d: AcessosDados }) {
 
 // ---------------------------------------------------------------- métricas
 function Metricas({ d }: { d: AcessosDados }) {
+  const api = useApi();
+  const confirm = useConfirm();
+  const bloquear = useAction((v: { login: string; bloquear: boolean }) => api.bloquearPessoa(v.login, v.bloquear), {
+    success: (_r, v) => (v.bloquear ? 'Pessoa bloqueada: saiu do sistema e não entra mais.' : 'Pessoa desbloqueada.'), invalidate: [[KEY], ['usuarios']],
+  });
   const m = d.metricas;
   const soma = (f: (x: MetricaPessoa) => number) => m.reduce((s, x) => s + f(x), 0);
   const cols: Column<MetricaPessoa>[] = [
     { id: 'nome', header: 'Pessoa', value: x => x.nome, cell: x => <>{x.nome}<small>{x.perfil === 'admin' ? 'administrador' : 'funcionário'}{x.ativo ? '' : ' · inativo'}</small></> },
     { id: 'entradas', header: 'Entradas', numeric: true, value: x => x.entradas, cell: x => x.entradas },
+    { id: 'logado', header: 'Tempo logado', numeric: true, value: x => x.logadoSeg, cell: x => tempo(x.logadoSeg) },
     { id: 'tempo', header: 'Tempo ativo', numeric: true, value: x => x.tempoSeg, cell: x => tempo(x.tempoSeg) },
     { id: 'criou', header: 'Criou', numeric: true, value: x => x.criou, cell: x => x.criou },
     { id: 'alterou', header: 'Alterou', numeric: true, value: x => x.alterou, cell: x => x.alterou },
     { id: 'apagou', header: 'Apagou', numeric: true, value: x => x.apagou, cell: x => (x.apagou ? <b className="valor-neg">{x.apagou}</b> : 0) },
     { id: 'negados', header: 'Negados', numeric: true, value: x => x.negados, cell: x => (x.negados ? <Badge tone="danger">{x.negados}</Badge> : 0) },
     { id: 'ultimo', header: 'Último acesso', value: x => x.ultimo, cell: x => quando(x.ultimo), nowrap: true },
+    {
+      id: 'acao', header: '', cell: x => x.eu ? <small>você</small> : x.ativo
+        ? <Button size="sm" variant="ghost" onClick={async () => {
+            if (await confirm({ title: `Bloquear ${x.nome}?`, message: 'A pessoa sai do sistema na hora e não consegue mais entrar até você desbloquear. O histórico fica guardado.', confirmLabel: 'Bloquear', tone: 'danger' }))
+              bloquear.mutate({ login: x.login, bloquear: true });
+          }}>Bloquear</Button>
+        : <Button size="sm" variant="success" onClick={() => bloquear.mutate({ login: x.login, bloquear: false })}>Desbloquear</Button>,
+    },
   ];
   return (
     <div className="stack">
       <div className="grid-kpi">
         <Stat label="Entradas" value={soma(x => x.entradas)} hint="no período" />
-        <Stat label="Tempo ativo" value={tempo(soma(x => x.tempoSeg))} hint="todos somados" />
-        <Stat label="Ações" value={soma(x => x.criou + x.alterou + x.apagou)} hint={`${soma(x => x.apagou)} exclusão(ões)`} />
+        <Stat label="Tempo logado" value={tempo(soma(x => x.logadoSeg))} hint="do login ao último sinal" />
+        <Stat label="Tempo ativo" value={tempo(soma(x => x.tempoSeg))} hint="com o app aberto na tela" />
+        <Stat label="Criações" value={soma(x => x.criou)} />
+        <Stat label="Edições" value={soma(x => x.alterou)} />
+        <Stat label="Exclusões" value={soma(x => x.apagou)} tone={soma(x => x.apagou) ? 'danger' : undefined} />
+        <Stat label="Bloqueados" value={m.filter(x => !x.ativo).length} hint="pessoas sem acesso" />
         <Stat label="Acessos negados" value={soma(x => x.negados)} tone={soma(x => x.negados) ? 'danger' : undefined} />
       </div>
       <div className="grid-2">

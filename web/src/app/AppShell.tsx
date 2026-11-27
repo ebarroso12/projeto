@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { TextField } from '../ui/Field';
@@ -73,7 +73,7 @@ function UserMenu({ onPassword }: { onPassword: () => void }) {
 
 export function AppShell() {
   const boot = useBoot();
-  const { demo, signOut } = useAuth();
+  const { demo, signOut, api } = useAuth();
   const [cmd, setCmd] = useState(false);
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
@@ -83,6 +83,8 @@ export function AppShell() {
   const current = features.find(f => pathname.startsWith(f.path));
   usePresenca(current?.label ?? '', !boot.eu.leitura);
   const pendentes = usePendentes(boot.eu.admin && !boot.eu.leitura);
+  const teste = useQuery({ queryKey: ['meu-teste'], queryFn: () => api.meuTeste(), enabled: !boot.eu.leitura, staleTime: 10 * 60_000 }).data ?? '';
+  const diasTeste = teste ? Math.max(0, Math.ceil((Date.parse(teste) - Date.now()) / 86_400_000)) : 0;
   const pageInfo = useMemo(() => ({ art: current ? `marca/${current.id}.webp` : undefined, grupo: current?.group }), [current]);
   const acoes: Acao[] = useMemo(() => [
     { id: 'tema', label: theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro', dica: 'Aparência', icon: theme === 'dark' ? 'sun' : 'moon', run: toggle },
@@ -143,6 +145,13 @@ export function AppShell() {
           </div>
         </header>
         <main className="page" id="conteudo">
+          {teste && (
+            <div className="teste-faixa" role="status">
+              <span className="tf-selo">Teste grátis</span>
+              <span>{diasTeste > 1 ? `Faltam ${diasTeste} dias` : diasTeste === 1 ? 'Último dia' : 'Termina hoje'} · até {teste.slice(8, 10)}/{teste.slice(5, 7)} às {teste.slice(11, 16)}.</span>
+              <span className="tf-dica">Para continuar depois, fale com quem enviou o link.</span>
+            </div>
+          )}
           <PendentesBanner pendentes={pendentes} />
           <PageArt.Provider value={pageInfo}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
         </main>

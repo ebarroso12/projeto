@@ -107,7 +107,14 @@ export interface EmpresaInfo { codigo: string; nome: string }
 export interface Empresa {
   id: string; codigo: string; nome: string; ativa: boolean; motivo: string;
   criadaEm: string; usuarios: number; admins: number; ultimoAcesso: string;
+  /** "" = cliente; senão data/hora em que o teste termina */
+  testeAte: string; porLink: boolean; tempo7d: number; entradas7d: number; acoes7d: number;
 }
+export interface Convite {
+  id: string; nota: string; diasTeste: number; usosMax: number; usos: number; ativo: boolean;
+  expiraEm: string; criadoEm: string; empresas: string[];
+}
+export interface NovaEmpresaTesteInput { convite: string; codigo: string; nome: string; adminNome: string; adminLogin: string; adminSenha: string }
 export interface NovaEmpresaInput { codigo: string; nome: string; adminLogin: string; adminNome: string; adminSenha: string }
 
 // =====================================================================
@@ -170,14 +177,14 @@ export type StatusAcesso = 'aprovada' | 'pendente' | 'negada' | 'encerrada' | 'n
 
 export interface SessaoAcesso {
   id: string; nome: string; login: string; setor: string; perfil: string;
-  aparelho: string; ip: string; status: StatusAcesso; tela: string; ativoSeg: number;
+  aparelho: string; ip: string; status: StatusAcesso; tela: string; ativoSeg: number; logadoSeg: number;
   inicio: string; ultimo: string; decididoPor: string; confiavel: boolean;
 }
 export interface EventoAcesso { id: number; quem: string; tipo: string; alvo: string; detalhe: Record<string, unknown>; em: string }
 export interface AparelhoConfiavel { login: string; nome: string; aparelho: string; descricao: string; desde: string; por: string }
 export interface MetricaPessoa {
-  nome: string; login: string; perfil: string; ativo: boolean;
-  entradas: number; negados: number; tempoSeg: number; criou: number; alterou: number; apagou: number; ultimo: string;
+  nome: string; login: string; perfil: string; ativo: boolean; eu: boolean;
+  entradas: number; logadoSeg: number; negados: number; tempoSeg: number; criou: number; alterou: number; apagou: number; ultimo: string;
 }
 export interface AcessosDados {
   exigir: boolean; pendentes: SessaoAcesso[]; online: SessaoAcesso[]; sessoes: SessaoAcesso[];

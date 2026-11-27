@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
-  parseAcessos, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  NovaEmpresaInput, UsuarioInput,
+  NovaEmpresaInput, NovaEmpresaTesteInput, UsuarioInput,
 } from './types';
 
 /**
@@ -79,6 +79,15 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     empresas: async () => parseEmpresas(await call('empresas', tok())),
     criarEmpresa: async (o: NovaEmpresaInput) => { await call('criarEmpresa', tok(), o); },
     bloquearEmpresa: async (id: string, bloquear: boolean, motivo: string) => { await call('bloquearEmpresa', tok(), id, bloquear, motivo); },
+    // ----- links de teste -----
+    convites: async () => parseConvites(await call('convites', tok())),
+    criarConvite: async (dias: number, usos: number, validadeDias: number, nota: string) => str(await call('criarConvite', tok(), dias, usos, validadeDias, nota)),
+    revogarConvite: async (id: string) => { await call('revogarConvite', tok(), id); },
+    ajustarTeste: async (empresaId: string, dias: number | null) => { await call('ajustarTeste', tok(), empresaId, dias); },
+    meuTeste: async () => str(await call('meuTeste', tok())),
+    validarConvite: async (convite: string) => { const r = rec(await call('validarConvite', convite)); return { valido: r.valido === true, dias: num(r.dias) }; },
+    criarEmpresaTeste: async (o: NovaEmpresaTesteInput) => { await call('criarEmpresaTeste', o); },
+    bloquearPessoa: async (login: string, bloquear: boolean) => { await call('bloquearPessoa', tok(), login, bloquear); },
     renomearEmpresa: async (id: string, nome: string) => { await call('renomearEmpresa', tok(), id, nome); },
 
     // ----- financeiro -----

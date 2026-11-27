@@ -6,6 +6,7 @@
  *   POST { action: 'senha', login, senha }                                    -> administrador da empresa
  *   POST { action: 'criar_empresa', codigo, nome, adminLogin, adminNome, adminSenha } -> dono do sistema
  *   POST { action: 'bootstrap', codigo, nome, login, adminNome, senha, token } -> só enquanto NÃO existe nenhum perfil
+ *   POST { action: 'teste', convite, codigo, nome, adminNome, adminLogin, adminSenha } -> público: link de teste (N dias)
  *
  * Multiempresa: o e-mail interno do Auth é  <codigo-da-empresa>.<login>@fabrica.local,
  * então o mesmo login pode existir em empresas diferentes.
@@ -63,6 +64,27 @@ Deno.serve(async (req: Request) => {
     const { data: total } = await admin.rpc('fab_total_perfis');
     if (total !== 0) return fail('O sistema já foi instalado.', 403);
     return await novaEmpresa(admin, b, true);
+  }
+
+  // ----- link de teste: qualquer pessoa com um convite válido cria a própria empresa em teste -----
+  if (b.action === 'teste') {
+    const codigo = norm(b.codigo);
+    const nome = String(b.nome ?? '').trim();
+    const login = norm(b.adminLogin);
+    if (!CODIGO_OK.test(codigo)) return fail('Código inválido: use 2 a 30 letras minúsculas, números ou hífen.');
+    if (!nome) return fail('Informe o nome da empresa.');
+    const erro = validarLogin(login, b.adminSenha);
+    if (erro) return fail(erro);
+    const { data: id, error } = await admin.rpc('fab_criar_empresa_teste', { p_token: String(b.convite ?? ''), p_codigo: codigo, p_nome: nome });
+    if (error || !id) return fail(error?.message ?? 'Não foi possível criar a empresa.');
+    const r = await criarPessoa(admin, { id: id as string, codigo }, {
+      login, senha: b.adminSenha, nome: String(b.adminNome ?? login), setor: 'Administração', perfil: 'admin', podeFalta: true,
+    });
+    if (r) {
+      await admin.rpc('fab_desfazer_empresa_teste', { p_id: id });
+      return fail(r);
+    }
+    return json({ ok: true, codigo });
   }
 
   const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
