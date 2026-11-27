@@ -1,5 +1,15 @@
 [
   {
+    "versao": "1.13.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Ranking de oficinas e costureiras: % de falta, % de defeito, atraso médio e custo real por peça boa, da melhor para a pior.",
+      "Ranking de cortadores pela perda no corte.",
+      "Contestação da oficina com botão Resolver; o acerto só libera depois.",
+      "Contagem às cegas também esconde os números no detalhe da remessa."
+    ]
+  },
+  {
     "versao": "1.12.0",
     "data": "2026-11-27",
     "novidades": [

@@ -492,6 +492,11 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await page.getByText('Limite salvo. Os avisos de perda usam o novo valor.').waitFor();
   ok(true, 'limite de perda configurável');
+  await page.getByRole('tab', { name: 'Ranking' }).click();
+  const rko = page.getByRole('table', { name: 'Ranking de oficinas' });
+  ok(await until(() => rko.isVisible()) && (await rko.locator('tbody tr').count()) >= 2 && await rko.getByText('Melhor').count() === 1, 'ranking de oficinas: melhor primeiro');
+  ok(await page.getByRole('table', { name: 'Ranking de cortadores' }).getByText('Corte do João').isVisible(), 'ranking de cortadores pela perda no corte');
+  await shot(page, '44-ranking');
   // lançar em nome de quem não usa celular
   await page.locator('.sidebar').getByRole('link', { name: 'Lançar' }).click();
   await page.getByLabel('Quem fez').selectOption({ label: 'Ateliê da Rosa (oficina)' });

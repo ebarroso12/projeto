@@ -111,3 +111,39 @@ describe('balanço da ordem de corte', () => {
     expect(['GG', 'P', '10', 'M', '2', 'PP', 'G'].sort(ordemTamanho)).toEqual(['PP', 'P', 'M', 'G', 'GG', '2', '10']);
   });
 });
+
+// ---------------------------------------------------------------- ranking
+import { rankingCortadores, rankingOficinas } from './calc';
+describe('ranking de oficinas', () => {
+  const H = '2026-11-27';
+  const fechada = (o: Partial<Remessa>) => R({ status: 'fechada', fechadaEm: '2026-11-24', ...o });
+  it('falta, defeito, atraso, custo por peça boa e contestações; melhor primeiro', () => {
+    const maria1 = fechada({ id: 'm1', quem: 'Maria', prazo: '2026-11-25', valorPago: 120,   // 90 enviadas, 80 boas, 2 defeito, 8 faltaram
+      retornos: [{ id: 't', data: '2026-11-26', obs: '', boas: 80, defeito: 2, cega: true, itens: [], confirmacao: { confere: false, em: '', nome: '', obs: '', itens: [], resolvida: null } }] });
+    const ana = fechada({ id: 'a1', quem: 'Ana', prazo: '2026-11-25', valorPago: 225, itens: [{ id: 'x', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 90, boas: 90, defeito: 0 }],
+      retornos: [{ id: 't2', data: '2026-11-24', obs: '', boas: 90, defeito: 0, cega: true, itens: [], confirmacao: null }] });
+    const nova = R({ id: 'n1', quem: 'Nova', prazo: '2026-12-10', itens: [{ id: 'y', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 10, boas: 0, defeito: 0 }] });
+    const rk = rankingOficinas([maria1, nova, ana], H, 3);
+    expect(rk.map(l => l.quem)).toEqual(['Ana', 'Maria', 'Nova']);
+    const m = rk[1]!;
+    expect([m.enviadas, m.boas, m.defeito, m.falta, m.faltaPct, m.defeitoPct, m.atrasoMedio, m.custoPecaBoa, m.contestacoes]).toEqual([90, 80, 2, 8, 8.9, 2.4, 1, 1.5, 1]);
+    expect(m.atencao).toEqual(['falta 8,9%', '1 contestação(ões) em aberto']);
+    expect([rk[0]!.faltaPct, rk[0]!.custoPecaBoa, rk[0]!.atrasoMedio, rk[0]!.atencao]).toEqual([0, 2.5, 0, []]);
+    expect([rk[2]!.acertadas, rk[2]!.comOficina, rk[2]!.faltaPct, rk[2]!.custoPecaBoa]).toEqual([0, 10, null, null]);
+  });
+  it('remessa aberta e atrasada conta o atraso até hoje', () => {
+    const r = R({ quem: 'Lenta', prazo: '2026-11-20' });   // ainda falta peça
+    expect(rankingOficinas([r], '2026-11-27', 3)[0]!.atrasoMedio).toBe(7);
+  });
+});
+describe('ranking de cortadores', () => {
+  const O = (o: Partial<OrdemCorte>): OrdemCorte => ({ id: 'o', numero: 1, data: '2026-11-20', quem: 'João', modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
+    materialQtd: 25, consumoPeca: 0.25, itens: { P: 40, M: 50 }, remetido: 0, ...o });
+  it('perda média ponderada pelo tecido, menor perda primeiro', () => {
+    const rk = rankingCortadores([O({}), O({ id: 'o2', itens: { P: 50, M: 48 } }), O({ id: 'o3', quem: 'Rita', itens: { P: 50, M: 50 } }), O({ id: 'o4', quem: 'Rita', materialQtd: null, itens: { P: 5 } })], 3);
+    expect(rk.map(l => [l.quem, l.ordens, l.cortadas, l.esperadas, l.perdaPct, l.semBobina, l.atencao])).toEqual([
+      ['Rita', 2, 105, 100, 0, 1, false],
+      ['João', 2, 188, 200, 6, 0, true],
+    ]);
+  });
+});

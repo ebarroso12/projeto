@@ -14,10 +14,10 @@ import { QueryView } from '../../ui/QueryView';
 import { Badge, Banner, Card, EmptyState, PageHeader, Segmented, Stat } from '../../ui/primitives';
 import { parseValor, valorTexto } from '../financeiro/LancamentoForm';
 import { useToast } from '../../ui/Toast';
-import { balancoOrdem, conferenciaCega, contaRemessa, contestacoes, divergencias, painelOficinas, rendimento, respostaOficina, textoComprovante } from './calc';
+import { balancoOrdem, conferenciaCega, rankingCortadores, rankingOficinas, contaRemessa, contestacoes, divergencias, painelOficinas, rendimento, respostaOficina, textoComprovante } from './calc';
 
 const KEY = ['remessas'] as const;
-type Aba = 'oficinas' | 'remessas' | 'ordens' | 'balanco';
+type Aba = 'oficinas' | 'remessas' | 'ordens' | 'balanco' | 'ranking';
 const hoje = () => isoDay(new Date());
 const erroEl = (m: string) => (m ? <p className="err" role="alert" style={{ color: 'var(--danger)' }}>{m}</p> : null);
 
@@ -550,7 +550,7 @@ function Conteudo({ remessas, ordens, limitePerda, aba, setAba, onVer }: { remes
       {contestadas > 0 && <Banner tone="danger">{contestadas} remessa(s) com contagem contestada pela oficina. Abra a remessa para ver a diferença por peça.</Banner>}
       <Segmented<Aba> label="Seções" value={aba} onChange={setAba} options={[
         { value: 'oficinas', label: 'Quem está com o quê' }, { value: 'remessas', label: `Remessas (${remessas.length})` }, { value: 'ordens', label: `Ordens de corte (${ordens.length})` },
-        { value: 'balanco', label: 'Balanço' },
+        { value: 'balanco', label: 'Balanço' }, { value: 'ranking', label: 'Ranking' },
       ]} />
       {aba === 'oficinas' && (
         <Card title="Quem está com o quê" subtitle="Peças que saíram e ainda não voltaram, por oficina ou costureira." flush>
@@ -574,6 +574,7 @@ function Conteudo({ remessas, ordens, limitePerda, aba, setAba, onVer }: { remes
         </Card>
       )}
       {aba === 'balanco' && <BalancoAba ordens={ordens} remessas={remessas} limite={limitePerda} />}
+      {aba === 'ranking' && <RankingAba ordens={ordens} remessas={remessas} limite={limitePerda} />}
       {aba === 'ordens' && (
         <Card title="Ordens de corte" subtitle="Rendimento de cada bobina: peças esperadas pela regra do tecido × peças cortadas." flush>
           {ordens.length === 0 ? <EmptyState icon="layers" title="Nenhuma ordem de corte">Registre a bobina que foi para o corte e o que voltou cortado.</EmptyState> : (
@@ -669,6 +670,58 @@ function BalancoAba({ ordens, remessas, limite }: { ordens: OrdemCorte[]; remess
                 </div>
               </details>
             ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- ranking de oficinas e cortadores
+const pct1 = (n: number | null) => (n === null ? '—' : `${formatNumber(n)}%`);
+function RankingAba({ ordens, remessas, limite }: { ordens: OrdemCorte[]; remessas: Remessa[]; limite: number }) {
+  const of = useMemo(() => rankingOficinas(remessas, hoje(), limite), [remessas, limite]);
+  const co = useMemo(() => rankingCortadores(ordens, limite), [ordens, limite]);
+  return (
+    <div className="stack">
+      <Card title="Oficinas e costureiras" subtitle={`Últimos 120 dias. Melhor primeiro: menos peças faltando, menos defeito e menos atraso. Atenção acima de ${pct1(limite)} (limite do Balanço).`} flush>
+        {of.length === 0 ? <EmptyState icon="truck" title="Nenhuma remessa no período">O ranking aparece quando houver remessas.</EmptyState> : (
+          <div className="table-wrap">
+            <table className="table" aria-label="Ranking de oficinas">
+              <thead><tr><th>#</th><th>Oficina</th><th className="num">Remessas</th><th className="num">Enviadas</th><th className="num">Falta</th><th className="num">Defeito</th>
+                <th className="num">Atraso médio</th><th className="num">Custo por peça boa</th><th>Situação</th></tr></thead>
+              <tbody>{of.map((l, i) => (
+                <tr key={l.quem}>
+                  <td className="tnum">{l.acertadas ? i + 1 : '—'}</td>
+                  <td><b>{l.quem}</b>{l.comOficina > 0 && <small className="muted" style={{ display: 'block' }}>{formatNumber(l.comOficina)} peça(s) com ela agora</small>}</td>
+                  <td className="num tnum">{l.remessas}<small className="muted" style={{ display: 'block' }}>{l.acertadas} acertada(s)</small></td>
+                  <td className="num tnum">{formatNumber(l.enviadas)}</td>
+                  <td className={`num tnum${l.faltaPct !== null && l.faltaPct > limite ? ' valor-neg' : ''}`}>{pct1(l.faltaPct)}{l.falta > 0 && <small className="muted" style={{ display: 'block' }}>{formatNumber(l.falta)} peça(s)</small>}</td>
+                  <td className={`num tnum${l.defeitoPct !== null && l.defeitoPct > limite ? ' valor-neg' : ''}`}>{pct1(l.defeitoPct)}</td>
+                  <td className="num tnum">{l.atrasoMedio === null ? '—' : `${formatNumber(l.atrasoMedio)} dia(s)`}</td>
+                  <td className="num tnum">{l.custoPecaBoa === null ? '—' : formatBRL(l.custoPecaBoa)}</td>
+                  <td>{l.acertadas === 0 ? <Badge>Sem acerto ainda</Badge> : l.atencao.length ? <><Badge tone="danger">Atenção</Badge><small className="muted" style={{ display: 'block' }}>{l.atencao.join(' · ')}</small></>
+                    : <>{i === 0 ? <Badge tone="ok">Melhor</Badge> : <Badge tone="ok">Boa</Badge>}{l.contestacoes > 0 && <small className="muted" style={{ display: 'block' }}>{l.contestacoes} contestação(ões) resolvida(s)</small>}</>}</td>
+                </tr>))}</tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+      <Card title="Cortadores" subtitle="Perda no corte: peças que o tecido dava pela regra de consumo × peças cortadas (só ordens com a bobina informada)." flush>
+        {co.length === 0 ? <EmptyState icon="layers" title="Nenhuma ordem de corte no período">Registre as ordens de corte com a bobina usada.</EmptyState> : (
+          <div className="table-wrap">
+            <table className="table" aria-label="Ranking de cortadores">
+              <thead><tr><th>#</th><th>Quem cortou</th><th className="num">Ordens</th><th className="num">Peças cortadas</th><th className="num">O tecido dava</th><th className="num">Perda</th><th>Situação</th></tr></thead>
+              <tbody>{co.map((l, i) => (
+                <tr key={l.quem}>
+                  <td className="tnum">{l.perdaPct === null ? '—' : i + 1}</td>
+                  <td><b>{l.quem}</b>{l.semBobina > 0 && <small className="muted" style={{ display: 'block' }}>{l.semBobina} ordem(ns) sem bobina</small>}</td>
+                  <td className="num tnum">{l.ordens}</td><td className="num tnum">{formatNumber(l.cortadas)}</td>
+                  <td className="num tnum">{l.esperadas ? formatNumber(l.esperadas) : '—'}</td>
+                  <td className={`num tnum${l.atencao ? ' valor-neg' : ''}`}>{pct1(l.perdaPct)}</td>
+                  <td>{l.perdaPct === null ? <Badge>Sem bobina</Badge> : l.atencao ? <Badge tone="danger">Atenção</Badge> : <Badge tone="ok">{i === 0 ? 'Melhor' : 'Boa'}</Badge>}</td>
+                </tr>))}</tbody>
+            </table>
           </div>
         )}
       </Card>

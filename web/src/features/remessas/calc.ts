@@ -151,3 +151,64 @@ export function balancoOrdem(o: OrdemCorte, remessas: Remessa[], limite: number)
     remessas: ligadas.length, contestacoes: nCont, alertas, acimaDoLimite: alertas.length > 0,
   };
 }
+
+// =====================================================================
+// Ranking de oficinas e cortadores (para decidir para quem mandar o próximo lote)
+// =====================================================================
+export interface LinhaRankingOficina {
+  quem: string; remessas: number; acertadas: number; enviadas: number; boas: number; defeito: number;
+  /** peças que faltaram em remessas já acertadas */ falta: number; comOficina: number;
+  faltaPct: number | null; defeitoPct: number | null; atrasoMedio: number | null; atrasadas: number;
+  /** quanto custou cada peça boa nas remessas acertadas (valor pago ÷ boas) */ custoPecaBoa: number | null;
+  /** todas as contestações no período; abertas = ainda sem resolução */ contestacoes: number; abertas: number; atencao: string[];
+}
+export function rankingOficinas(lista: Remessa[], hoje: string, limite: number): LinhaRankingOficina[] {
+  const m = new Map<string, LinhaRankingOficina & { envFechadas: number; somaAtraso: number; comPrazo: number; pago: number; boasFechadas: number }>();
+  for (const r of lista) {
+    const l = m.get(r.quem) ?? { quem: r.quem, remessas: 0, acertadas: 0, enviadas: 0, boas: 0, defeito: 0, falta: 0, comOficina: 0, faltaPct: null, defeitoPct: null,
+      atrasoMedio: null, atrasadas: 0, custoPecaBoa: null, contestacoes: 0, abertas: 0, atencao: [], envFechadas: 0, somaAtraso: 0, comPrazo: 0, pago: 0, boasFechadas: 0 };
+    const c = contaRemessa(r, hoje);
+    l.remessas++; l.enviadas += c.enviadas; l.boas += c.boas; l.defeito += c.defeito;
+    if (r.status === 'fechada') { l.acertadas++; l.falta += c.pendentes; l.envFechadas += c.enviadas; l.pago += r.valorPago ?? 0; l.boasFechadas += c.boas; } else l.comOficina += c.pendentes;
+    if (r.prazo) {   // atraso: até a última devolução (ou hoje, se ainda falta peça)
+      const ultima = r.retornos.reduce((d, t) => (t.data > d ? t.data : d), '');
+      const fim = r.status === 'aberta' && c.pendentes > 0 ? hoje : ultima || (r.fechadaEm ?? hoje);
+      const a = Math.max(0, dias(r.prazo, fim));
+      l.somaAtraso += a; l.comPrazo++; if (a > 0) l.atrasadas++;
+    }
+    const resp = [r.confirmacaoEnvio, ...r.retornos.map(t => t.confirmacao)].filter(c => c && !c.confere);
+    l.contestacoes += resp.length; l.abertas += resp.filter(c => !c!.resolvida).length;
+    m.set(r.quem, l);
+  }
+  const pct1 = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+  const linhas = [...m.values()].map(({ envFechadas, somaAtraso, comPrazo, pago, boasFechadas, ...l }) => {
+    const faltaPct = pct1(l.falta, envFechadas), defeitoPct = pct1(l.defeito, l.boas + l.defeito);
+    const atrasoMedio = comPrazo ? Math.round((somaAtraso / comPrazo) * 10) / 10 : null;
+    const atencao: string[] = [];
+    if (faltaPct !== null && faltaPct > limite) atencao.push(`falta ${String(faltaPct).replace('.', ',')}%`);
+    if (defeitoPct !== null && defeitoPct > limite) atencao.push(`defeito ${String(defeitoPct).replace('.', ',')}%`);
+    if (atrasoMedio !== null && atrasoMedio >= 2) atencao.push(`atraso médio de ${String(atrasoMedio).replace('.', ',')} dia(s)`);
+    if (l.abertas > 0) atencao.push(`${l.abertas} contestação(ões) em aberto`);
+    return { ...l, faltaPct, defeitoPct, atrasoMedio, custoPecaBoa: boasFechadas > 0 ? r2(pago / boasFechadas) : null, atencao };
+  });
+  // melhor primeiro: menos falta, menos defeito, menos atraso; quem ainda não tem nada acertado vai para o fim
+  const v = (x: number | null) => (x === null ? Infinity : x);
+  return linhas.sort((a, b) => Number(a.acertadas === 0) - Number(b.acertadas === 0) || v(a.faltaPct) - v(b.faltaPct) || v(a.defeitoPct) - v(b.defeitoPct)
+    || v(a.atrasoMedio) - v(b.atrasoMedio) || a.quem.localeCompare(b.quem));
+}
+
+export interface LinhaRankingCorte { quem: string; ordens: number; cortadas: number; esperadas: number; perdaPct: number | null; semBobina: number; atencao: boolean }
+export function rankingCortadores(ordens: OrdemCorte[], limite: number): LinhaRankingCorte[] {
+  const m = new Map<string, { quem: string; ordens: number; cortadas: number; esperadas: number; cortadasMedidas: number; semBobina: number }>();
+  for (const o of ordens) {
+    const rd = rendimento(o);
+    const l = m.get(o.quem) ?? { quem: o.quem, ordens: 0, cortadas: 0, esperadas: 0, cortadasMedidas: 0, semBobina: 0 };
+    l.ordens++; l.cortadas += rd.cortadas;
+    if (rd.esperadas) { l.esperadas += rd.esperadas; l.cortadasMedidas += rd.cortadas; } else l.semBobina++;
+    m.set(o.quem, l);
+  }
+  return [...m.values()].map(l => {
+    const perdaPct = l.esperadas > 0 ? Math.max(0, Math.round(((l.esperadas - l.cortadasMedidas) / l.esperadas) * 1000) / 10) : null;
+    return { quem: l.quem, ordens: l.ordens, cortadas: l.cortadas, esperadas: l.esperadas, perdaPct, semBobina: l.semBobina, atencao: perdaPct !== null && perdaPct > limite };
+  }).sort((a, b) => (a.perdaPct ?? Infinity) - (b.perdaPct ?? Infinity) || a.quem.localeCompare(b.quem));
+}
