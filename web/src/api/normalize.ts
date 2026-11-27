@@ -3,7 +3,7 @@
  * então campos podem faltar ou vir com outro tipo. Nenhum componente recebe `undefined`.
  */
 import type {
-  AcessosDados, Convite, SessaoAcesso, StatusAcesso,
+  AcessosDados, Convite, EmpresaDetalhe, SessaoAcesso, StatusAcesso,
   Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
@@ -135,10 +135,13 @@ export const parseEmpresas = (v: unknown): Empresa[] =>
     id: str(r.id), codigo: str(r.codigo), nome: str(r.nome), ativa: bool(r.ativa, true), motivo: str(r.motivo),
     criadaEm: str(r.criadaEm), usuarios: num(r.usuarios), admins: num(r.admins), ultimoAcesso: str(r.ultimoAcesso),
     testeAte: str(r.testeAte), porLink: bool(r.porLink), tempo7d: num(r.tempo7d), entradas7d: num(r.entradas7d), acoes7d: num(r.acoes7d),
+    tipoLink: (['teste', 'pro'].includes(str(r.tipoLink)) ? str(r.tipoLink) : '') as Empresa['tipoLink'],
+    pessoas7d: num(r.pessoas7d), online: num(r.online),
+    implantacao: Object.fromEntries(Object.entries(rec(r.implantacao)).map(([k, v]) => [k, bool(v)])),
   }));
 export const parseConvites = (v: unknown): Convite[] =>
   list(v, r => ({
-    id: str(r.id), nota: str(r.nota), diasTeste: num(r.diasTeste, 7), usosMax: num(r.usosMax, 1), usos: num(r.usos), ativo: bool(r.ativo, true),
+    id: str(r.id), tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as Convite['tipo'], nota: str(r.nota), diasTeste: num(r.diasTeste, 7), usosMax: num(r.usosMax, 1), usos: num(r.usos), ativo: bool(r.ativo, true),
     expiraEm: str(r.expiraEm), criadoEm: str(r.criadoEm), empresas: strings(r.empresas),
   }));
 
@@ -208,5 +211,21 @@ export const parseAcessos = (v: unknown): AcessosDados => {
       nome: str(m.nome), login: str(m.login), perfil: str(m.perfil), ativo: bool(m.ativo, true), eu: bool(m.eu),
       entradas: num(m.entradas), logadoSeg: num(m.logadoSeg), negados: num(m.negados), tempoSeg: num(m.tempoSeg), criou: num(m.criou), alterou: num(m.alterou), apagou: num(m.apagou), ultimo: str(m.ultimo),
     })),
+  };
+};
+
+export const parseEmpresaDetalhe = (v: unknown): EmpresaDetalhe => {
+  const r = rec(v);
+  return {
+    nome: str(r.nome), codigo: str(r.codigo),
+    implantacao: Object.fromEntries(Object.entries(rec(r.implantacao)).map(([k, x]) => [k, bool(x)])),
+    dias: list(r.dias, d => ({ dia: str(d.dia), entradas: num(d.entradas), tempoSeg: num(d.tempoSeg), acoes: num(d.acoes), pessoas: num(d.pessoas) })),
+    pessoas: list(r.pessoas, p => ({
+      nome: str(p.nome), login: str(p.login), perfil: str(p.perfil), setor: str(p.setor), ativo: bool(p.ativo, true),
+      entradas: num(p.entradas), tempoSeg: num(p.tempoSeg), logadoSeg: num(p.logadoSeg), acoes: num(p.acoes), ultimo: str(p.ultimo), aparelhos: num(p.aparelhos),
+    })),
+    modulos: list(r.modulos, m => ({ alvo: str(m.alvo), criou: num(m.criou), alterou: num(m.alterou), apagou: num(m.apagou) })),
+    sessoes: parseSessoes(r.sessoes),
+    eventos: parseAcessos({ eventos: r.eventos }).eventos,
   };
 };

@@ -1,6 +1,6 @@
 import { getIp } from '../lib/network';
 import {
-  parseAcessos, parseConvites, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseEmpresaDetalhe, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -81,11 +81,12 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     bloquearEmpresa: async (id: string, bloquear: boolean, motivo: string) => { await call('bloquearEmpresa', tok(), id, bloquear, motivo); },
     // ----- links de teste -----
     convites: async () => parseConvites(await call('convites', tok())),
-    criarConvite: async (dias: number, usos: number, validadeDias: number, nota: string) => str(await call('criarConvite', tok(), dias, usos, validadeDias, nota)),
+    criarConvite: async (tipo: 'teste' | 'pro', dias: number, usos: number, validadeDias: number, nota: string) => str(await call('criarConvite', tok(), tipo, dias, usos, validadeDias, nota)),
+    empresaDetalhe: async (id: string) => parseEmpresaDetalhe(await call('empresaDetalhe', tok(), id)),
     revogarConvite: async (id: string) => { await call('revogarConvite', tok(), id); },
     ajustarTeste: async (empresaId: string, dias: number | null) => { await call('ajustarTeste', tok(), empresaId, dias); },
     meuTeste: async () => str(await call('meuTeste', tok())),
-    validarConvite: async (convite: string) => { const r = rec(await call('validarConvite', convite)); return { valido: r.valido === true, dias: num(r.dias) }; },
+    validarConvite: async (convite: string) => { const r = rec(await call('validarConvite', convite)); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async (o: NovaEmpresaTesteInput) => { await call('criarEmpresaTeste', o); },
     bloquearPessoa: async (login: string, bloquear: boolean) => { await call('bloquearPessoa', tok(), login, bloquear); },
     renomearEmpresa: async (id: string, nome: string) => { await call('renomearEmpresa', tok(), id, nome); },

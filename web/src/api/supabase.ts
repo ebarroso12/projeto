@@ -13,7 +13,7 @@ import { MIN_SENHA } from '../lib/rules';
 import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
-  parseAcessos, parseConvites, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseEmpresaDetalhe, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -157,11 +157,12 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     criarEmpresa: async o => { await edge({ action: 'criar_empresa', ...o }); },
     bloquearEmpresa: async (id, bloquear, motivo) => { await rpc('fab_bloquear_empresa', { p_id: id, p_bloquear: bloquear, p_motivo: motivo }); },
     convites: async () => parseConvites(await rpc('fab_convites')),
-    criarConvite: async (dias, usos, validadeDias, nota) => str(await rpc('fab_criar_convite', { p_dias: dias, p_usos: usos, p_validade_dias: validadeDias, p_nota: nota })),
+    criarConvite: async (tipo, dias, usos, validadeDias, nota) => str(await rpc('fab_criar_convite', { p_tipo: tipo, p_dias: dias, p_usos: usos, p_validade_dias: validadeDias, p_nota: nota })),
+    empresaDetalhe: async id => parseEmpresaDetalhe(await rpc('fab_empresa_detalhe', { p_id: id })),
     revogarConvite: async id => { await rpc('fab_revogar_convite', { p_id: id }); },
     ajustarTeste: async (empresaId, dias) => { await rpc('fab_ajustar_teste', { p_empresa: empresaId, p_dias: dias }); },
     meuTeste: async () => (chave ? '' : str(await rpc('fab_meu_teste'))),
-    validarConvite: async convite => { const r = rec(await rpc('fab_validar_convite', { p_token: convite })); return { valido: r.valido === true, dias: num(r.dias) }; },
+    validarConvite: async convite => { const r = rec(await rpc('fab_validar_convite', { p_token: convite })); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async o => { await edge({ action: 'teste', ...o }); },
     bloquearPessoa: async (login, bloquear) => { await rpc('fab_bloquear_pessoa', { p_login: login, p_bloquear: bloquear }); },
     renomearEmpresa: async (id, nome) => { await rpc('fab_renomear_empresa', { p_id: id, p_nome: nome }); },

@@ -109,9 +109,17 @@ export interface Empresa {
   criadaEm: string; usuarios: number; admins: number; ultimoAcesso: string;
   /** "" = cliente; senão data/hora em que o teste termina */
   testeAte: string; porLink: boolean; tempo7d: number; entradas7d: number; acoes7d: number;
+  tipoLink: '' | 'teste' | 'pro'; pessoas7d: number; online: number; implantacao: Record<string, boolean>;
+}
+export interface EmpresaDetalhe {
+  nome: string; codigo: string; implantacao: Record<string, boolean>;
+  dias: { dia: string; entradas: number; tempoSeg: number; acoes: number; pessoas: number }[];
+  pessoas: { nome: string; login: string; perfil: string; setor: string; ativo: boolean; entradas: number; tempoSeg: number; logadoSeg: number; acoes: number; ultimo: string; aparelhos: number }[];
+  modulos: { alvo: string; criou: number; alterou: number; apagou: number }[];
+  sessoes: SessaoAcesso[]; eventos: EventoAcesso[];
 }
 export interface Convite {
-  id: string; nota: string; diasTeste: number; usosMax: number; usos: number; ativo: boolean;
+  id: string; tipo: 'teste' | 'pro'; nota: string; diasTeste: number; usosMax: number; usos: number; ativo: boolean;
   expiraEm: string; criadoEm: string; empresas: string[];
 }
 export interface NovaEmpresaTesteInput { convite: string; codigo: string; nome: string; adminNome: string; adminLogin: string; adminSenha: string }

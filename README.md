@@ -35,10 +35,10 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (173 verificações)
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (183 verificações)
 cd web && npm install && npm run typecheck && npm test      # app: 52 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 55 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
+node web/e2e/smoke.cjs                         # 58 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)
@@ -78,7 +78,14 @@ node web/e2e/smoke.cjs                         # 55 verificações no navegador 
 - **Online agora** (tela atual e tempo ativo, por sinal enviado a cada minuto), **Entradas** (aparelho, IP, duração, quem liberou),
   **Atividade** (gatilho de auditoria em todas as tabelas: quem criou, alterou ou apagou o quê, com antes → depois) e **Métricas** por pessoa.
 
-## Link de teste (7 dias) — tela **Empresas**, só o dono do sistema
+## Links TESTE e PRO — tela **Empresas**, só o dono do sistema
+- **Gerar link TESTE**: o prazo conta do envio; o link e o teste vencem juntos (ex.: 7 dias após gerar).
+- **Gerar link PRO**: a empresa nasce na versão completa, sem prazo (o link tem validade própria).
+- Clique no nome de uma empresa para ver a **ficha**: uso e ações por dia (14 dias), implantação (0 a 6 passos),
+  o que mais usam, pessoas (entradas, tempo logado/ativo, aparelhos), últimas entradas com IP e linha do tempo.
+  Alertas automáticos: teste sem uso há 2+ dias e implantação baixa.
+
+### Detalhes do link de teste
 - **Gerar link de teste**: dias de teste (7/14/30), quantas empresas podem usar (1 a 100) e validade do link.
   O link (`?convite=...`) aparece uma vez; no banco fica só o hash. Botões Copiar, WhatsApp e Compartilhar.
 - Quem abre cria a própria empresa e já entra como administrador. Uma faixa mostra quantos dias faltam.

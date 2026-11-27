@@ -377,12 +377,13 @@ ok(fails_with(await rpc(null, `fab_acessos(current_date, current_date)`, { role:
 
 // ============ 17. link de teste (7 dias) e bloqueio de pessoa ============
 console.log('\n--- link de teste e bloqueio ---');
-ok(fails_with(await rpc(adminB, `fab_criar_convite(7, 1, 30, 'x')`), 'responsável pelo sistema'), 'só o dono gera link de teste');
-const tok = (await rpc(admin, `fab_criar_convite(7, 2, 30, 'Malharias da região')`)).data;
+ok(fails_with(await rpc(adminB, `fab_criar_convite('teste', 7, 1, 30, 'x')`), 'responsável pelo sistema'), 'só o dono gera link de teste');
+const tok = (await rpc(admin, `fab_criar_convite('teste', 7, 2, 30, 'Malharias da região')`)).data;
 ok(typeof tok === 'string' && tok.length >= 64, 'dono gera link (código longo, mostrado uma vez)');
 ok(!(await q(`select 1 from fab.convites where token_hash = $1`, [tok])).length, 'banco guarda só o hash do link');
-eq((await rpc(null, `fab_validar_convite('${tok}')`, { role: 'anon' })).data, { valido: true, dias: 7 }, 'página pública valida o link');
-eq((await rpc(null, `fab_validar_convite('nao-existe-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')`, { role: 'anon' })).data, { valido: false, dias: 0 }, 'link inventado não vale');
+r = (await rpc(null, `fab_validar_convite('${tok}')`, { role: 'anon' })).data;
+ok(r.valido === true && r.tipo === 'teste' && r.dias === 7 && r.ate.length === 16, 'página pública valida o link (tipo e data final)');
+eq((await rpc(null, `fab_validar_convite('nao-existe-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')`, { role: 'anon' })).data.valido, false, 'link inventado não vale');
 ok(fails_with(await rpc(null, `fab_criar_empresa_teste('${tok}','gama','Gama')`, { role: 'anon' }), 'permission denied'), 'anônimo não cria empresa direto');
 const empG = (await rpc(null, `fab_criar_empresa_teste('${tok}','gama','Confecções Gama')`, { role: 'service_role' })).data;
 ok(Boolean(empG), 'link cria a empresa em teste');
@@ -400,14 +401,14 @@ const emps = (await rpc(admin, 'fab_empresas()')).data.find(e => e.codigo === 'g
 ok(emps && emps.porLink === true && 'tempo7d' in emps && 'acoes7d' in emps, 'lista de empresas mostra origem e uso');
 ok((await rpc(null, `fab_criar_empresa_teste('${tok}','delta','Delta')`, { role: 'service_role' })).ok, 'link de 2 usos aceita o segundo');
 ok(fails_with(await rpc(null, `fab_criar_empresa_teste('${tok}','epsilon','Eps')`, { role: 'service_role' }), 'não vale mais'), 'terceiro uso é recusado');
-const tokD = (await rpc(admin, `fab_criar_convite(7, 1, 30, 'desfazer')`)).data;
+const tokD = (await rpc(admin, `fab_criar_convite('teste', 7, 1, 30, 'desfazer')`)).data;
 const empD = (await rpc(null, `fab_criar_empresa_teste('${tokD}','omega','Omega')`, { role: 'service_role' })).data;
 ok((await rpc(null, `fab_desfazer_empresa_teste('${empD}')`, { role: 'service_role' })).ok && !(await q(`select 1 from fab.empresas where id = $1`, [empD])).length, 'desfazer apaga a empresa de teste (com cascata e auditoria)');
 eq((await rpc(null, `fab_validar_convite('${tokD}')`, { role: 'anon' })).data.valido, true, 'desfazer devolve o uso do link');
 ok((await rpc(null, `fab_apagar_empresa_vazia('${(await rpc(null, `fab_criar_empresa('vazia','Vazia')`, { role: 'service_role' })).data}')`, { role: 'service_role' })).ok, 'apagar empresa vazia funciona com auditoria');
 const cv = (await rpc(admin, 'fab_convites()')).data.find(c => c.nota === 'Malharias da região');
 ok(cv.usos === 2 && cv.empresas.length === 2, 'dono vê quantas empresas usaram o link');
-const tok2 = (await rpc(admin, `fab_criar_convite(7, 1, 30, '')`)).data;
+const tok2 = (await rpc(admin, `fab_criar_convite('teste', 7, 1, 30, '')`)).data;
 const cv2 = (await rpc(admin, 'fab_convites()')).data.find(c => c.nota === '');
 ok((await rpc(admin, `fab_revogar_convite('${cv2.id}')`)).ok && !(await rpc(null, `fab_validar_convite('${tok2}')`, { role: 'anon' })).data.valido, 'link revogado para de valer');
 // bloqueio de pessoa
@@ -419,6 +420,31 @@ ok(fails_with(await rpc(adminB, `fab_bloquear_pessoa('bruno', true)`), 'não enc
 const ac2 = (await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data;
 ok(ac2.eventos.some(e => e.tipo === 'pessoa_bloqueada' && e.alvo === 'Bruno Lima'), 'bloqueio fica na atividade');
 ok(ac2.metricas.every(m => 'logadoSeg' in m) && ac2.sessoes.every(x => 'logadoSeg' in x), 'tempo logado nas métricas e sessões');
+
+// ============ 18. link TESTE (prazo conta do envio), link PRO e ficha da empresa ============
+console.log('\n--- link teste x pro e vigilância ---');
+const tT = (await rpc(admin, `fab_criar_convite('teste', 7, 5, 90, 'teste do envio')`)).data;
+const [cT] = await q(`select expira_em - criado_em as validade from fab.convites where nota = 'teste do envio'`);
+ok(String(cT.validade).startsWith('7 days'), 'link TESTE vence 7 dias após o envio (não 90)');
+await q(`update fab.convites set criado_em = now() - interval '5 days' where nota = 'teste do envio'`);
+const empT = (await rpc(null, `fab_criar_empresa_teste('${tT}','tau','Tau')`, { role: 'service_role' })).data;
+const [eT] = await q(`select extract(day from teste_ate - now()) as dias from fab.empresas where id = $1`, [empT]);
+ok(Number(eT.dias) === 1 || Number(eT.dias) === 2, 'cadastro no 5º dia: sobram só ~2 dias de teste (conta do envio)');
+await q(`update fab.convites set expira_em = now() - interval '1 minute' where nota = 'teste do envio'`);
+ok(fails_with(await rpc(null, `fab_criar_empresa_teste('${tT}','tau2','Tau 2')`, { role: 'service_role' }), 'não vale mais'), 'link TESTE vencido não cria empresa');
+const tP = (await rpc(admin, `fab_criar_convite('pro', 7, 1, 30, 'cliente pro')`)).data;
+r = (await rpc(null, `fab_validar_convite('${tP}')`, { role: 'anon' })).data;
+ok(r.valido && r.tipo === 'pro' && r.ate === '', 'link PRO: página sabe que é versão completa');
+const empP = (await rpc(null, `fab_criar_empresa_teste('${tP}','pi','Pi')`, { role: 'service_role' })).data;
+ok((await q(`select teste_ate from fab.empresas where id = $1`, [empP]))[0].teste_ate === null, 'link PRO cria empresa sem prazo (versão completa)');
+ok(fails_with(await rpc(admin, `fab_criar_convite('ouro', 7, 1, 30, '')`), 'Tipo de link inválido'), 'tipo de link inválido é recusado');
+const lista = (await rpc(admin, 'fab_empresas()')).data;
+const ePi = lista.find(e => e.codigo === 'pi'), eTau = lista.find(e => e.codigo === 'tau');
+ok(ePi.tipoLink === 'pro' && eTau.tipoLink === 'teste' && 'implantacao' in eTau && 'pessoas7d' in eTau && 'online' in eTau, 'lista mostra tipo de link, implantação e uso');
+const dA = (await rpc(admin, `fab_empresa_detalhe('${empA}')`)).data;
+ok(dA.dias.length === 14 && dA.pessoas.length >= 5 && Array.isArray(dA.modulos) && dA.eventos.length > 0, 'ficha da empresa: 14 dias, pessoas, módulos e linha do tempo');
+ok(dA.implantacao.listas === true && dA.implantacao.producao === true, 'ficha mostra o que já foi implantado');
+ok(fails_with(await rpc(adminB, `fab_empresa_detalhe('${empA}')`), 'responsável pelo sistema'), 'só o dono vê a ficha de outra empresa');
 
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {

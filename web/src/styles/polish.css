@@ -225,3 +225,31 @@ a.btn { text-decoration: none; }
 .lb-passos li { display: flex; align-items: center; gap: 12px; font-weight: 600; color: rgba(255, 255, 255, .88); animation: subir .5s ease both; }
 .lb-passos li:nth-child(2) { animation-delay: .08s; } .lb-passos li:nth-child(3) { animation-delay: .16s; }
 .lb-passos b { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); color: #ffb15c; font-family: var(--font-display); }
+
+/* ---------------- links TESTE/PRO e ficha da empresa ---------------- */
+.link-tipo { display: inline-flex; align-items: center; font: 800 10.5px/1 var(--font-display); letter-spacing: .08em; padding: 4px 7px; border-radius: 6px; flex: none; }
+.link-tipo.teste { background: var(--accent-soft); color: var(--accent); }
+.link-tipo.pro { background: linear-gradient(90deg, #0b2266, #2f4ea8); color: #ffd29c; }
+[data-theme="dark"] .link-tipo.pro { background: linear-gradient(90deg, #ff8a3d, #ffb15c); color: #1a0b00; }
+.link-box { display: flex; align-items: center; gap: 10px; }
+.link-empresa { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.link-empresa b { font-weight: 600; }
+.link-empresa:hover b { color: var(--accent); }
+.link-empresa small { flex-basis: 100%; }
+.link-empresa .online-dot { width: 8px; height: 8px; }
+.impl { display: inline-flex; align-items: center; gap: 8px; }
+.impl-barra { display: inline-flex; gap: 3px; }
+.impl-barra span { width: 12px; height: 6px; border-radius: 3px; background: var(--surface-3); }
+.impl-barra span.on { background: var(--ok); }
+dialog.dlg.drawer.wide { width: min(1080px, calc(100vw - 24px)); }
+.ficha .grid-kpi { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.checklist li { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.checklist li span { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: var(--danger-soft); color: var(--danger); flex: none; }
+.checklist li.on { color: var(--text); font-weight: 550; }
+.checklist li.on span { background: var(--ok-soft); color: var(--ok); }
+.timeline { list-style: none; margin: 0; padding: 8px 20px 16px; max-height: 420px; overflow: auto; }
+.timeline li { display: flex; gap: 12px; padding: 9px 0; border-left: 2px solid var(--line); margin-left: 5px; padding-left: 14px; position: relative; font-size: 13.5px; }
+.timeline li small { display: block; color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+.tl-dot { position: absolute; left: -7px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface-3); box-shadow: 0 0 0 3px var(--surface); }
+.tl-dot.ok { background: var(--ok); } .tl-dot.warn { background: var(--warn); } .tl-dot.danger { background: var(--danger); } .tl-dot.info { background: var(--info); }

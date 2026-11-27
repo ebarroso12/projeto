@@ -20,6 +20,8 @@ export function TestePage({ convite, onVoltar }: { convite: string; onVoltar: ()
   const { api, signIn } = useAuth();
   const [estado, setEstado] = useState<'checando' | 'valido' | 'invalido'>('checando');
   const [dias, setDias] = useState(7);
+  const [tipo, setTipo] = useState<'teste' | 'pro'>('teste');
+  const [ate, setAte] = useState('');
   const [f, setF] = useState({ nome: '', codigo: '', adminNome: '', adminLogin: '', adminSenha: '', confirma: '' });
   const [codigoManual, setCodigoManual] = useState(false);
   const [erro, setErro] = useState('');
@@ -29,10 +31,14 @@ export function TestePage({ convite, onVoltar }: { convite: string; onVoltar: ()
   useEffect(() => {
     let vivo = true;
     api.validarConvite(convite)
-      .then(r => { if (vivo) { setEstado(r.valido ? 'valido' : 'invalido'); setDias(r.dias || 7); } })
+      .then(r => { if (vivo) { setEstado(r.valido ? 'valido' : 'invalido'); setDias(r.dias || 7); setTipo(r.tipo); setAte(r.ate); } })
       .catch(() => { if (vivo) setEstado('invalido'); });
     return () => { vivo = false; };
   }, [api, convite]);
+
+  const pro = tipo === 'pro';
+  const ateTxt = ate ? `${ate.slice(8, 10)}/${ate.slice(5, 7)}` : '';
+  const restam = ate ? Math.max(0, Math.ceil((Date.parse(ate) - Date.now()) / 86_400_000)) : 0;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,8 +66,8 @@ export function TestePage({ convite, onVoltar }: { convite: string; onVoltar: ()
       <aside className="login-brand" aria-hidden="true">
         <div className="lb-top"><img src="marca/marca-96.webp" alt="" width={44} height={44} /><span>Fábrica</span></div>
         <div className="lb-mid">
-          <div className="lb-selo">{dias} dias grátis · sem cartão</div>
-          <h2>Teste a gestão completa<br /><em>da sua fábrica.</em></h2>
+          <div className="lb-selo">{pro ? 'Versão completa' : `Teste grátis${ateTxt ? ` até ${ateTxt}` : ''} · sem cartão`}</div>
+          {pro ? <h2>Sua fábrica no controle,<br /><em>em tempo real.</em></h2> : <h2>Teste a gestão completa<br /><em>da sua fábrica.</em></h2>}
           <p>Em 1 minuto sua empresa está pronta: cadastre a equipe, lance a produção, controle o ponto, o estoque e o financeiro.</p>
           <ul className="lb-passos">
             <li><b>1</b>Crie a empresa e seu acesso</li>
@@ -73,9 +79,13 @@ export function TestePage({ convite, onVoltar }: { convite: string; onVoltar: ()
       </aside>
       <main className="login-main">
         <form className="login-form" onSubmit={submit} noValidate>
-          <div className="login-hello"><h1>Comece seu teste grátis</h1><p className="muted">{dias} dias com tudo liberado. Depois, é só falar com a gente para continuar.</p></div>
+          <div className="login-hello">
+            <h1>{pro ? 'Ative sua versão completa' : 'Comece seu teste grátis'}</h1>
+            <p className="muted">{pro ? 'Crie sua empresa e seu acesso de administrador. Tudo liberado, sem prazo.'
+              : `Tudo liberado${ateTxt ? ` até ${ateTxt}${restam > 0 ? ` (${restam} dia${restam > 1 ? 's' : ''})` : ''}` : ` por ${dias} dias`}. Depois, é só falar com a gente para continuar.`}</p>
+          </div>
           {estado === 'checando' && <Banner tone="info">Conferindo o link…</Banner>}
-          {estado === 'invalido' && <Banner tone="warn">Este link de teste não vale mais (expirou, foi revogado ou já foi usado). Peça um novo a quem enviou.</Banner>}
+          {estado === 'invalido' && <Banner tone="warn">Este link não vale mais (venceu, foi revogado ou já foi usado). Peça um novo a quem enviou.</Banner>}
           {estado === 'valido' && <>
             <TextField label="Nome da empresa" value={f.nome} autoFocus
               onChange={e => { set('nome', e.target.value); if (!codigoManual) set('codigo', slug(e.target.value)); }} />

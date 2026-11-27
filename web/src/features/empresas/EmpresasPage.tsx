@@ -10,6 +10,7 @@ import { MIN_SENHA } from '../../lib/rules';
 import { Button } from '../../ui/Button';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { Dialog, useConfirm } from '../../ui/Dialog';
+import { Ficha, ImplantacaoBarra } from './Ficha';
 import { TextField } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
@@ -73,43 +74,49 @@ function NovaEmpresa({ onClose }: { onClose: () => void }) {
   );
 }
 
-function GerarLink({ onClose }: { onClose: () => void }) {
+function GerarLink({ tipo, onClose }: { tipo: 'teste' | 'pro'; onClose: () => void }) {
   const api = useApi();
   const toast = useToast();
+  const pro = tipo === 'pro';
   const [dias, setDias] = useState('7');
   const [usos, setUsos] = useState('1');
   const [validade, setValidade] = useState('30');
   const [nota, setNota] = useState('');
   const [link, setLink] = useState('');
-  const gerar = useAction(() => api.criarConvite(Number(dias), Number(usos), Number(validade), nota), {
+  const gerar = useAction(() => api.criarConvite(tipo, Number(dias), Number(usos), Number(validade), nota), {
     invalidate: [KEY_CONV], onSuccess: t => setLink(linkDe(t)),
   });
-  const msg = `Olá! Teste grátis por ${dias} dias o sistema Fábrica (produção, ponto, estoque e financeiro). Crie sua empresa aqui: ${link}`;
+  const ate = new Date(Date.now() + Number(dias) * 86_400_000).toLocaleDateString('pt-BR');
+  const msg = pro
+    ? `Olá! Aqui está o acesso à versão completa do sistema Fábrica (produção, ponto, estoque e financeiro). Crie sua empresa por este link: ${link}`
+    : `Olá! Teste grátis o sistema Fábrica (produção, ponto, estoque e financeiro) até ${ate}. Crie sua empresa aqui: ${link}`;
   const copiar = async () => { try { await navigator.clipboard.writeText(link); toast.success('Link copiado.'); } catch { toast.info('Selecione o link e copie.'); } };
   if (link) {
     return (
-      <Dialog open onClose={onClose} title="Link de teste pronto" footer={<Button variant="primary" onClick={onClose}>Concluir</Button>}>
-        <Banner tone="info">Envie para quem vai testar. O link aparece só agora; guarde se precisar.</Banner>
-        <div className="link-box"><code>{link}</code></div>
+      <Dialog open onClose={onClose} title={pro ? 'Link PRO pronto' : 'Link de teste pronto'} footer={<Button variant="primary" onClick={onClose}>Concluir</Button>}>
+        <Banner tone="info">{pro ? 'Quem abrir cria a empresa já na versão completa, sem prazo.' : `O teste vale até ${ate} (7 dias a partir de agora), não importa o dia em que a pessoa se cadastrar.`} O link aparece só agora.</Banner>
+        <div className="link-box"><span className={`link-tipo ${tipo}`}>{pro ? 'PRO' : 'TESTE'}</span><code>{link}</code></div>
         <div className="row">
           <Button icon={<Icon name="copy" size={15} />} onClick={() => void copiar()}>Copiar link</Button>
           <a className="btn btn-success btn-md" href={`https://wa.me/?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer">Enviar no WhatsApp</a>
-          {'share' in navigator && <Button onClick={() => void navigator.share({ title: 'Teste grátis · Fábrica', text: msg, url: link }).catch(() => {})}>Compartilhar…</Button>}
+          {'share' in navigator && <Button onClick={() => void navigator.share({ title: pro ? 'Fábrica · versão completa' : 'Teste grátis · Fábrica', text: msg, url: link }).catch(() => {})}>Compartilhar…</Button>}
         </div>
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>Cada empresa criada pelo link fica {dias} dias em teste. Você acompanha e estende aqui em Empresas.</p>
       </Dialog>
     );
   }
   return (
-    <Dialog open onClose={onClose} title="Gerar link de teste"
+    <Dialog open onClose={onClose} title={pro ? 'Gerar link PRO (versão completa)' : 'Gerar link de teste'}
       footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={gerar.isPending} onClick={() => gerar.mutate()}>Gerar link</Button></>}>
+      {pro
+        ? <Banner tone="info">Para quem já é cliente: a empresa nasce na versão completa, <b>sem prazo de teste</b>. Você pode bloquear quando quiser em Empresas.</Banner>
+        : <Banner tone="info">O prazo conta a partir de <b>agora</b>: o link e o teste vencem juntos daqui a {dias} dias, mesmo que a pessoa se cadastre depois.</Banner>}
       <div className="form-grid">
-        <SelectField label="Dias de teste" value={dias} onChange={e => setDias(e.target.value)} options={['7', '14', '30'].map(v => ({ value: v, label: `${v} dias` }))} />
+        {!pro && <SelectField label="Dias de teste" value={dias} onChange={e => setDias(e.target.value)} options={['7', '14', '30'].map(v => ({ value: v, label: `${v} dias` }))} />}
         <SelectField label="Quantas empresas podem usar" value={usos} onChange={e => setUsos(e.target.value)}
           options={[{ value: '1', label: '1 (uma pessoa)' }, { value: '5', label: 'até 5' }, { value: '20', label: 'até 20' }, { value: '100', label: 'até 100' }]} />
+        {pro && <SelectField label="O link vale por" value={validade} onChange={e => setValidade(e.target.value)} options={[{ value: '7', label: '7 dias' }, { value: '30', label: '30 dias' }, { value: '90', label: '90 dias' }]} />}
       </div>
-      <SelectField label="O link vale por" value={validade} onChange={e => setValidade(e.target.value)} options={[{ value: '7', label: '7 dias' }, { value: '30', label: '30 dias' }, { value: '90', label: '90 dias' }]} />
-      <TextField label="Para quem (anotação)" value={nota} onChange={e => setNota(e.target.value)} placeholder="Ex.: Malharia do João, feira de outubro" />
+      <TextField label="Para quem (anotação)" value={nota} onChange={e => setNota(e.target.value)} placeholder={pro ? 'Ex.: Malharia do João (contrato assinado)' : 'Ex.: Malharia do João, feira de outubro'} />
     </Dialog>
   );
 }
@@ -118,19 +125,23 @@ function LinksTeste() {
   const api = useApi();
   const confirm = useConfirm();
   const q = useQuery({ queryKey: KEY_CONV, queryFn: () => api.convites() });
-  const [gerar, setGerar] = useState(false);
+  const [gerar, setGerar] = useState<'teste' | 'pro' | null>(null);
   const revogar = useAction((id: string) => api.revogarConvite(id), { success: 'Link revogado.', invalidate: [KEY_CONV] });
-  const situacao = (c: Convite) => (!c.ativo ? <Badge>Revogado</Badge> : c.usos >= c.usosMax ? <Badge>Esgotado</Badge> : diasAte(c.expiraEm) <= 0 ? <Badge tone="danger">Expirado</Badge> : <Badge tone="ok">Valendo</Badge>);
+  const situacao = (c: Convite) => (!c.ativo ? <Badge>Revogado</Badge> : c.usos >= c.usosMax ? <Badge>Esgotado</Badge> : diasAte(c.expiraEm) <= 0 ? <Badge tone="danger">Vencido</Badge> : <Badge tone="ok">Valendo</Badge>);
   return (
-    <Card title="Links de teste" subtitle="Mande um link: quem abrir cria a própria empresa e testa por alguns dias. Depois, você decide." flush
-      actions={<Button variant="primary" icon={<Icon name="plus" size={16} />} onClick={() => setGerar(true)}>Gerar link de teste</Button>}>
+    <Card title="Links para enviar" subtitle="TESTE: 7 dias contados do envio. PRO: versão completa, sem prazo." flush
+      actions={<span className="row">
+        <Button variant="primary" icon={<Icon name="plus" size={16} />} onClick={() => setGerar('teste')}>Gerar link TESTE</Button>
+        <Button variant="success" icon={<Icon name="plus" size={16} />} onClick={() => setGerar('pro')}>Gerar link PRO</Button>
+      </span>}>
       <QueryView query={q}>{lista => lista.length === 0 ? <div className="table-empty">Nenhum link gerado ainda.</div> : (
         <div className="list">
           {lista.map(c => (
             <div className="item" key={c.id}>
+              <span className={`link-tipo ${c.tipo}`}>{c.tipo === 'pro' ? 'PRO' : 'TESTE'}</span>
               <div className="item-main">
-                <b>{c.nota || 'Link de teste'} {situacao(c)}</b>
-                <small>{c.diasTeste} dias de teste · usado {c.usos} de {c.usosMax} · vale até {dataCompleta(c.expiraEm)}{c.empresas.length ? ` · ${c.empresas.join(', ')}` : ''}</small>
+                <b>{c.nota || (c.tipo === 'pro' ? 'Link PRO' : 'Link de teste')} {situacao(c)}</b>
+                <small>{c.tipo === 'teste' ? `teste até ${dataCompleta(c.expiraEm)} · ` : `link vale até ${dataCompleta(c.expiraEm)} · `}usado {c.usos} de {c.usosMax} · enviado {dataBR(c.criadoEm)}{c.empresas.length ? ` · ${c.empresas.join(', ')}` : ''}</small>
               </div>
               {c.ativo && c.usos < c.usosMax && diasAte(c.expiraEm) > 0 && (
                 <Button size="sm" variant="ghost" onClick={async () => {
@@ -141,7 +152,7 @@ function LinksTeste() {
           ))}
         </div>
       )}</QueryView>
-      {gerar && <GerarLink onClose={() => setGerar(false)} />}
+      {gerar && <GerarLink tipo={gerar} onClose={() => setGerar(null)} />}
     </Card>
   );
 }
@@ -154,13 +165,20 @@ function Lista({ empresas }: { empresas: Empresa[] }) {
     success: (_d, v) => (v.bloquear ? 'Empresa bloqueada.' : 'Empresa liberada.'), invalidate: [KEY],
   });
 
+  const [ficha, setFicha] = useState<Empresa | null>(null);
   const ajustar = useAction((v: { id: string; dias: number | null }) => api.ajustarTeste(v.id, v.dias), {
     success: (_d, v) => (v.dias === null ? 'Agora é cliente: sem prazo.' : 'Teste estendido por mais 7 dias.'), invalidate: [KEY],
   });
   const ativas = empresas.filter(e => e.ativa);
   const emTeste = ativas.filter(e => e.testeAte && diasAte(e.testeAte) > 0);
   const cols: Column<Empresa>[] = [
-    { id: 'nome', header: 'Empresa', value: e => e.nome, cell: e => <>{e.nome}<small>desde {dataBR(e.criadaEm)}</small></> },
+    {
+      id: 'nome', header: 'Empresa', value: e => e.nome,
+      cell: e => <button type="button" className="link-empresa" onClick={() => setFicha(e)}>
+        {e.online > 0 && <span className="online-dot" title={`${e.online} online agora`} />}<b>{e.nome}</b>
+        {e.tipoLink && <span className={`link-tipo ${e.tipoLink}`}>{e.tipoLink === 'pro' ? 'PRO' : 'TESTE'}</span>}
+        <small>desde {dataBR(e.criadaEm)} · ver ficha</small></button>,
+    },
     { id: 'codigo', header: 'Código', value: e => e.codigo, cell: e => <code>{e.codigo}</code> },
     { id: 'usuarios', header: 'Usuários', numeric: true, value: e => e.usuarios, cell: e => e.usuarios },
     { id: 'admins', header: 'Admins', numeric: true, value: e => e.admins, cell: e => e.admins },
@@ -172,7 +190,8 @@ function Lista({ empresas }: { empresas: Empresa[] }) {
         : diasAte(e.testeAte) <= 0 ? <><Badge tone="danger">Teste vencido</Badge><small>em {dataBR(e.testeAte)}</small></>
         : <><Badge tone="warn">Teste · {diasAte(e.testeAte)} dia(s)</Badge><small>até {dataBR(e.testeAte)}{e.porLink ? ' · veio pelo link' : ''}</small></>,
     },
-    { id: 'uso', header: 'Uso (7 dias)', numeric: true, value: e => e.tempo7d, cell: e => <>{tempo(e.tempo7d)}<small>{e.entradas7d} entradas · {e.acoes7d} ações</small></> },
+    { id: 'uso', header: 'Uso (7 dias)', numeric: true, value: e => e.tempo7d, cell: e => <>{tempo(e.tempo7d)}<small>{e.pessoas7d} pessoa(s) · {e.entradas7d} entradas · {e.acoes7d} ações</small></> },
+    { id: 'impl', header: 'Implantação', value: e => Object.values(e.implantacao).filter(Boolean).length, cell: e => <ImplantacaoBarra i={e.implantacao} /> },
     {
       id: 'acoes', header: '',
       cell: e => (
@@ -206,6 +225,7 @@ function Lista({ empresas }: { empresas: Empresa[] }) {
         <DataTable label="Empresas" columns={cols} rows={empresas} searchable rowKey={e => e.id} empty="Nenhuma empresa ainda." initialSort={{ id: 'nome', dir: 1 }} />
       </Card>
       <LinksTeste />
+      {ficha && <Ficha empresa={ficha} onClose={() => setFicha(null)} />}
       {nova && <NovaEmpresa onClose={() => setNova(false)} />}
     </div>
   );

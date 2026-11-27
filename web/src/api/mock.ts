@@ -358,13 +358,14 @@ function vencFatura(data: string, fech: number, venc: number): string {
 }
 
 const empresasDemo = [
-  { id: 'e1', codigo: 'demo', nome: 'Confecção Demonstração', ativa: true, motivo: '', criadaEm: '2026-09-01', usuarios: 6, admins: 1, ultimoAcesso: `${today()}T08:10`, testeAte: '', porLink: false, tempo7d: 86400, entradas7d: 41, acoes7d: 312 },
-  { id: 'e2', codigo: 'malharia-sul', nome: 'Malharia Sul', ativa: true, motivo: '', criadaEm: '2026-10-12', usuarios: 14, admins: 2, ultimoAcesso: `${today()}T07:55`, testeAte: '', porLink: false, tempo7d: 151200, entradas7d: 88, acoes7d: 640 },
-  { id: 'e3', codigo: 'jeans-norte', nome: 'Jeans Norte', ativa: false, motivo: 'Mensalidade em atraso', criadaEm: '2026-08-03', usuarios: 9, admins: 1, ultimoAcesso: '2026-11-02T17:20', testeAte: '', porLink: false, tempo7d: 0, entradas7d: 0, acoes7d: 0 },
-  { id: 'e4', codigo: 'estamparia-leste', nome: 'Estamparia Leste', ativa: true, motivo: '', criadaEm: isoDay(addDays(new Date(), -3)), usuarios: 3, admins: 1, ultimoAcesso: `${today()}T09:40`, testeAte: `${isoDay(addDays(new Date(), 4))}T09:00`, porLink: true, tempo7d: 12600, entradas7d: 9, acoes7d: 57 },
+  { id: 'e1', codigo: 'demo', nome: 'Confecção Demonstração', ativa: true, motivo: '', criadaEm: '2026-09-01', usuarios: 6, admins: 1, ultimoAcesso: `${today()}T08:10`, testeAte: '', porLink: false, tempo7d: 86400, entradas7d: 41, acoes7d: 312, tipoLink: '', pessoas7d: 5, online: 3, implantacao: { listas: true, equipe: true, producao: true, ponto: true, financeiro: true, resultado: true } },
+  { id: 'e2', codigo: 'malharia-sul', nome: 'Malharia Sul', ativa: true, motivo: '', criadaEm: '2026-10-12', usuarios: 14, admins: 2, ultimoAcesso: `${today()}T07:55`, testeAte: '', porLink: false, tempo7d: 151200, entradas7d: 88, acoes7d: 640, tipoLink: 'pro', pessoas7d: 12, online: 4, implantacao: { listas: true, equipe: true, producao: true, ponto: true, financeiro: true, resultado: true } },
+  { id: 'e3', codigo: 'jeans-norte', nome: 'Jeans Norte', ativa: false, motivo: 'Mensalidade em atraso', criadaEm: '2026-08-03', usuarios: 9, admins: 1, ultimoAcesso: '2026-11-02T17:20', testeAte: '', porLink: false, tempo7d: 0, entradas7d: 0, acoes7d: 0, tipoLink: '', pessoas7d: 0, online: 0, implantacao: { listas: true, equipe: true, producao: true, ponto: true, financeiro: false, resultado: false } },
+  { id: 'e4', codigo: 'estamparia-leste', nome: 'Estamparia Leste', ativa: true, motivo: '', criadaEm: isoDay(addDays(new Date(), -3)), usuarios: 3, admins: 1, ultimoAcesso: `${today()}T09:40`, testeAte: `${isoDay(addDays(new Date(), 4))}T09:00`, porLink: true, tempo7d: 12600, entradas7d: 9, acoes7d: 57, tipoLink: 'teste', pessoas7d: 2, online: 1, implantacao: { listas: true, equipe: true, producao: true, ponto: false, financeiro: false, resultado: false } },
 ] as Record<string, unknown>[];
 const convitesDemo: Record<string, unknown>[] = [
-  { id: 'c1', nota: 'Feira de confecção', diasTeste: 7, usosMax: 10, usos: 1, ativo: true, expiraEm: `${isoDay(addDays(new Date(), 25))}T09:00`, criadoEm: `${isoDay(addDays(new Date(), -5))}T10:00`, empresas: ['Estamparia Leste'] },
+  { id: 'c1', tipo: 'teste', nota: 'Feira de confecção', diasTeste: 7, usosMax: 10, usos: 1, ativo: true, expiraEm: `${isoDay(addDays(new Date(), 2))}T10:00`, criadoEm: `${isoDay(addDays(new Date(), -5))}T10:00`, empresas: ['Estamparia Leste'] },
+  { id: 'c2', tipo: 'pro', nota: 'Malharia Sul (contrato assinado)', diasTeste: 7, usosMax: 1, usos: 1, ativo: true, expiraEm: `${isoDay(addDays(new Date(), 20))}T10:00`, criadoEm: `${isoDay(addDays(new Date(), -46))}T10:00`, empresas: ['Malharia Sul'] },
 ];
 
 const fin = {
@@ -644,10 +645,10 @@ Object.assign(handlers, {
 
 Object.assign(handlers, {
   convites: ([t]: unknown[]) => { requireAdmin(userOf(String(t))); return convitesDemo; },
-  criarConvite: ([t, dias, usos, validade, nota]: unknown[]) => {
+  criarConvite: ([t, tipo, dias, usos, validade, nota]: unknown[]) => {
     requireAdmin(userOf(String(t)));
     const token = `demo${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.padEnd(40, 'x');
-    convitesDemo.unshift({ id: token, nota: String(nota ?? ''), diasTeste: Number(dias), usosMax: Number(usos), usos: 0, ativo: true, expiraEm: `${isoDay(addDays(new Date(), Number(validade)))}T23:59`, criadoEm: `${today()}T${hhmm()}`, empresas: [] });
+    convitesDemo.unshift({ id: token, tipo, nota: String(nota ?? ''), diasTeste: Number(dias), usosMax: Number(usos), usos: 0, ativo: true, expiraEm: `${isoDay(addDays(new Date(), tipo === 'teste' ? Number(dias) : Number(validade)))}T${hhmm()}`, criadoEm: `${today()}T${hhmm()}`, empresas: [] });
     return token;
   },
   revogarConvite: ([t, id]: unknown[]) => { requireAdmin(userOf(String(t))); const c = convitesDemo.find(x => x.id === id); if (c) c.ativo = false; return null; },
@@ -659,15 +660,19 @@ Object.assign(handlers, {
   },
   meuTeste: ([t]: unknown[]) => { userOf(String(t)); return ''; },
   validarConvite: ([conv]: unknown[]) => {
-    const c = convitesDemo.find(x => x.id === conv) ?? (String(conv) === 'demo-teste' ? { diasTeste: 7, ativo: true, usos: 0, usosMax: 99 } : null);
-    return c && c.ativo && Number(c.usos) < Number(c.usosMax) ? { valido: true, dias: c.diasTeste } : { valido: false, dias: 0 };
+    const c = convitesDemo.find(x => x.id === conv)
+      ?? (String(conv) === 'demo-teste' ? { tipo: 'teste', diasTeste: 7, ativo: true, usos: 0, usosMax: 99, criadoEm: `${today()}T${hhmm()}` }
+        : String(conv) === 'demo-pro' ? { tipo: 'pro', diasTeste: 0, ativo: true, usos: 0, usosMax: 99, criadoEm: '' } : null);
+    if (!c || !c.ativo || Number(c.usos) >= Number(c.usosMax)) return { valido: false, tipo: '', dias: 0, ate: '' };
+    return { valido: true, tipo: c.tipo, dias: c.diasTeste, ate: c.tipo === 'teste' ? `${isoDay(addDays(new Date(String(c.criadoEm).slice(0, 10) + 'T12:00'), Number(c.diasTeste)))}T${String(c.criadoEm).slice(11, 16)}` : '' };
   },
   criarEmpresaTeste: ([o]: unknown[]) => {
     const r = o as { convite: string; codigo: string; nome: string; adminNome: string; adminLogin: string; adminSenha: string };
     if (empresasDemo.some(e => e.codigo === r.codigo)) throw fromServerMessage('Já existe uma empresa com esse código. Escolha outro.');
     if (r.adminSenha.length < MIN_SENHA) throw fromServerMessage(`A senha precisa ter pelo menos ${MIN_SENHA} caracteres.`);
     if (state.users.some(u => u.login === r.adminLogin)) throw fromServerMessage('Esse login já existe nesta empresa.');
-    empresasDemo.push({ id: `e${Date.now()}`, codigo: r.codigo, nome: r.nome, ativa: true, motivo: '', criadaEm: today(), usuarios: 1, admins: 1, ultimoAcesso: '', testeAte: `${isoDay(addDays(new Date(), 7))}T${hhmm()}`, porLink: true, tempo7d: 0, entradas7d: 0, acoes7d: 0 });
+    const pro = r.convite === 'demo-pro' || convitesDemo.find(x => x.id === r.convite)?.tipo === 'pro';
+    empresasDemo.push({ id: `e${Date.now()}`, codigo: r.codigo, nome: r.nome, ativa: true, motivo: '', criadaEm: today(), usuarios: 1, admins: 1, ultimoAcesso: '', testeAte: pro ? '' : `${isoDay(addDays(new Date(), 7))}T${hhmm()}`, porLink: true, tempo7d: 0, entradas7d: 0, acoes7d: 0, tipoLink: pro ? 'pro' : 'teste', pessoas7d: 1, online: 1, implantacao: { listas: false, equipe: false, producao: false, ponto: false, financeiro: false, resultado: false } });
     state.users.push({ login: r.adminLogin, nome: r.adminNome, setor: 'Administração', perfil: 'admin', ativo: true, podeFalta: true, senha: r.adminSenha } as MUser);
     const c = convitesDemo.find(x => x.id === r.convite); if (c) { c.usos = Number(c.usos) + 1; (c.empresas as string[]).push(r.nome); }
     return null;
@@ -680,5 +685,26 @@ Object.assign(handlers, {
     alvo.ativo = !bloquear;
     acessoDemo.eventos.unshift({ id: Date.now(), quem: u.nome, tipo: bloquear ? 'pessoa_bloqueada' : 'pessoa_desbloqueada', alvo: alvo.nome, detalhe: {}, em: agoraIso(0) });
     return null;
+  },
+});
+
+Object.assign(handlers, {
+  empresaDetalhe: ([t, id]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const e = empresasDemo.find(x => x.id === id) ?? empresasDemo[0]!;
+    const dias = Array.from({ length: 14 }, (_, i) => {
+      const k = 13 - i, ativo = k > 9 ? 0 : 1, base = Math.round((Number(e.tempo7d) / 7) * ativo * (0.6 + Math.sin(i) * 0.3 + 0.4));
+      return { dia: isoDay(addDays(new Date(), -k)), entradas: ativo ? 1 + (i % 4) : 0, tempoSeg: base, acoes: ativo ? 3 + ((i * 7) % 11) : 0, pessoas: ativo ? 1 + (i % 2) : 0 };
+    });
+    return {
+      nome: e.nome, codigo: e.codigo, implantacao: e.implantacao, dias,
+      pessoas: [
+        { nome: 'Rita Gomes', login: 'rita', perfil: 'admin', setor: 'Administração', ativo: true, entradas: 9, tempoSeg: 9000, logadoSeg: 13200, acoes: 41, ultimo: `${today()}T09:40`, aparelhos: 2 },
+        { nome: 'Paulo Silva', login: 'paulo', perfil: 'funcionario', setor: 'Corte', ativo: true, entradas: 4, tempoSeg: 3600, logadoSeg: 5400, acoes: 16, ultimo: `${isoDay(addDays(new Date(), -1))}T16:05`, aparelhos: 1 },
+      ],
+      modulos: [{ alvo: 'lancamentos', criou: 28, alterou: 4, apagou: 1 }, { alvo: 'itens_lista', criou: 18, alterou: 0, apagou: 2 }, { alvo: 'perfis', criou: 2, alterou: 1, apagou: 0 }],
+      sessoes: acessoDemo.sessoes.slice(0, 4),
+      eventos: acessoDemo.eventos.slice(0, 15),
+    };
   },
 });

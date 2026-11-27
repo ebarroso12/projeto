@@ -124,11 +124,11 @@ export function BarrasComparadas({ grupos, series, titulo, formato = (n: number)
                     <g key={si}>
                       <path d={barPath(x, y(v), bw, h)} fill={series[si]!.color}
                         onMouseMove={e => { const b = e.currentTarget.ownerSVGElement!.parentElement!.getBoundingClientRect(); setTip({ x: e.clientX - b.left, y: e.clientY - b.top, content: <><b>{g.label}</b><br />{series[si]!.label}: {formato(v)}</> }); }} />
-                      {si === g.valores.length - 1 && <text x={x + bw / 2} y={y(v) - 6} textAnchor="middle" className="viz-label">{formato(v)}</text>}
+                      {si === g.valores.length - 1 && v > 0 && <text x={x + bw / 2} y={y(v) - 6} textAnchor="middle" className="viz-label">{formato(v)}</text>}
                     </g>
                   );
                 })}
-                <text x={L + gi * gw + gw / 2} y={H - 8} textAnchor="middle" className="viz-axis viz-axis-x">{g.label}</text>
+                {(gw >= 46 || gi % Math.ceil(46 / gw) === 0) && <text x={L + gi * gw + gw / 2} y={H - 8} textAnchor="middle" className="viz-axis viz-axis-x">{g.label}</text>}
               </g>
             );
           })}
