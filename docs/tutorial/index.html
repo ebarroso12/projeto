@@ -1,0 +1,359 @@
+<title>Manual do Fábrica</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<style>
+/* Layout: índice fixo à esquerda (vira faixa rolável no celular) + coluna de leitura de ~72ch com capturas reais do app */
+:root {
+  --navy: #0b2466; --navy-2: #071a4f; --laranja: #f7931e; --laranja-escuro: #c9700a;
+  --bg: #f4f6fb; --papel: #ffffff; --tinta: #14203d; --suave: #56607a; --linha: #dde3ef; --dica: #eaf1ff; --dica-borda: #9db6ef; --atencao: #fff4e6; --atencao-borda: #f2b866;
+  --ok: #157a46; --codigo: #eef1f8;
+  --f-titulo: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --f-texto: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1020; --papel: #121a30; --tinta: #e6eaf5; --suave: #a2abc4; --linha: #263252; --dica: #15244a; --dica-borda: #3b5aa8; --atencao: #2c2214; --atencao-borda: #8a6224;
+  --ok: #49c98a; --codigo: #1b2542; --laranja-escuro: #ffb04d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0b1020; --papel: #121a30; --tinta: #e6eaf5; --suave: #a2abc4; --linha: #263252; --dica: #15244a; --dica-borda: #3b5aa8; --atencao: #2c2214; --atencao-borda: #8a6224;
+  --ok: #49c98a; --codigo: #1b2542; --laranja-escuro: #ffb04d; color-scheme: dark }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--tinta); font: 16px/1.65 var(--f-texto); }
+a { color: var(--laranja-escuro); }
+h1, h2, h3 { font-family: var(--f-titulo); line-height: 1.2; text-wrap: balance; margin: 0; }
+.capa { background: linear-gradient(150deg, var(--navy), var(--navy-2)); color: #fff;
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: calc(env(safe-area-inset-top, 0px) + 44px); padding-bottom: 40px; }
+.capa-in { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 12px; }
+.capa .selo { display: inline-block; width: fit-content; background: rgba(255,255,255,.12); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.capa h1 { font-size: clamp(30px, 5vw, 48px); letter-spacing: -.02em; }
+.capa h1 em { font-style: normal; color: #ffad4a; }
+.capa p { margin: 0; max-width: 62ch; color: rgba(255,255,255,.86); }
+.capa .linkapp { color: #ffd29a; font-weight: 600; }
+.grade { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 40px; align-items: start;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 80px; }
+nav.indice { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); font-size: 14.5px; }
+nav.indice b { display: block; font-family: var(--f-titulo); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); margin-bottom: 8px; }
+nav.indice ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+nav.indice li { counter-increment: s; }
+nav.indice a { display: flex; gap: 10px; padding: 6px 10px; border-radius: 8px; color: var(--tinta); text-decoration: none; }
+nav.indice a::before { content: counter(s); color: var(--suave); font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: right; }
+nav.indice a:hover, nav.indice a:focus-visible { background: var(--papel); outline: none; box-shadow: 0 0 0 1px var(--linha); }
+nav.indice a.destaque { color: var(--laranja-escuro); font-weight: 600; }
+main { min-width: 0; display: grid; gap: 28px; }
+section { background: var(--papel); border: 1px solid var(--linha); border-radius: 18px; padding: 26px clamp(18px, 3vw, 34px); display: grid; gap: 14px; scroll-margin-top: 16px; }
+section > h2 { font-size: clamp(22px, 2.6vw, 28px); display: flex; gap: 12px; align-items: baseline; }
+section > h2 .n { color: var(--laranja); font-size: .8em; font-variant-numeric: tabular-nums; }
+section h3 { font-size: 18px; margin-top: 8px; }
+p, li { max-width: 72ch; }
+p { margin: 0; }
+.onde { font-size: 14px; color: var(--suave); }
+.onde b { color: var(--tinta); }
+ol.passos { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: p; }
+ol.passos > li { counter-increment: p; position: relative; padding-left: 44px; }
+ol.passos > li::before { content: counter(p); position: absolute; left: 0; top: 1px; width: 30px; height: 30px; border-radius: 50%; background: var(--navy); color: #fff;
+  font: 700 14px/30px var(--f-titulo); text-align: center; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+figure { margin: 4px 0; display: grid; gap: 6px; }
+figure img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--linha); background: #fff; display: block; }
+figure.estreita img { max-width: 480px; }
+figure.cel img { max-width: 300px; }
+figcaption { font-size: 13.5px; color: var(--suave); }
+.box { border-radius: 12px; padding: 12px 16px; border: 1px solid; display: grid; gap: 4px; }
+.dica { background: var(--dica); border-color: var(--dica-borda); }
+.atencao { background: var(--atencao); border-color: var(--atencao-borda); }
+.box b:first-child { font-family: var(--f-titulo); }
+code, kbd { background: var(--codigo); border-radius: 6px; padding: 1px 6px; font-size: .92em; }
+.tabela { overflow-x: auto; border: 1px solid var(--linha); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { padding: 8px 12px; border-bottom: 1px solid var(--linha); text-align: left; vertical-align: top; }
+th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.conta { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--linha); border: 1px solid var(--linha); border-radius: 12px; overflow: hidden; }
+.conta > div { background: var(--papel); padding: 10px 14px; display: grid; gap: 2px; }
+.conta span { font-size: 12.5px; color: var(--suave); }
+.conta strong { font: 700 20px var(--f-titulo); font-variant-numeric: tabular-nums; }
+.conta .vermelho { color: #d33; } .conta .verde { color: var(--ok); }
+.faq dt { font-weight: 700; margin-top: 10px; }
+.faq dd { margin: 2px 0 0; color: var(--tinta); max-width: 72ch; }
+.rodape { text-align: center; color: var(--suave); font-size: 13.5px; }
+@media (max-width: 900px) {
+  .grade { grid-template-columns: 1fr; gap: 18px; padding-block: 16px 60px; }
+  nav.indice { position: static; }
+  nav.indice ol { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 6px; }
+  nav.indice a { white-space: nowrap; background: var(--papel); border: 1px solid var(--linha); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<header class="capa">
+  <div class="capa-in">
+    <span class="selo">Manual de uso · versão 1.9</span>
+    <h1>Fábrica: <em>do corte ao lucro</em>, passo a passo</h1>
+    <p>Como montar a empresa no app, organizar a equipe, controlar corte e costura com oficinas sem perder peças, acompanhar pedidos, estoque, produção, financeiro e resultado.</p>
+    <p>Endereço do app: <span class="linkapp">fabricapremium.vercel.app</span></p>
+  </div>
+</header>
+
+<div class="grade">
+  <nav class="indice" aria-label="Índice do manual">
+    <b>Índice</b>
+    <ol>
+      <li><a href="#primeiro-acesso">Primeiro acesso</a></li>
+      <li><a href="#montar">Montar a empresa</a></li>
+      <li><a href="#equipe">Equipe no dia a dia</a></li>
+      <li><a href="#oficinas" class="destaque">Corte e costura com oficinas</a></li>
+      <li><a href="#pedidos">Pedidos de clientes</a></li>
+      <li><a href="#materia-prima">Matéria-prima</a></li>
+      <li><a href="#produtividade">Produtividade</a></li>
+      <li><a href="#financeiro">Financeiro</a></li>
+      <li><a href="#resultado">Resultado e lucro</a></li>
+      <li><a href="#acompanhar">Acompanhar a fábrica</a></li>
+      <li><a href="#acessos">Acessos e segurança</a></li>
+      <li><a href="#avisos">Avisos e mensagens</a></li>
+      <li><a href="#dono">Dono do sistema</a></li>
+      <li><a href="#duvidas">Dúvidas frequentes</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="primeiro-acesso">
+      <h2><span class="n">1</span> Primeiro acesso</h2>
+      <ol class="passos">
+        <li>Abra <b>fabricapremium.vercel.app</b> no celular ou no computador.</li>
+        <li>Preencha <b>Empresa</b> (o código da empresa, por exemplo <code>fabrica</code>), <b>Login</b> e <b>Senha</b>. Tanto faz digitar com acento ou maiúscula: <code>Fábrica</code> e <code>fabrica</code> funcionam igual. Toque no <b>olho</b> para ver a senha que está digitando.</li>
+        <li>Para a equipe não precisar digitar o código, mande o link já com a empresa: <code>fabricapremium.vercel.app/?e=fabrica</code>.</li>
+        <li>Instale o app: toque no <b>sino</b> no topo e em <b>Instalar o Fábrica</b>. No iPhone: Safari → <b>Compartilhar</b> → <b>Adicionar à Tela de Início</b>.</li>
+        <li>No mesmo sino, toque em <b>Ligar avisos</b> para receber pedidos de acesso, mensagens e o resumo das 8h no celular.</li>
+        <li>Troque a senha inicial: clique no seu nome (canto superior direito) → <b>Trocar senha</b>.</li>
+      </ol>
+      <figure><img src="img/login.webp" alt="Tela de login com os campos Empresa, Login e Senha" width="1280" height="800" loading="lazy"><figcaption>Tela de entrada. O link “Conheça o Fábrica” leva à página de apresentação.</figcaption></figure>
+      <div class="box dica"><b>Dica</b><p>Funcionários que não são administradores entram só depois que o administrador <b>libera o acesso</b> daquele aparelho (seção 11).</p></div>
+    </section>
+
+    <section id="montar">
+      <h2><span class="n">2</span> Montar a empresa</h2>
+      <p>Faça nesta ordem, uma vez só. Tudo fica em <b>Cadastros</b> (menu Administração).</p>
+      <ol class="passos">
+        <li><b>Modelos, cores e tamanhos</b>: a lista que aparece no Lançar, nos pedidos e nas remessas. Ex.: Camisa Polo · Preto, Branco · P, M, G, GG.</li>
+        <li><b>Produtos</b>: cadastre cada modelo com <b>preço de venda</b> e <b>custo</b>. O preço entra sozinho nos pedidos e os dois são usados no lucro por modelo. Ao salvar, o produto, as cores e os tamanhos vão para as listas.</li>
+        <li><b>Funcionários</b>: nome, login, senha e <b>setor</b>. O setor define a etapa que a pessoa lança: <i>Cortador</i> → Corte, <i>Costureira</i> → Costura, <i>Conferente</i> → Conferência. Clique no nome da pessoa para ligar ou desligar cada função do app só para ela.</li>
+        <li><b>Oficinas</b>: quem corta ou costura <b>de fora</b> (facção, costureira em casa). Informe o que faz, o <b>valor por peça</b>, telefone/WhatsApp e PIX.</li>
+        <li><b>Clientes</b> e <b>Fornecedores</b>: usados nos pedidos e no Financeiro (com histórico de compras de cada um).</li>
+        <li><b>Bancos</b>: ao cadastrar, marque “criar também como conta no Financeiro”.</li>
+        <li>Em <b>Matéria-prima</b>, cadastre os tecidos e aviamentos com a <b>regra de consumo</b> (seção 6).</li>
+        <li>Em <b>Produtividade → Valor por peça</b>, defina quanto se paga por peça em cada etapa (para funcionários pagos por produção).</li>
+      </ol>
+      <figure><img src="img/cad-oficinas.webp" alt="Cadastros na aba Oficinas, com a lista de oficinas, o que fazem e o valor por peça" width="1280" height="800" loading="lazy"><figcaption>Cadastros → Oficinas: cada oficina com o que faz, contato e valor por peça.</figcaption></figure>
+    </section>
+
+    <section id="equipe">
+      <h2><span class="n">3</span> Equipe no dia a dia</h2>
+      <h3>Ponto</h3>
+      <p>Cada pessoa marca <b>Entrada</b> e <b>Saída</b> no celular. Se esquecer a saída, o ponto fecha sozinho no horário de fim do expediente e fica marcado no relatório.</p>
+      <figure class="cel"><img src="img/cel-ana.webp" alt="Tela de ponto no celular da costureira com relógio, entrada marcada e botão Marcar saída" width="390" height="844" loading="lazy"><figcaption>No celular, cada funcionário vê só o que precisa: Ponto, Lançar e Em falta.</figcaption></figure>
+      <h3>Lançar produção</h3>
+      <ol class="passos">
+        <li>Abra <b>Lançar</b>, escolha <b>modelo</b> e <b>cor</b> e digite a quantidade em cada tamanho.</li>
+        <li>Confira o resumo e toque em <b>Lançar</b>. Se a etapa lançar mais do que a anterior entregou, o app avisa na hora.</li>
+        <li>O próprio funcionário corrige os lançamentos <b>do dia</b>. Toda edição fica marcada e aparece em alerta no Painel.</li>
+      </ol>
+      <figure><img src="img/lancar.webp" alt="Tela Lançar produção com etapa, quem fez, modelo, cor e grade de tamanhos" width="1280" height="800" loading="lazy"><figcaption>O administrador escolhe a etapa e, no campo <b>Quem fez</b>, pode lançar em nome de quem não usa celular (funcionário ou oficina).</figcaption></figure>
+      <h3>Em falta</h3>
+      <p>Lista do que precisa ser produzido primeiro. A baixa é automática: quando a conferência alcança a quantidade, o item é marcado como feito.</p>
+    </section>
+
+    <section id="oficinas">
+      <h2><span class="n">4</span> Corte e costura com oficinas</h2>
+      <p class="onde">Menu <b>Operação → Oficinas e remessas</b>. É aqui que a conta fecha <b>por oficina e por remessa</b>: o que saiu, o que voltou bom, com defeito e o que está faltando.</p>
+      <div class="box dica"><b>O caminho das peças</b><p>Bobina → <b>ordem de corte</b> (cortador) → <b>remessa</b> (costureira) → <b>retorno</b> (boas e com defeito) → <b>acerto</b> (pagamento). Cada passo alimenta a produção, o estoque e o Financeiro automaticamente.</p></div>
+
+      <h3>Passo 1 · Ordem de corte: a bobina e o que foi cortado</h3>
+      <ol class="passos">
+        <li>Toque em <b>Ordem de corte</b>.</li>
+        <li>Escolha <b>quem cortou</b> (oficina ou funcionário), o <b>modelo</b> e a <b>cor</b>.</li>
+        <li>Em <b>Bobina / tecido</b>, escolha o tecido e informe <b>quanto foi usado</b> (kg ou metros da bobina).</li>
+        <li>Digite quantas peças foram cortadas em cada tamanho e toque em <b>Registrar corte</b>.</li>
+      </ol>
+      <figure><img src="img/ordem-form.webp" alt="Formulário de ordem de corte com quem cortou, modelo, cor, bobina, quantidade usada e grade de tamanhos" width="1080" height="776" loading="lazy"><figcaption>Ordem de corte: as peças entram no Corte no nome de quem cortou e o tecido sai do estoque pelo peso real.</figcaption></figure>
+      <p><b>Rendimento da bobina.</b> O app compara com a regra do tecido. Exemplo: 25 kg ÷ 0,25 kg por peça = <b>100 peças esperadas</b>. Se o cortador entregou 90, a perda foi de <b>10%</b>, mostrada em vermelho quando passa de 5%.</p>
+      <figure><img src="img/ordens.webp" alt="Lista de ordens de corte com peças cortadas, esperadas e percentual de perda" width="1280" height="800" loading="lazy"><figcaption>Aba Ordens de corte: peças cortadas × esperadas e a perda de tecido de cada bobina.</figcaption></figure>
+
+      <h3>Passo 2 · Remessa: mandar as peças para a costureira</h3>
+      <ol class="passos">
+        <li>Toque em <b>Nova remessa</b> e escolha <b>para quem vai</b>. O <b>valor por peça</b> vem do cadastro da oficina.</li>
+        <li>Informe o <b>prazo de devolução</b> e, se quiser, o <b>desconto por peça faltando</b> (cobrado no acerto).</li>
+        <li>Em <b>Peças de uma ordem de corte</b>, escolha a ordem para preencher a grade sozinho, ou digite modelo, cor e tamanhos.</li>
+        <li>Toque em <b>Registrar envio</b>. Abra a remessa e use <b>Comprovante</b> (imprimir e assinar) ou <b>WhatsApp</b> (manda a lista para a oficina).</li>
+      </ol>
+      <figure><img src="img/remessa-form.webp" alt="Formulário de nova remessa com oficina, etapa, datas, valor por peça, desconto e itens" width="1080" height="776" loading="lazy"><figcaption>Nova remessa a partir de uma ordem de corte.</figcaption></figure>
+
+      <h3>Passo 3 · Retorno: conferir o que voltou</h3>
+      <ol class="passos">
+        <li>Abra a remessa e toque em <b>Registrar retorno</b>.</li>
+        <li>Para cada tamanho, digite as peças <b>boas</b> e as <b>com defeito</b>. Se voltou tudo certo, use <b>Voltou tudo bom</b>.</li>
+        <li>Pode registrar em várias vezes (parte hoje, parte amanhã). O app <b>não aceita</b> voltar mais do que foi enviado.</li>
+      </ol>
+      <figure class="estreita"><img src="img/retorno.webp" alt="Janela de retorno com faltam voltar, boas e com defeito por tamanho" width="720" height="488" loading="lazy"><figcaption>As peças boas entram como Costura no nome da oficina.</figcaption></figure>
+
+      <h3>Passo 4 · Acerto: fechar a conta e pagar</h3>
+      <p>Toque em <b>Acertar</b>. O app mostra a conta e, se você tiver o Financeiro, lança o pagamento como saída na categoria <b>Facção</b>, ligada à oficina.</p>
+      <div class="conta" role="group" aria-label="Exemplo de acerto">
+        <div><span>Enviadas</span><strong>90</strong></div>
+        <div><span>Voltaram boas</span><strong class="verde">80</strong></div>
+        <div><span>Com defeito</span><strong>2</strong></div>
+        <div><span>Faltando</span><strong class="vermelho">8</strong></div>
+        <div><span>A pagar</span><strong>R$ 120,00</strong></div>
+      </div>
+      <p class="onde">Exemplo: 80 boas × R$ 2,50 − 8 faltando × R$ 10,00 de desconto = <b>R$ 120,00</b>. Defeito não é pago nem descontado: volta para conserto ou perda.</p>
+      <figure class="estreita"><img src="img/acerto.webp" alt="Janela de acerto da remessa com enviadas, boas, defeito, faltando e lançamento no Financeiro" width="480" height="564" loading="lazy"></figure>
+
+      <h3>Passo 5 · Quem está com o quê</h3>
+      <p>A primeira aba mostra, por oficina, quantas peças ainda estão com ela, quantas remessas passaram do prazo e quanto há para acertar. Todo dia às 8h, quem tem a função recebe aviso das remessas atrasadas.</p>
+      <figure><img src="img/oficinas.webp" alt="Painel quem está com o quê, com peças por oficina e remessa atrasada em vermelho" width="1280" height="800" loading="lazy"></figure>
+      <div class="box atencao"><b>Errou alguma coisa?</b>
+        <ul>
+          <li>Retorno errado: abra a remessa e exclua o retorno (a produção dele sai junto); registre de novo.</li>
+          <li>Remessa já acertada: <b>Reabrir</b> tira o pagamento do Financeiro.</li>
+          <li>Ordem de corte errada: exclua (se ainda não tiver remessa); o corte sai da produção e o tecido volta ao estoque.</li>
+          <li>Lançamentos que vieram de ordem ou remessa não são editados no Lançar: corrija aqui.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="pedidos">
+      <h2><span class="n">5</span> Pedidos de clientes</h2>
+      <p class="onde">Menu <b>Gestão → Pedidos</b>.</p>
+      <ol class="passos">
+        <li><b>Novo pedido</b>: cliente, data de entrega, modelo, cor e quantidades por tamanho. O preço vem do cadastro do produto.</li>
+        <li>O <b>andamento</b> (Corte, Costura, Conferência) é calculado sozinho pela produção lançada. Quando dois pedidos pedem a mesma peça, a produção vai primeiro para a entrega mais próxima.</li>
+        <li>A aba <b>Fila de produção</b> diz o que falta cortar, costurar e conferir, em ordem de entrega.</li>
+        <li>Ao <b>Entregar</b>, escolha lançar no Financeiro como <b>a receber em parcelas</b> ou <b>recebido à vista</b>.</li>
+      </ol>
+      <figure><img src="img/pedidos.webp" alt="Lista de pedidos com andamento por etapa, situação e valor" width="1280" height="800" loading="lazy"><figcaption>Atrasado em vermelho; “Entrega em breve” para até 3 dias; “Pronto para entregar” quando a conferência fecha.</figcaption></figure>
+      <figure><img src="img/fila.webp" alt="Fila de produção com o que falta em cada etapa por modelo, cor e tamanho" width="1280" height="800" loading="lazy"></figure>
+    </section>
+
+    <section id="materia-prima">
+      <h2><span class="n">6</span> Matéria-prima</h2>
+      <p class="onde">Menu <b>Operação → Matéria-prima</b>.</p>
+      <ol class="passos">
+        <li><b>Novo material</b>: nome, unidade (kg, m, un, cone), estoque mínimo e a <b>regra de consumo</b>: quanto cada peça gasta e em qual etapa. Ex.: Malha moletom · Corte · Moletom Canguru · 0,6 m.</li>
+        <li><b>Entrada</b>: registre a compra com valor e fornecedor; dá para lançar direto no Financeiro. O custo médio é calculado sozinho.</li>
+        <li>O estoque <b>baixa sozinho</b> pela produção (ou pelo peso real informado na ordem de corte). Apagou uma produção? O material volta.</li>
+        <li><b>Contagem</b>: informe quanto há na prateleira; o app registra a diferença como ajuste.</li>
+      </ol>
+      <figure><img src="img/materiais.webp" alt="Estoque de matéria-prima com saldo, mínimo, dias de duração e custo médio" width="1280" height="800" loading="lazy"><figcaption>“Dura” mostra quantos dias o saldo aguenta no ritmo dos últimos 30 dias.</figcaption></figure>
+    </section>
+
+    <section id="produtividade">
+      <h2><span class="n">7</span> Produtividade e pagamento por produção</h2>
+      <p class="onde">Menu <b>Gestão → Produtividade</b>.</p>
+      <ul>
+        <li><b>Por pessoa</b>: peças no período, por dia e por hora (usando o ponto).</li>
+        <li><b>Valor por peça</b>: valor geral de cada etapa e valores específicos por modelo.</li>
+        <li><b>Pagar produção</b>: escolha a conta e a data; cada pessoa vira uma saída em “Folha de pagamento” e o período fica marcado como pago (não paga duas vezes). Dá para desfazer em <b>Pagamentos do período</b>.</li>
+      </ul>
+      <figure><img src="img/produtividade.webp" alt="Produtividade com peças por dia e tabela por pessoa" width="1280" height="800" loading="lazy"></figure>
+      <div class="box dica"><b>Oficinas de fora</b><p>Oficinas são pagas pelo <b>acerto da remessa</b> (seção 4), não por aqui.</p></div>
+    </section>
+
+    <section id="financeiro">
+      <h2><span class="n">8</span> Financeiro</h2>
+      <p class="onde">Menu <b>Gestão → Financeiro</b>. Botão <b>Lançar</b> no topo.</p>
+      <div class="tabela"><table>
+        <thead><tr><th>Tipo</th><th>Quando usar</th></tr></thead>
+        <tbody>
+          <tr><td><b>Entrada</b></td><td>Dinheiro que entrou na conta (escolha o cliente).</td></tr>
+          <tr><td><b>Saída</b></td><td>Pagamento feito ou compra no cartão (escolha o fornecedor).</td></tr>
+          <tr><td><b>A pagar</b></td><td>Compra parcelada ou conta futura: parcelas com dia de vencimento.</td></tr>
+          <tr><td><b>A receber</b></td><td>Venda a prazo: o cliente paga em parcelas.</td></tr>
+        </tbody>
+      </table></div>
+      <figure class="estreita"><img src="img/fin-lancar.webp" alt="Janela de novo lançamento com os tipos Entrada, Saída, A pagar e A receber" width="460" height="776" loading="lazy"></figure>
+      <ul>
+        <li><b>Visão geral</b>: saldo, entradas e saídas do mês, a pagar e a receber, gastos por categoria, quem mais pagou e para quem mais pagamos.</li>
+        <li><b>A pagar</b> e <b>A receber</b>: cada parcela com botão <b>Pagar</b> ou <b>Receber</b>; parcela recebida vira entrada do cliente. Clientes atrasados aparecem em vermelho.</li>
+        <li><b>Contas e cartões</b>: compras no cartão entram na fatura pelo dia de fechamento e só saem da conta quando a fatura é paga.</li>
+        <li><b>Metas</b> e <b>Planejamento</b>: dinheiro guardado e previsão do mês por categoria.</li>
+      </ul>
+      <figure><img src="img/a-receber.webp" alt="Contas a receber com parcelas, vencimento e clientes em atraso" width="1280" height="800" loading="lazy"></figure>
+    </section>
+
+    <section id="resultado">
+      <h2><span class="n">9</span> Resultado e lucro</h2>
+      <p class="onde">Menu <b>Gestão → Resultado</b>.</p>
+      <ul>
+        <li><b>Preencher mês</b>: faturamento, impostos, custos e despesas do mês (DRE gerencial). A <b>Visão geral</b> mostra receita líquida, lucro bruto, resultado e margens.</li>
+        <li><b>Lucro por modelo</b>: peças prontas × (preço − custo do material − mão de obra por peça). Mostra o mais e o menos lucrativo e o que foi vendido em pedidos.</li>
+      </ul>
+      <figure><img src="img/lucro.webp" alt="Lucro por modelo com preço, custo, lucro por peça e margem" width="1280" height="800" loading="lazy"></figure>
+    </section>
+
+    <section id="acompanhar">
+      <h2><span class="n">10</span> Acompanhar a fábrica</h2>
+      <ul>
+        <li><b>Painel</b>: produção e presença de hoje, lançamentos editados e itens em falta. Atualiza sozinho a cada minuto.</li>
+        <li><b>Dashboard</b>: gráficos do mês comparados com a média dos meses anteriores.</li>
+        <li><b>Relatório</b>: produção, presença, horas extras e faltas por período (exporta CSV).</li>
+        <li><b>Relatório do mês</b>: tudo em uma página. <b>Salvar em PDF</b> gera um A4 para o contador ou sócio; <b>Enviar resumo</b> manda um texto curto pelo WhatsApp.</li>
+      </ul>
+      <figure><img src="img/painel.webp" alt="Painel com presentes hoje, peças por etapa, alerta de lançamentos editados e itens em falta" width="1280" height="800" loading="lazy"></figure>
+      <figure><img src="img/relatorio-mes.webp" alt="Relatório do mês com produção, pedidos e financeiro" width="1280" height="800" loading="lazy"></figure>
+    </section>
+
+    <section id="acessos">
+      <h2><span class="n">11</span> Acessos e segurança</h2>
+      <ol class="passos">
+        <li>Quando alguém entra num aparelho novo, aparece no topo <b>“pessoa quer entrar”</b>. Toque em <b>Liberar</b>, <b>Liberar e confiar</b> (o aparelho entra direto nas próximas vezes) ou <b>Negar</b>.</li>
+        <li><b>Acessos</b> mostra quem está online, sessões, aparelhos confiáveis e a <b>Atividade</b>: quem criou, alterou ou apagou o quê.</li>
+        <li>Em <b>Cadastros → Funcionários</b>, clique no nome para escolher as funções de cada pessoa (ex.: liberar Pedidos e Mensagens para o gerente).</li>
+        <li><b>Cadastros → Cópia de segurança</b> baixa todos os dados da empresa.</li>
+      </ol>
+      <figure><img src="img/acessos.webp" alt="Tela de acessos com sessões e atividade" width="1280" height="800" loading="lazy"></figure>
+    </section>
+
+    <section id="avisos">
+      <h2><span class="n">12</span> Avisos e mensagens</h2>
+      <ul>
+        <li><b>Sino</b> → <b>Ligar avisos</b>: chegam no celular mesmo com o app fechado. Pedidos de acesso, mensagens e o resumo das 8h (contas vencendo, recebimentos atrasados, pedidos e remessas atrasadas, material para comprar), conforme as funções de cada pessoa.</li>
+        <li><b>Mensagens</b> (balão no topo): o administrador ou o gerente manda recado para uma pessoa ou para todos. “Importante” abre na tela de quem recebe, e dá para ver quem leu.</li>
+      </ul>
+      <figure class="estreita"><img src="img/avisos.webp" alt="Janela de avisos e instalação do app" width="480" height="676" loading="lazy"></figure>
+    </section>
+
+    <section id="dono">
+      <h2><span class="n">13</span> Dono do sistema</h2>
+      <p class="onde">Menu <b>Administração → Empresas</b> (só para o responsável pelo sistema).</p>
+      <ul>
+        <li><b>Nova empresa</b>: cria a empresa e o administrador dela.</li>
+        <li><b>Gerar link TESTE</b>: vale 7 dias contados do envio. <b>Gerar link PRO</b>: versão completa, sem prazo.</li>
+        <li><b>Funil e atenção</b>: quantos vieram pelo teste, quantos viraram cliente, testes acabando ou vencidos e empresas paradas, com botões <b>+7 dias</b> e <b>Tornar cliente</b>.</li>
+        <li><b>Página de apresentação</b> (<code>/?conheca</code>): publique o link de teste grátis (o prazo conta do cadastro de cada empresa) e o seu WhatsApp.</li>
+        <li><b>Bloquear</b>: a empresa perde o acesso na hora; os dados ficam guardados.</li>
+      </ul>
+      <figure><img src="img/empresas.webp" alt="Tela de empresas com funil, lista de empresas e página de apresentação" width="1280" height="800" loading="lazy"></figure>
+      <figure><img src="img/vitrine.webp" alt="Página pública de apresentação do Fábrica com botão de teste grátis" width="1280" height="800" loading="lazy"></figure>
+    </section>
+
+    <section id="duvidas">
+      <h2><span class="n">14</span> Dúvidas frequentes</h2>
+      <dl class="faq">
+        <dt>O funcionário não consegue entrar.</dt>
+        <dd>Confira o código da empresa e o login. Se aparecer “aguardando liberação”, libere em Acessos ou na faixa do topo.</dd>
+        <dt>A costureira não usa celular. Como fica?</dt>
+        <dd>Cadastre-a como oficina e use Oficinas e remessas, ou lance por ela em Lançar → Quem fez.</dd>
+        <dt>O estoque de tecido não bate.</dt>
+        <dd>Confira a regra de consumo do material e faça uma Contagem: o app corrige o saldo e registra a diferença.</dd>
+        <dt>O pagamento da oficina foi lançado errado.</dt>
+        <dd>Abra a remessa, toque em Reabrir (o pagamento sai do Financeiro), corrija o retorno e acerte de novo.</dd>
+        <dt>Saiu uma versão nova?</dt>
+        <dd>O rodapé mostra a versão. Quando houver uma nova, toque em <b>Atualizar</b> no topo; “Novidades” lista o que mudou.</dd>
+        <dt>Os dados de uma empresa aparecem para outra?</dt>
+        <dd>Não. Cada empresa só enxerga os próprios dados, e o banco confere isso em toda operação.</dd>
+      </dl>
+    </section>
+
+    <p class="rodape">Manual do Fábrica · versão 1.9 · as telas são do modo demonstração, com dados de exemplo.</p>
+  </main>
+</div>
