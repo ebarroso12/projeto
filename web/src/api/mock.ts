@@ -1250,8 +1250,12 @@ interface MRemessa {
   id: string; numero: number; quem: string; login: string; oficinaId: string | null; etapa: string; dataEnvio: string; prazo: string | null;
   valorPeca: number; descontoFaltante: number; ordemId: string | null; status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null;
   finId: string | null; obs: string; itens: { id: string; modelo: string; cor: string; tamanho: string; qtd: number }[];
-  retornos: { id: string; data: string; obs: string; itens: { itemId: string; boas: number; defeito: number }[] }[];
+  retornos: { id: string; data: string; obs: string; cega?: boolean; itens: { itemId: string; boas: number; defeito: number }[] }[];
+  token?: string | null;
+  /** respostas da oficina pelo link (retornoId null = envio) */
+  confirmacoes?: { retornoId: string | null; confere: boolean; em: string; nome: string; obs: string; itens: { itemId: string; qtd: number }[] }[];
 }
+let limitePerdaDemo = 3;
 const ordensDemo: MOrdem[] = [];
 const remessasDemo: MRemessa[] = [];
 registrosDemo.push(
@@ -1274,10 +1278,16 @@ const lancDe = (quem: { login: string; nome: string }, etapa: string, modelo: st
     id: 'rm1', numero: 31, quem: 'Costura da Maria', login: '', oficinaId: 'of1', etapa: 'Costura', dataEnvio: d(-5), prazo: d(-1), valorPeca: 2.5, descontoFaltante: 8, ordemId: 'oc1',
     status: 'aberta', fechadaEm: null, valorPago: null, finId: null, obs: '',
     itens: [{ id: 'ri1', modelo: 'Camisa Polo', cor: 'Branco', tamanho: 'P', qtd: 40 }, { id: 'ri2', modelo: 'Camisa Polo', cor: 'Branco', tamanho: 'M', qtd: 50 }],
-    retornos: [{ id: 'rt1', data: d(-2), obs: '', itens: [{ itemId: 'ri1', boas: 38, defeito: 1 }, { itemId: 'ri2', boas: 30, defeito: 0 }] }],
+    retornos: [{ id: 'rt1', data: d(-2), obs: '', cega: true, itens: [{ itemId: 'ri1', boas: 38, defeito: 1 }, { itemId: 'ri2', boas: 30, defeito: 0 }] }],
+    token: 'demo0000000000000000000000000031',
+    confirmacoes: [
+      { retornoId: null, confere: true, em: `${d(-5)}T15:20:00`, nome: 'Maria', obs: '', itens: [] },
+      { retornoId: 'rt1', confere: false, em: `${d(-2)}T17:05:00`, nome: 'Maria', obs: 'Entreguei 32 do M, contei na frente do motoboy', itens: [{ itemId: 'ri2', qtd: 32 }] },
+    ],
   }, {
     id: 'rm2', numero: 32, quem: 'Facção Bom Ponto', login: '', oficinaId: 'of2', etapa: 'Costura', dataEnvio: d(-3), prazo: d(4), valorPeca: 2.2, descontoFaltante: 0, ordemId: 'oc1',
     status: 'aberta', fechadaEm: null, valorPago: null, finId: null, obs: '', itens: [{ id: 'ri3', modelo: 'Camisa Polo', cor: 'Branco', tamanho: 'G', qtd: 30 }], retornos: [],
+    token: 'demo0000000000000000000000000032',
   }, {
     id: 'rm0', numero: 29, quem: 'Costura da Maria', login: '', oficinaId: 'of1', etapa: 'Costura', dataEnvio: d(-20), prazo: d(-12), valorPeca: 2.5, descontoFaltante: 8, ordemId: null,
     status: 'fechada', fechadaEm: d(-11), valorPago: 292, finId: null, obs: '',
@@ -1287,21 +1297,34 @@ const lancDe = (quem: { login: string; nome: string }, etapa: string, modelo: st
 const remessaJson = (r: MRemessa) => ({
   id: r.id, numero: r.numero, quem: r.quem, login: r.login || null, oficinaId: r.oficinaId, telefone: r.oficinaId ? String(registrosDemo.find(x => x.id === r.oficinaId)?.telefone ?? '') : null,
   etapa: r.etapa, dataEnvio: r.dataEnvio, prazo: r.prazo, valorPeca: r.valorPeca, descontoFaltante: r.descontoFaltante,
-  ordemNumero: ordensDemo.find(o => o.id === r.ordemId)?.numero ?? null, status: r.status, fechadaEm: r.fechadaEm, valorPago: r.valorPago,
+  ordemId: r.ordemId, ordemNumero: ordensDemo.find(o => o.id === r.ordemId)?.numero ?? null, status: r.status, fechadaEm: r.fechadaEm, valorPago: r.valorPago,
   noFinanceiro: !!r.finId && fin.lancamentos.some(l => l.id === r.finId && !l.apagado), obs: r.obs,
+  token: r.token ?? null, confirmacaoEnvio: confDemo(r, null),
   itens: r.itens.map(i => ({ ...i, boas: r.retornos.flatMap(t => t.itens).filter(x => x.itemId === i.id).reduce((s, x) => s + x.boas, 0),
     defeito: r.retornos.flatMap(t => t.itens).filter(x => x.itemId === i.id).reduce((s, x) => s + x.defeito, 0) })),
-  retornos: r.retornos.map(t => ({ id: t.id, data: t.data, obs: t.obs, boas: t.itens.reduce((s, x) => s + x.boas, 0), defeito: t.itens.reduce((s, x) => s + x.defeito, 0) })),
+  retornos: r.retornos.map(t => ({ id: t.id, data: t.data, obs: t.obs, boas: t.itens.reduce((s, x) => s + x.boas, 0), defeito: t.itens.reduce((s, x) => s + x.defeito, 0),
+    cega: !!t.cega, itens: t.itens, confirmacao: confDemo(r, t.id) })),
 });
+function confDemo(r: MRemessa, retornoId: string | null) {
+  const c = (r.confirmacoes ?? []).find(x => x.retornoId === retornoId);
+  return c ? { confere: c.confere, em: c.em, nome: c.nome, obs: c.obs, itens: c.itens } : null;
+}
+const remessaPorToken = (token: unknown) => {
+  if (!/^[a-z0-9]{32}$/.test(String(token ?? ''))) throw fromServerMessage('LINK_INVALIDO: Link inválido. Peça um novo link para a fábrica.');
+  const r = remessasDemo.find(x => x.token === token);
+  if (!r) throw fromServerMessage('LINK_INVALIDO: Este link não vale mais. Peça um novo link para a fábrica.');
+  return r;
+};
 const consumoPecaDe = (matId: string, modelo: string) => {
   const m = materiaisDemo.find(x => x.id === matId);
   return m?.regras.find(r => r.etapa === 'Corte' && r.modelo === modelo)?.qtdPorPeca ?? m?.regras.find(r => r.etapa === 'Corte' && r.modelo === '')?.qtdPorPeca ?? null;
 };
-Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
+Object.assign(ROTAS_MOCK, Object.fromEntries(['remessas', 'remessaOpcoes', 'salvarOrdemCorte', 'apagarOrdemCorte', 'salvarRemessa', 'apagarRemessa', 'registrarRetorno', 'apagarRetorno', 'fecharRemessa', 'reabrirRemessa', 'remessaLink', 'salvarLimitePerda'].map(f => [f, 'remessas'])), { lancarPor: 'lancar' });
 Object.assign(handlers, {
   remessas: ([t]: unknown[]) => {
     requireAdmin(userOf(String(t)));
     return {
+      limitePerda: limitePerdaDemo,
       remessas: remessasDemo.map(remessaJson).sort((a, b) => Number(b.status === 'aberta') - Number(a.status === 'aberta') || (a.prazo ?? '9').localeCompare(b.prazo ?? '9') || b.numero - a.numero),
       ordens: [...ordensDemo].sort((a, b) => b.data.localeCompare(a.data)).map(o => {
         const m = materiaisDemo.find(x => x.id === o.materialId);
@@ -1350,10 +1373,52 @@ Object.assign(handlers, {
     const base = { quem: quem.nome, login: quem.login, oficinaId: quem.oficinaId, etapa: r.etapa || 'Costura', dataEnvio: r.dataEnvio || today(), prazo: r.prazo || null,
       valorPeca: Number(r.valorPeca) || 0, descontoFaltante: Number(r.descontoFaltante) || 0, ordemId: r.ordemId || null, obs: r.obs ?? '',
       itens: r.itens.map((i, n) => ({ id: `ri${Date.now()}${n}`, modelo: i.modelo, cor: i.cor, tamanho: i.tamanho, qtd: Number(i.qtd) })) };
-    if (ex) { Object.assign(ex, base); return { id: ex.id, numero: ex.numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) }; }
+    if (ex) { Object.assign(ex, base); ex.confirmacoes = (ex.confirmacoes ?? []).filter(c => c.retornoId !== null); return { id: ex.id, numero: ex.numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) }; }
     const numero = Math.max(0, ...remessasDemo.map(x => x.numero)) + 1, id = `rm${Date.now()}`;
     remessasDemo.push({ id, numero, status: 'aberta', fechadaEm: null, valorPago: null, finId: null, retornos: [], ...base });
     return { id, numero, pecas: base.itens.reduce((s, i) => s + i.qtd, 0) };
+  },
+  remessaLink: ([t, id, novo]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const r = remessasDemo.find(x => x.id === id); if (!r) throw fromServerMessage('Remessa não encontrada.');
+    if (!r.token || novo) r.token = Array.from({ length: 32 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+    return r.token;
+  },
+  salvarLimitePerda: ([t, limite]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const n = Number(limite);
+    if (!Number.isFinite(n) || n < 0 || n > 100) throw fromServerMessage('Informe um limite entre 0 e 100%.');
+    limitePerdaDemo = Math.round(n * 100) / 100; return limitePerdaDemo;
+  },
+  remessaPublica: ([token]: unknown[]) => {
+    const r = remessaPorToken(token); const j = remessaJson(r);
+    return { empresa: 'Confecção Demonstração', numero: r.numero, quem: r.quem, etapa: r.etapa, dataEnvio: r.dataEnvio, prazo: r.prazo, valorPeca: r.valorPeca,
+      descontoFaltante: r.descontoFaltante, status: r.status, fechadaEm: r.fechadaEm, valorPago: r.valorPago,
+      enviadas: j.itens.reduce((n, i) => n + i.qtd, 0), boas: j.itens.reduce((n, i) => n + i.boas, 0), defeito: j.itens.reduce((n, i) => n + i.defeito, 0),
+      itens: j.itens, confirmacaoEnvio: confDemo(r, null), retornos: r.retornos.map(x => ({ id: x.id, data: x.data, itens: x.itens, confirmacao: confDemo(r, x.id) })) };
+  },
+  remessaConfirmar: ([token, o]: unknown[]) => {
+    const r = remessaPorToken(token);
+    const p = o as { retornoId: string | null; confere: boolean; itens: { itemId: string; qtd: number }[]; nome: string; obs: string };
+    const retornoId = p.retornoId || null;
+    const ret = retornoId ? r.retornos.find(x => x.id === retornoId) : null;
+    if (retornoId && !ret) throw fromServerMessage('Retorno inválido.');
+    if ((r.confirmacoes ?? []).some(c => c.retornoId === retornoId)) throw fromServerMessage('Esta etapa já foi respondida. Se precisar corrigir, fale com a fábrica.');
+    const esperado = new Map<string, number>(ret ? ret.itens.map(i => [i.itemId, i.boas + i.defeito] as [string, number]) : r.itens.map(i => [i.id, i.qtd] as [string, number]));
+    const contado = new Map(esperado);
+    if (!p.confere) {
+      if (!p.itens?.length) throw fromServerMessage('Informe quantas peças você contou em cada item.');
+      for (const i of p.itens) {
+        if (!esperado.has(i.itemId)) throw fromServerMessage('Item inválido.');
+        if (!Number.isInteger(Number(i.qtd)) || Number(i.qtd) < 0 || Number(i.qtd) > 999999) throw fromServerMessage('Quantidade inválida.');
+        contado.set(i.itemId, Number(i.qtd));
+      }
+    }
+    const dif = [...contado].filter(([k, v]) => v !== esperado.get(k));
+    const tot = (m: Map<string, number>) => [...m.values()].reduce((n, x) => n + x, 0);
+    (r.confirmacoes ??= []).push({ retornoId, confere: dif.length === 0, em: new Date().toISOString(), nome: String(p.nome ?? '').slice(0, 60), obs: String(p.obs ?? '').slice(0, 300),
+      itens: dif.map(([itemId, qtd]) => ({ itemId, qtd })) });
+    return { confere: dif.length === 0, fabrica: tot(esperado), oficina: tot(contado) };
   },
   apagarRemessa: ([t, id]: unknown[]) => {
     requireAdmin(userOf(String(t)));
@@ -1363,7 +1428,7 @@ Object.assign(handlers, {
   },
   registrarRetorno: ([t, o]: unknown[]) => {
     requireAdmin(userOf(String(t)));
-    const p = o as { remessaId: string; data: string; obs: string; itens: { itemId: string; boas: number; defeito: number }[] };
+    const p = o as { remessaId: string; data: string; obs: string; cega?: boolean; itens: { itemId: string; boas: number; defeito: number }[] };
     const r = remessasDemo.find(x => x.id === p.remessaId); if (!r) throw fromServerMessage('Remessa não encontrada.');
     if (r.status !== 'aberta') throw fromServerMessage('A remessa já foi fechada. Reabra para registrar retorno.');
     const itens = p.itens.filter(i => Number(i.boas) + Number(i.defeito) > 0);
@@ -1371,10 +1436,11 @@ Object.assign(handlers, {
     for (const i of itens) {
       const it = r.itens.find(x => x.id === i.itemId); if (!it) throw fromServerMessage('Item inválido na remessa.');
       const ja = r.retornos.flatMap(x => x.itens).filter(x => x.itemId === it.id).reduce((s, x) => s + x.boas + x.defeito, 0);
+      if (ja + Number(i.boas) + Number(i.defeito) > it.qtd && p.cega) throw fromServerMessage(`${it.modelo} ${it.cor} ${it.tamanho}: a contagem passa do que foi enviado. Reconte essas peças.`);
       if (ja + Number(i.boas) + Number(i.defeito) > it.qtd) throw fromServerMessage(`${it.modelo} ${it.cor} ${it.tamanho}: voltaram ${ja + Number(i.boas) + Number(i.defeito)} de ${it.qtd} enviadas (já tinham voltado ${ja}).`);
     }
     const id = `rt${Date.now()}`, data = p.data || today();
-    r.retornos.push({ id, data, obs: p.obs ?? '', itens: itens.map(i => ({ itemId: i.itemId, boas: Number(i.boas), defeito: Number(i.defeito) })) });
+    r.retornos.push({ id, data, obs: p.obs ?? '', cega: !!p.cega, itens: itens.map(i => ({ itemId: i.itemId, boas: Number(i.boas), defeito: Number(i.defeito) })) });
     for (const i of itens) { const it = r.itens.find(x => x.id === i.itemId)!; if (Number(i.boas) > 0) lancDe({ login: r.login, nome: r.quem }, r.etapa, it.modelo, it.cor, it.tamanho, Number(i.boas), data); }
     return id;
   },

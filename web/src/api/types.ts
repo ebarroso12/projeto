@@ -299,18 +299,32 @@ export interface OrdemCorte {
 }
 export interface OrdemCorteInput { quem: QuemFez; data: string; modelo: string; cor: string; materialId?: string | null; materialQtd?: number | null; obs: string; itens: { tamanho: string; qtd: number }[] }
 export interface RemessaItem { id: string; modelo: string; cor: string; tamanho: string; qtd: number; boas: number; defeito: number }
+/** Resposta da oficina pelo link: confere, ou a contagem dela nos itens em que discorda. */
+export interface ConfirmacaoOficina { confere: boolean; em: string; nome: string; obs: string; itens: { itemId: string; qtd: number }[] }
+export interface RetornoRemessa { id: string; data: string; obs: string; boas: number; defeito: number; cega: boolean; itens: { itemId: string; boas: number; defeito: number }[]; confirmacao: ConfirmacaoOficina | null }
 export interface Remessa {
   id: string; numero: number; quem: string; login: string | null; oficinaId: string | null; telefone: string | null; etapa: string;
-  dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number; ordemNumero: number | null;
+  dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number; ordemId: string | null; ordemNumero: number | null;
   status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null; noFinanceiro: boolean; obs: string;
-  itens: RemessaItem[]; retornos: { id: string; data: string; obs: string; boas: number; defeito: number }[];
+  /** link da oficina (null = ainda não gerado) */
+  token: string | null; confirmacaoEnvio: ConfirmacaoOficina | null;
+  itens: RemessaItem[]; retornos: RetornoRemessa[];
 }
+/** O que a oficina vê pelo link (sem login). */
+export interface RemessaPublica {
+  empresa: string; numero: number; quem: string; etapa: string; dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number;
+  status: 'aberta' | 'fechada'; fechadaEm: string | null; valorPago: number | null; enviadas: number; boas: number; defeito: number;
+  itens: RemessaItem[]; confirmacaoEnvio: ConfirmacaoOficina | null;
+  retornos: { id: string; data: string; itens: { itemId: string; boas: number; defeito: number }[]; confirmacao: ConfirmacaoOficina | null }[];
+}
+export interface ConfirmarRemessaInput { retornoId: string | null; confere: boolean; itens: { itemId: string; qtd: number }[]; nome: string; obs: string }
+export interface ConfirmarRemessaResultado { confere: boolean; fabrica: number; oficina: number }
 export interface RemessaInput {
   id?: string; quem: QuemFez; etapa: string; dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number;
   ordemId?: string | null; obs: string; itens: { modelo: string; cor: string; tamanho: string; qtd: number }[];
 }
-export interface RetornoInput { remessaId: string; data: string; obs: string; itens: { itemId: string; boas: number; defeito: number }[] }
-export interface RemessasDados { remessas: Remessa[]; ordens: OrdemCorte[] }
+export interface RetornoInput { remessaId: string; data: string; obs: string; cega?: boolean; itens: { itemId: string; boas: number; defeito: number }[] }
+export interface RemessasDados { remessas: Remessa[]; ordens: OrdemCorte[]; limitePerda: number }
 export interface RemessaOpcoes {
   oficinas: { id: string; nome: string; telefone: string; etapa: string; valorPeca: number | null }[];
   pessoas: { login: string; nome: string; setor: string }[];

@@ -13,10 +13,11 @@ import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
 import { Badge, Banner, Card, EmptyState, PageHeader, Segmented, Stat } from '../../ui/primitives';
 import { parseValor, valorTexto } from '../financeiro/LancamentoForm';
-import { contaRemessa, painelOficinas, rendimento, textoComprovante } from './calc';
+import { useToast } from '../../ui/Toast';
+import { balancoOrdem, conferenciaCega, contaRemessa, contestacoes, divergencias, painelOficinas, rendimento, respostaOficina, textoComprovante } from './calc';
 
 const KEY = ['remessas'] as const;
-type Aba = 'oficinas' | 'remessas' | 'ordens';
+type Aba = 'oficinas' | 'remessas' | 'ordens' | 'balanco';
 const hoje = () => isoDay(new Date());
 const erroEl = (m: string) => (m ? <p className="err" role="alert" style={{ color: 'var(--danger)' }}>{m}</p> : null);
 
@@ -192,42 +193,75 @@ function RemessaForm({ inicial, ordens, onClose }: { inicial?: Remessa; ordens: 
 }
 
 // ---------------------------------------------------------------- retorno
+const CHAVE_CEGA = 'fab_retorno_cega';
+const lerCega = () => { try { return localStorage.getItem(CHAVE_CEGA) !== '0'; } catch { return true; } };
+
 function RetornoDialog({ r, onClose }: { r: Remessa; onClose: () => void }) {
   const api = useApi();
   const [data, setData] = useState(hoje());
   const [obs, setObs] = useState('');
   const [v, setV] = useState<Record<string, { boas: string; defeito: string }>>({});
   const [erro, setErro] = useState('');
+  // às cegas (padrão): quem confere não vê quanto era esperado; o resultado aparece só depois de salvar
+  const [cega, setCegaSt] = useState(lerCega);
+  const setCega = (x: boolean) => { setCegaSt(x); try { localStorage.setItem(CHAVE_CEGA, x ? '1' : '0'); } catch { /* sem armazenamento */ } };
+  const [resultado, setResultado] = useState<ReturnType<typeof conferenciaCega> | null>(null);
   const pend = (i: Remessa['itens'][number]) => i.qtd - i.boas - i.defeito;
-  const salvar = useAction(() => api.registrarRetorno({ remessaId: r.id, data, obs: obs.trim(),
-    itens: r.itens.map(i => ({ itemId: i.id, boas: Number(v[i.id]?.boas) || 0, defeito: Number(v[i.id]?.defeito) || 0 })).filter(i => i.boas + i.defeito > 0) }),
-  { success: 'Retorno registrado. As peças boas entraram na produção.', invalidate: [KEY], onSuccess: onClose });
+  const itens = r.itens.filter(i => pend(i) > 0);
+  const num = (x: string | undefined) => Number(x) || 0;
+  const contagem = () => Object.fromEntries(itens.map(i => [i.id, { boas: num(v[i.id]?.boas), defeito: num(v[i.id]?.defeito) }]));
+  const salvar = useAction((snap: { cont: Record<string, { boas: number; defeito: number }>; antes: Remessa['itens'] }) => api.registrarRetorno({ remessaId: r.id, data, obs: obs.trim(), cega,
+    itens: Object.entries(snap.cont).map(([itemId, c]) => ({ itemId, ...c })).filter(i => i.boas + i.defeito > 0) }),
+  { success: 'Retorno registrado. As peças boas entraram na produção.', invalidate: [KEY], onSuccess: (_d, snap) => setResultado(conferenciaCega(snap.antes, snap.cont)) });
   const set = (id: string, k: 'boas' | 'defeito', x: string) => setV(s => ({ ...s, [id]: { boas: s[id]?.boas ?? '', defeito: s[id]?.defeito ?? '', [k]: x.replace(/\D/g, '').slice(0, 6) } }));
   const submit = () => {
-    for (const i of r.itens) {
-      const b = Number(v[i.id]?.boas) || 0, d = Number(v[i.id]?.defeito) || 0;
-      if (b + d > pend(i)) return setErro(`${i.modelo} ${i.cor} ${i.tamanho}: só faltam voltar ${pend(i)}.`);
+    for (const i of itens) {
+      const b = num(v[i.id]?.boas), d = num(v[i.id]?.defeito);
+      if (b + d > pend(i)) return setErro(cega ? `${i.modelo} ${i.cor} ${i.tamanho}: a contagem passa do que foi enviado. Reconte essas peças.` : `${i.modelo} ${i.cor} ${i.tamanho}: só faltam voltar ${pend(i)}.`);
     }
-    if (!r.itens.some(i => (Number(v[i.id]?.boas) || 0) + (Number(v[i.id]?.defeito) || 0) > 0)) return setErro('Informe quantas peças voltaram.');
+    if (!itens.some(i => num(v[i.id]?.boas) + num(v[i.id]?.defeito) > 0)) return setErro('Informe quantas peças voltaram.');
     setErro('');
-    salvar.mutate();
+    salvar.mutate({ cont: contagem(), antes: r.itens.map(i => ({ ...i })) });
   };
-  const tudo = () => setV(Object.fromEntries(r.itens.map(i => [i.id, { boas: String(pend(i)), defeito: '' }])));
+  const tudo = () => setV(Object.fromEntries(itens.map(i => [i.id, { boas: String(pend(i)), defeito: '' }])));
+
+  if (resultado) {
+    return (
+      <Dialog open onClose={onClose} title={`Conferência da remessa #${r.numero}`} wide footer={<Button variant="primary" onClick={onClose}>Concluir</Button>}>
+        {resultado.continua === 0
+          ? <Banner tone="info">A contagem bate: as {formatNumber(resultado.contado)} peça(s) que estavam com {r.quem} voltaram.</Banner>
+          : <Banner tone="warn">Voltaram {formatNumber(resultado.contado)} de {formatNumber(resultado.esperado)} peça(s). <b>{formatNumber(resultado.continua)} continuam com {r.quem}.</b> Se a oficina diz que entregou tudo, reconte agora, antes de guardar as peças.</Banner>}
+        <div className="table-wrap">
+          <table className="table" aria-label="Resultado da conferência">
+            <thead><tr><th>Item</th><th className="num">Estava com a oficina</th><th className="num">Vocês contaram</th><th className="num">Continua com a oficina</th></tr></thead>
+            <tbody>{resultado.linhas.map(l => (
+              <tr key={l.itemId}><td>{l.descricao}</td><td className="num tnum">{l.esperado}</td><td className="num tnum">{l.contado}</td>
+                <td className={`num tnum${l.continua ? ' valor-neg' : ''}`}>{l.continua}</td></tr>))}</tbody>
+          </table>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>Peça para a oficina confirmar esta devolução pelo link da remessa (botão WhatsApp). Se ela discordar, você recebe um aviso na hora.</p>
+      </Dialog>
+    );
+  }
   return (
     <Dialog open onClose={onClose} title={`Retorno da remessa #${r.numero}`} wide
-      footer={<><Button onClick={tudo} variant="ghost">Voltou tudo bom</Button><span style={{ marginRight: 'auto' }} />
+      footer={<>{!cega && <Button onClick={tudo} variant="ghost">Voltou tudo bom</Button>}<span style={{ marginRight: 'auto' }} />
         <Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={salvar.isPending} onClick={submit}>Registrar retorno</Button></>}>
+      <label className="check-linha">
+        <input type="checkbox" checked={cega} onChange={e => setCega(e.target.checked)} />
+        <span><b>Contagem às cegas</b> (recomendado): conte as peças sem ver quantas deveriam voltar. A diferença aparece depois de registrar.</span>
+      </label>
       <p className="muted" style={{ margin: 0 }}>{r.quem} · {r.etapa}. Conte o que voltou: peças boas (entram na produção e são pagas) e com defeito.</p>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Item</th><th className="num">Faltam voltar</th><th className="num">Boas</th><th className="num">Com defeito</th></tr></thead>
+          <thead><tr><th>Item</th>{!cega && <th className="num">Faltam voltar</th>}<th className="num">Boas</th><th className="num">Com defeito</th></tr></thead>
           <tbody>
-            {r.itens.map(i => (
+            {itens.map(i => (
               <tr key={i.id}>
                 <td>{i.modelo} · {i.cor} · <b>{i.tamanho}</b></td>
-                <td className="num tnum">{pend(i)}</td>
-                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Boas ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.boas ?? ''} disabled={!pend(i)} onChange={e => set(i.id, 'boas', e.target.value)} /></td>
-                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Defeito ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.defeito ?? ''} disabled={!pend(i)} onChange={e => set(i.id, 'defeito', e.target.value)} /></td>
+                {!cega && <td className="num tnum">{pend(i)}</td>}
+                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Boas ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.boas ?? ''} onChange={e => set(i.id, 'boas', e.target.value)} /></td>
+                <td className="num"><input className="inp-num" inputMode="numeric" aria-label={`Defeito ${i.modelo} ${i.cor} ${i.tamanho}`} value={v[i.id]?.defeito ?? ''} onChange={e => set(i.id, 'defeito', e.target.value)} /></td>
               </tr>
             ))}
           </tbody>
@@ -308,11 +342,37 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
   const apagarRet = useAction((id: string) => api.apagarRetorno(id), { success: 'Retorno excluído.', invalidate: [KEY] });
   const reabrir = useAction(() => api.reabrirRemessa(r.id), { success: 'Remessa reaberta.', invalidate: [KEY, ['financeiro']] });
   const apagar = useAction(() => api.apagarRemessa(r.id), { success: 'Remessa excluída.', invalidate: [KEY], onSuccess: onClose });
-  const zap = () => {
-    const fone = (r.telefone ?? '').replace(/\D/g, '');
-    const t = encodeURIComponent(textoComprovante(r, boot.empresa.nome || 'Fábrica'));
-    window.open(fone.length >= 10 ? `https://wa.me/${fone.length <= 11 ? `55${fone}` : fone}?text=${t}` : `https://wa.me/?text=${t}`, '_blank', 'noopener');
+  const toast = useToast();
+  // link da oficina: ela confere e confirma (ou contesta) pelo celular, sem login
+  const link = useAction((novo: boolean) => api.remessaLink(r.id, novo), { invalidate: [KEY] });
+  const urlDo = (tok: string) => `${window.location.origin}${window.location.pathname}?r=${tok}`;
+  const zap = async () => {
+    const w = window.open('', '_blank');   // abre já no clique (senão o navegador bloqueia a janela depois da espera)
+    try {
+      const tok = r.token ?? await link.mutateAsync(false);
+      const fone = (r.telefone ?? '').replace(/\D/g, '');
+      const t = encodeURIComponent(textoComprovante(r, boot.empresa.nome || 'Fábrica', urlDo(tok)));
+      const url = fone.length >= 10 ? `https://wa.me/${fone.length <= 11 ? `55${fone}` : fone}?text=${t}` : `https://wa.me/?text=${t}`;
+      if (w) { w.opener = null; w.location.href = url; } else window.location.href = url;
+    } catch { w?.close(); }
   };
+  const copiarLink = async () => {
+    try {
+      const tok = r.token ?? await link.mutateAsync(false);
+      await navigator.clipboard.writeText(urlDo(tok));
+      toast.success('Link copiado. Mande para a oficina.');
+    } catch { toast.error('Não foi possível copiar. Use o botão WhatsApp.'); }
+  };
+  const trocarLink = async () => {
+    if (await confirm({ title: 'Trocar o link desta remessa?', message: 'O link antigo para de funcionar. Use se o link foi parar com outra pessoa.', confirmLabel: 'Trocar o link' })) {
+      link.mutate(true, { onSuccess: () => toast.success('Link trocado. Mande o novo para a oficina.') });
+    }
+  };
+  const etapas = [
+    { id: null as string | null, nome: `Recebimento (${dataBR(r.dataEnvio)})`, conf: r.confirmacaoEnvio },
+    ...r.retornos.map(t => ({ id: t.id as string | null, nome: `Devolução de ${dataBR(t.data)}`, conf: t.confirmacao })),
+  ];
+  const nCont = contestacoes(r);
   if (modal === 'retorno') return <RetornoDialog r={r} onClose={() => setModal(null)} />;
   if (modal === 'acerto') return <AcertoDialog r={r} onClose={() => { setModal(null); onClose(); }} />;
   if (modal === 'editar') return <RemessaForm inicial={r} ordens={ordens} onClose={() => { setModal(null); onClose(); }} />;
@@ -324,7 +384,7 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
         }}><Icon name="trash" size={15} /> Excluir</Button>}
         <span style={{ marginRight: 'auto' }} />
         <Button onClick={() => imprimirComprovante(r, boot.empresa.nome || 'Fábrica')} icon={<Icon name="printer" size={15} />}>Comprovante</Button>
-        <Button onClick={zap} icon={<Icon name="send" size={15} />}>WhatsApp</Button>
+        <Button onClick={() => void zap()} icon={<Icon name="send" size={15} />}>WhatsApp + link</Button>
         {r.status === 'aberta' && !r.retornos.length && <Button onClick={() => setModal('editar')} icon={<Icon name="pencil" size={15} />}>Editar</Button>}
         {r.status === 'aberta' && c.pendentes > 0 && <Button onClick={() => setModal('retorno')}>Registrar retorno</Button>}
         {r.status === 'aberta' && <Button variant="primary" onClick={() => setModal('acerto')}>Acertar</Button>}
@@ -342,6 +402,7 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
         <div><span>{r.status === 'fechada' ? 'Pago' : 'Peças boas × valor'}</span><b>{formatBRL(c.aPagar)}</b></div>
       </div>
       {r.noFinanceiro && <p className="muted" style={{ margin: 0 }}><Icon name="wallet" size={14} /> Pagamento lançado no Financeiro.</p>}
+      {nCont > 0 && <Banner tone="danger">A oficina contestou {nCont === 1 ? 'uma contagem' : `${nCont} contagens`}. Confira as diferenças abaixo antes de acertar.</Banner>}
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>Item</th><th className="num">Enviadas</th><th className="num">Boas</th><th className="num">Defeito</th><th className="num">Faltam</th></tr></thead>
@@ -355,12 +416,35 @@ function DetalheRemessa({ r, ordens, onClose }: { r: Remessa; ordens: OrdemCorte
         <div className="list" style={{ border: '1px solid var(--line)', borderRadius: 12 }}>
           {r.retornos.map(t => (
             <div className="item" key={t.id}>
-              <div className="item-main"><b>{dataBR(t.data)}</b><small>{t.boas} boa(s){t.defeito ? ` · ${t.defeito} com defeito` : ''}{t.obs ? ` · ${t.obs}` : ''}</small></div>
+              <div className="item-main"><b>{dataBR(t.data)}{t.cega && <span className="selo-cega" title="Contada sem ver o número esperado">às cegas</span>}</b><small>{t.boas} boa(s){t.defeito ? ` · ${t.defeito} com defeito` : ''}{t.obs ? ` · ${t.obs}` : ''}</small></div>
               {r.status === 'aberta' && <Button size="sm" variant="ghost" iconOnly aria-label="Excluir retorno" onClick={async () => {
                 if (await confirm({ title: 'Excluir este retorno?', message: 'As peças boas saem da produção.', confirmLabel: 'Excluir', tone: 'danger' })) apagarRet.mutate(t.id);
               }}><Icon name="trash" size={15} /></Button>}
             </div>
           ))}
+        </div>
+      )}
+      <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <b style={{ marginRight: 'auto' }}>Resposta da oficina (pelo link)</b>
+        <Button size="sm" variant="ghost" onClick={() => void copiarLink()} loading={link.isPending}><Icon name="copy" size={14} /> Copiar link</Button>
+        {r.token && <Button size="sm" variant="ghost" onClick={() => void trocarLink()}>Trocar link</Button>}
+      </div>
+      {!r.token ? <p className="muted" style={{ margin: 0 }}>Ainda não foi mandado. Use “WhatsApp + link”: a oficina confere as peças e confirma, ou informa a contagem dela. Se ela discordar, você recebe um aviso.</p> : (
+        <div className="list" style={{ border: '1px solid var(--line)', borderRadius: 12 }}>
+          {etapas.map(e => {
+            const sit = respostaOficina(e.conf);
+            const dif = divergencias(r, e.id);
+            return (
+              <div className="item" key={e.id ?? 'envio'} style={{ alignItems: 'flex-start' }}>
+                <div className="item-main">
+                  <b>{e.nome}</b>
+                  <small>{sit === 'aguardando' ? 'A oficina ainda não respondeu.' : `${e.conf!.nome || r.quem} respondeu em ${dataBR(e.conf!.em.slice(0, 10))}${e.conf!.obs ? ` · “${e.conf!.obs}”` : ''}`}</small>
+                  {dif.length > 0 && <ul className="lista-dif">{dif.map(d => <li key={d.itemId}>{d.descricao}: fábrica <b>{d.fabrica}</b> · oficina <b className="valor-neg">{d.oficina}</b></li>)}</ul>}
+                </div>
+                {sit === 'confirmou' ? <Badge tone="ok">Confirmou</Badge> : sit === 'contestou' ? <Badge tone="danger">Contestou</Badge> : <Badge>Aguardando</Badge>}
+              </div>
+            );
+          })}
         </div>
       )}
       {r.obs && <p style={{ margin: 0 }}><b>Obs.:</b> {r.obs}</p>}
@@ -384,7 +468,7 @@ export default function RemessasPage() {
         </>} />
       <QueryView query={q}>
         {d => <>
-          <Conteudo remessas={d.remessas} ordens={d.ordens} aba={aba} setAba={setAba} onVer={setVendo} />
+          <Conteudo remessas={d.remessas} ordens={d.ordens} limitePerda={d.limitePerda} aba={aba} setAba={setAba} onVer={setVendo} />
           {nova === 'ordem' && <OrdemForm onClose={() => setNova(null)} />}
           {nova === 'remessa' && <RemessaForm ordens={d.ordens} onClose={() => setNova(null)} />}
           {vendo && (() => { const r = d.remessas.find(x => x.id === vendo); return r ? <DetalheRemessa r={r} ordens={d.ordens} onClose={() => setVendo(null)} /> : null; })()}
@@ -394,12 +478,13 @@ export default function RemessasPage() {
   );
 }
 
-function Conteudo({ remessas, ordens, aba, setAba, onVer }: { remessas: Remessa[]; ordens: OrdemCorte[]; aba: Aba; setAba: (a: Aba) => void; onVer: (id: string) => void }) {
+function Conteudo({ remessas, ordens, limitePerda, aba, setAba, onVer }: { remessas: Remessa[]; ordens: OrdemCorte[]; limitePerda: number; aba: Aba; setAba: (a: Aba) => void; onVer: (id: string) => void }) {
   const api = useApi();
   const confirm = useConfirm();
   const h = hoje();
   const painel = useMemo(() => painelOficinas(remessas, h), [remessas, h]);
   const abertas = remessas.filter(r => r.status === 'aberta');
+  const contestadas = remessas.filter(r => contestacoes(r) > 0).length;
   const pend = painel.reduce((s, l) => s + l.pendentes, 0), atras = painel.reduce((s, l) => s + l.atrasadas, 0), acertar = painel.reduce((s, l) => s + l.aAcertar, 0);
   const apagarOrdem = useAction((id: string) => api.apagarOrdemCorte(id), { success: 'Ordem de corte excluída.', invalidate: [KEY, ['materiais']] });
   type LR = { r: Remessa; c: ReturnType<typeof contaRemessa> };
@@ -407,8 +492,8 @@ function Conteudo({ remessas, ordens, aba, setAba, onVer }: { remessas: Remessa[
   const cols: Column<LR>[] = [
     { id: 'num', header: 'Remessa', value: x => x.r.numero, nowrap: true,
       cell: x => <button type="button" className="link-empresa" onClick={() => onVer(x.r.id)}><b>#{x.r.numero} · {x.r.quem}</b><small>{x.r.etapa} · enviada {dataBR(x.r.dataEnvio)}</small></button> },
-    { id: 'sit', header: 'Situação', value: x => (x.r.status === 'fechada' ? 3 : x.c.atraso && x.c.atraso > 0 ? 0 : x.c.pendentes ? 1 : 2),
-      cell: x => x.r.status === 'fechada' ? <Badge tone="ok">Acertada</Badge> : x.c.atraso !== null && x.c.atraso > 0 ? <><Badge tone="danger">Atrasada</Badge><small>{x.c.atraso} dia(s)</small></>
+    { id: 'sit', header: 'Situação', value: x => (contestacoes(x.r) > 0 ? -1 : x.r.status === 'fechada' ? 3 : x.c.atraso && x.c.atraso > 0 ? 0 : x.c.pendentes ? 1 : 2),
+      cell: x => contestacoes(x.r) > 0 ? <><Badge tone="danger">Contestada</Badge><small>pela oficina</small></> : x.r.status === 'fechada' ? <Badge tone="ok">Acertada</Badge> : x.c.atraso !== null && x.c.atraso > 0 ? <><Badge tone="danger">Atrasada</Badge><small>{x.c.atraso} dia(s)</small></>
         : x.c.pendentes ? <><Badge tone="info">Com a oficina</Badge>{x.r.prazo && <small>até {dataBR(x.r.prazo)}</small>}</> : <Badge tone="warn">Voltou tudo · acertar</Badge> },
     { id: 'env', header: 'Enviadas', numeric: true, value: x => x.c.enviadas, cell: x => formatNumber(x.c.enviadas) },
     { id: 'vol', header: 'Voltaram', numeric: true, value: x => x.c.boas + x.c.defeito, cell: x => <>{formatNumber(x.c.boas)}<small>{x.c.defeito ? `${x.c.defeito} defeito` : 'boas'}</small></> },
@@ -423,8 +508,10 @@ function Conteudo({ remessas, ordens, aba, setAba, onVer }: { remessas: Remessa[
         <Stat label="A acertar" value={formatBRL(acertar)} hint="peças boas já devolvidas" />
       </div>
       {atras > 0 && <Banner tone="danger">{atras} remessa(s) passaram do prazo. Cobre as oficinas marcadas em vermelho.</Banner>}
+      {contestadas > 0 && <Banner tone="danger">{contestadas} remessa(s) com contagem contestada pela oficina. Abra a remessa para ver a diferença por peça.</Banner>}
       <Segmented<Aba> label="Seções" value={aba} onChange={setAba} options={[
         { value: 'oficinas', label: 'Quem está com o quê' }, { value: 'remessas', label: `Remessas (${remessas.length})` }, { value: 'ordens', label: `Ordens de corte (${ordens.length})` },
+        { value: 'balanco', label: 'Balanço' },
       ]} />
       {aba === 'oficinas' && (
         <Card title="Quem está com o quê" subtitle="Peças que saíram e ainda não voltaram, por oficina ou costureira." flush>
@@ -447,6 +534,7 @@ function Conteudo({ remessas, ordens, aba, setAba, onVer }: { remessas: Remessa[
             empty="Nenhuma remessa ainda. Clique em “Nova remessa”." />
         </Card>
       )}
+      {aba === 'balanco' && <BalancoAba ordens={ordens} remessas={remessas} limite={limitePerda} />}
       {aba === 'ordens' && (
         <Card title="Ordens de corte" subtitle="Rendimento de cada bobina: peças esperadas pela regra do tecido × peças cortadas." flush>
           {ordens.length === 0 ? <EmptyState icon="layers" title="Nenhuma ordem de corte">Registre a bobina que foi para o corte e o que voltou cortado.</EmptyState> : (
@@ -475,6 +563,76 @@ function Conteudo({ remessas, ordens, aba, setAba, onVer }: { remessas: Remessa[
           )}
         </Card>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- balanço por ordem de corte
+const pctTxt = (n: number | null) => (n === null ? '—' : `${formatNumber(n)}%`);
+function BalancoAba({ ordens, remessas, limite }: { ordens: OrdemCorte[]; remessas: Remessa[]; limite: number }) {
+  const api = useApi();
+  const [lim, setLim] = useState(String(limite).replace('.', ','));
+  const salvarLim = useAction((n: number) => api.salvarLimitePerda(n), { success: 'Limite salvo. Os avisos de perda usam o novo valor.', invalidate: [KEY] });
+  const lista = useMemo(() => ordens.map(o => ({ o, b: balancoOrdem(o, remessas, limite) })), [ordens, remessas, limite]);
+  const sumiram = lista.reduce((s, x) => s + x.b.total.sumiram, 0), enviadas = lista.reduce((s, x) => s + x.b.total.enviadas, 0);
+  const comCorte = lista.filter(x => x.b.perdaCortePct !== null);
+  const perdaMedia = comCorte.length ? Math.round((comCorte.reduce((s, x) => s + x.b.perdaCortePct!, 0) / comCorte.length) * 10) / 10 : null;
+  const comAlerta = lista.filter(x => x.b.acimaDoLimite).length;
+  const nLim = parseValor(lim);
+  return (
+    <div className="stack">
+      <div className="grid-kpi">
+        <Stat label="Peças sumidas nas oficinas" value={formatNumber(sumiram)} hint={enviadas ? `${pctTxt(Math.round((sumiram / enviadas) * 1000) / 10)} do que foi enviado` : 'nada enviado no período'} tone={sumiram ? 'danger' : undefined} />
+        <Stat label="Perda média no corte" value={pctTxt(perdaMedia)} hint={comCorte.length ? `${comCorte.length} ordem(ns) com bobina informada` : 'informe a bobina na ordem de corte'} />
+        <Stat label="Ordens com alerta" value={comAlerta} tone={comAlerta ? 'danger' : undefined} hint={`acima de ${pctTxt(limite)} ou com contestação`} />
+      </div>
+      <Card title="Limite de perda" subtitle="Acima deste percentual a ordem fica vermelha e quem cuida das remessas recebe aviso na hora (corte que rendeu menos e remessa fechada com peças faltando).">
+        <div className="row" style={{ gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <TextField label="Avisar acima de (%)" inputMode="decimal" value={lim} onChange={e => setLim(e.target.value.replace(/[^0-9,.]/g, '').slice(0, 6))} style={{ maxWidth: 140 }} />
+          <Button loading={salvarLim.isPending} disabled={nLim === null || nLim < 0 || nLim > 100 || nLim === limite} onClick={() => nLim !== null && salvarLim.mutate(nLim)}>Salvar</Button>
+        </div>
+      </Card>
+      <Card title="Balanço por ordem de corte" subtitle="Do tecido à peça devolvida: quanto foi cortado, enviado, voltou, está com a oficina e sumiu, por tamanho." flush>
+        {lista.length === 0 ? <EmptyState icon="layers" title="Nenhuma ordem de corte no período">O balanço aparece quando há ordem de corte e remessas feitas a partir dela.</EmptyState> : (
+          <div className="list">
+            {lista.map(({ o, b }) => (
+              <details key={o.id} className={`balanco${b.acimaDoLimite ? ' balanco-alerta' : ''}`}>
+                <summary>
+                  <span className="item-main">
+                    <b>#{o.numero} · {o.modelo} {o.cor} · {o.quem}</b>
+                    <small>{dataBR(o.data)} · cortadas {formatNumber(b.total.cortadas)} → enviadas {formatNumber(b.total.enviadas)} → voltaram {formatNumber(b.total.boas + b.total.defeito)}
+                      {b.total.comOficina ? ` · ${formatNumber(b.total.comOficina)} com a oficina` : ''}{b.total.naFabrica ? ` · ${formatNumber(b.total.naFabrica)} na fábrica` : ''}</small>
+                  </span>
+                  <span className="balanco-selos">
+                    {b.total.sumiram > 0 && <Badge tone="danger">{formatNumber(b.total.sumiram)} sumiram</Badge>}
+                    {b.contestacoes > 0 && <Badge tone="danger">Contestada</Badge>}
+                    {b.perdaCortePct !== null && b.perdaCortePct > limite && <Badge tone="warn">Corte {pctTxt(b.perdaCortePct)}</Badge>}
+                    {!b.acimaDoLimite && <Badge tone="ok">Dentro do limite</Badge>}
+                  </span>
+                </summary>
+                <div className="balanco-corpo">
+                  {b.alertas.length > 0 && <Banner tone="danger"><ul style={{ margin: 0, paddingLeft: 18 }}>{b.alertas.map(a => <li key={a}>{a}</li>)}</ul></Banner>}
+                  <p className="muted" style={{ margin: 0 }}>
+                    Tecido: {b.esperadas !== null ? `${formatNumber(o.materialQtd ?? 0)} ${o.unidade ?? ''} dava ${formatNumber(b.esperadas)} peças, saíram ${formatNumber(b.total.cortadas)} (perda ${pctTxt(b.perdaCortePct)})` : o.material ? 'sem regra de consumo para este modelo' : 'bobina não informada'}
+                    {' · '}{b.remessas} remessa(s) · defeito {pctTxt(b.defeitoPct)}
+                  </p>
+                  <div className="table-wrap">
+                    <table className="table" aria-label={`Balanço da ordem ${o.numero}`}>
+                      <thead><tr><th>Tamanho</th><th className="num">Cortadas</th><th className="num">Enviadas</th><th className="num">Na fábrica</th><th className="num">Boas</th><th className="num">Defeito</th><th className="num">Com a oficina</th><th className="num">Sumiram</th>{b.total.excedente > 0 && <th className="num">Enviou a mais</th>}</tr></thead>
+                      <tbody>{b.linhas.map(l => (
+                        <tr key={l.tamanho}><td><b>{l.tamanho}</b></td><td className="num tnum">{l.cortadas}</td><td className="num tnum">{l.enviadas}</td><td className="num tnum">{l.naFabrica}</td>
+                          <td className="num tnum valor-pos">{l.boas}</td><td className="num tnum">{l.defeito}</td><td className="num tnum">{l.comOficina}</td>
+                          <td className={`num tnum${l.sumiram ? ' valor-neg' : ''}`}>{l.sumiram}</td>{b.total.excedente > 0 && <td className={`num tnum${l.excedente ? ' valor-neg' : ''}`}>{l.excedente}</td>}</tr>))}</tbody>
+                      <tfoot><tr><td>Total</td><td className="num tnum">{b.total.cortadas}</td><td className="num tnum">{b.total.enviadas}</td><td className="num tnum">{b.total.naFabrica}</td>
+                        <td className="num tnum">{b.total.boas}</td><td className="num tnum">{b.total.defeito}</td><td className="num tnum">{b.total.comOficina}</td><td className="num tnum">{b.total.sumiram}</td>{b.total.excedente > 0 && <td className="num tnum">{b.total.excedente}</td>}</tr></tfoot>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

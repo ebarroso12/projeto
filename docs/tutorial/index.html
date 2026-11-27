@@ -135,7 +135,7 @@ section.sem-resultado { display: none; }
 
 <header class="capa">
   <div class="capa-in">
-    <span class="selo">Manual de uso · versão 1.10</span>
+    <span class="selo">Manual de uso · versão 1.12</span>
     <h1>Fábrica: <em>do corte ao lucro</em>, passo a passo</h1>
     <p>Como montar a empresa no app, organizar a equipe, controlar corte e costura com oficinas sem perder peças, acompanhar pedidos, estoque, produção, financeiro e resultado.</p>
     <p>Endereço do app: <span class="linkapp">fabricapremium.vercel.app</span> · dúvida na hora? Toque na <b>Dani</b>, no canto da tela do app.</p>
@@ -267,19 +267,21 @@ section.sem-resultado { display: none; }
             <li>Toque em <b>Nova remessa</b> e escolha <b>para quem vai</b>. O <b>valor por peça</b> vem do cadastro da oficina.</li>
             <li>Informe o <b>prazo de devolução</b> e, se quiser, o <b>desconto por peça faltando</b> (cobrado no acerto).</li>
             <li>Em <b>Peças de uma ordem de corte</b>, escolha a ordem para preencher a grade sozinho, ou digite modelo, cor e tamanhos.</li>
-            <li>Toque em <b>Registrar envio</b>. Abra a remessa e use <b>Comprovante</b> (imprimir e assinar) ou <b>WhatsApp</b> (manda a lista para a oficina).</li>
+            <li>Toque em <b>Registrar envio</b>. Abra a remessa e use <b>Comprovante</b> (imprimir e assinar) ou <b>WhatsApp + link</b>: manda a lista e o link em que a oficina confere e confirma o que recebeu.</li>
           </ol>
           <figure><img src="img/remessa-form.webp" alt="Formulário de nova remessa com oficina, etapa, datas, valor por peça, desconto e itens" width="1080" height="776" loading="lazy"><figcaption>Nova remessa a partir de uma ordem de corte.</figcaption></figure>
         </div>
 
         <div class="guia-passo" id="guia-passo-2" role="region" aria-labelledby="guia-titulo-2">
-          <h3 id="guia-titulo-2">Passo 3 · Retorno: conferir o que voltou</h3>
+          <h3 id="guia-titulo-2">Passo 3 · Retorno: conferir o que voltou (às cegas)</h3>
           <ol class="passos">
-            <li>Abra a remessa e toque em <b>Registrar retorno</b>.</li>
-            <li>Para cada tamanho, digite as peças <b>boas</b> e as <b>com defeito</b>. Se voltou tudo certo, use <b>Voltou tudo bom</b>.</li>
-            <li>Pode registrar em várias vezes (parte hoje, parte amanhã). O app <b>não aceita</b> voltar mais do que foi enviado.</li>
+            <li>Abra a remessa e toque em <b>Registrar retorno</b>. Deixe marcada a <b>Contagem às cegas</b>: o formulário <b>não mostra</b> quantas peças deveriam voltar.</li>
+            <li>Conte as peças de verdade e digite, por tamanho, as <b>boas</b> e as <b>com defeito</b>. Se a contagem passar do que foi enviado, o app pede para recontar, sem dizer o número.</li>
+            <li>Toque em <b>Registrar retorno</b>. Só agora aparece a <b>conferência</b>: o que estava com a oficina, o que vocês contaram e o que <b>continua com ela</b>.</li>
+            <li>Se a oficina diz que entregou tudo e a conferência mostra falta, <b>reconte na hora</b>, antes de guardar as peças. Pode registrar em várias vezes (parte hoje, parte amanhã).</li>
           </ol>
-          <figure class="estreita"><img src="img/retorno.webp" alt="Janela de retorno com faltam voltar, boas e com defeito por tamanho" width="720" height="488" loading="lazy"><figcaption>As peças boas entram como Costura no nome da oficina.</figcaption></figure>
+          <figure class="estreita"><img src="img/retorno-cego.webp" alt="Janela de retorno com contagem às cegas marcada e só os campos boas e com defeito" width="720" height="504" loading="lazy"><figcaption>Às cegas: quem confere não vê o número esperado. As peças boas entram como Costura no nome da oficina.</figcaption></figure>
+          <figure class="estreita"><img src="img/conferencia.webp" alt="Resultado da conferência: voltaram 25 de 30 e 5 continuam com a oficina" width="720" height="424" loading="lazy"><figcaption>A diferença aparece só depois de registrar.</figcaption></figure>
         </div>
 
         <div class="guia-passo" id="guia-passo-3" role="region" aria-labelledby="guia-titulo-3">
@@ -328,6 +330,25 @@ section.sem-resultado { display: none; }
           <span id="guia-pos" aria-live="polite">Passo 1 de 5</span>
           <button type="button" id="guia-prox" class="primario">Próximo passo →</button>
         </div>
+      </div>
+
+      <h3 id="conferencia-dupla">Conferência dupla: contra perda e desvio de peças</h3>
+      <p>A peça só some quando ninguém confere. Com três travas juntas, qualquer diferença aparece no dia em que acontece, e não no acerto:</p>
+      <ol class="passos">
+        <li><b>A fábrica conta às cegas</b> (Passo 3): ninguém “confirma o número” sem contar.</li>
+        <li><b>A oficina confirma pelo link.</b> Em <b>WhatsApp + link</b>, a costureira recebe um link (sem senha). Nele ela vê o que recebeu, o que devolveu e quanto vai receber, e toca em <b>Está tudo certo</b> ou <b>Contei diferente</b> (digita a contagem dela). Se ela contestar, quem cuida das remessas recebe <b>aviso na hora</b>, e a remessa fica marcada como <b>Contestada</b> com a diferença por peça.</li>
+        <li><b>O Balanço fecha a conta da ordem de corte</b>: na aba <b>Balanço</b>, cada ordem mostra por tamanho quanto foi <b>cortado, enviado, voltou bom, com defeito, está com a oficina, ficou na fábrica e sumiu</b>, e a perda de tecido no corte.</li>
+      </ol>
+      <figure class="estreita"><img src="img/pagina-oficina.webp" alt="Página da oficina no celular com a remessa, botões Está tudo certo e Contei diferente e a previsão do acerto" width="420" height="996" loading="lazy"><figcaption>O que a costureira vê pelo link, no celular.</figcaption></figure>
+      <figure><img src="img/resposta-oficina.webp" alt="Detalhe da remessa com a resposta da oficina: recebimento confirmado e devolução contestada, com fábrica 30 e oficina 32" width="720" height="557" loading="lazy"><figcaption>Na fábrica: recebimento confirmado, devolução contestada (fábrica 30 × oficina 32).</figcaption></figure>
+      <figure><img src="img/balanco.webp" alt="Balanço da ordem de corte por tamanho com alerta de perda no corte e contestação" width="1280" height="656" loading="lazy"><figcaption>Balanço da ordem: onde cada peça está.</figcaption></figure>
+      <div class="box dica"><b>Limite de perda e avisos na hora</b>
+        <ul>
+          <li>Na aba <b>Balanço</b>, defina <b>Avisar acima de (%)</b>. O padrão é 3%.</li>
+          <li>Quando um <b>corte</b> rende abaixo do que o tecido dava além do limite, ou uma <b>remessa fecha</b> com peças faltando acima do limite, quem cuida das remessas recebe aviso no celular na hora.</li>
+          <li>O link é só daquela remessa. Se ele foi parar com outra pessoa, use <b>Trocar link</b>: o antigo para de funcionar.</li>
+          <li>Cada etapa só pode ser respondida uma vez pela oficina. Se os itens da remessa mudarem antes do retorno, a confirmação do envio é pedida de novo.</li>
+        </ul>
       </div>
 
       <div class="quiz" id="quiz">
@@ -496,7 +517,7 @@ section.sem-resultado { display: none; }
       </dl>
     </section>
 
-    <p class="rodape">Manual do Fábrica · versão 1.10 · as telas são do modo demonstração, com dados de exemplo.</p>
+    <p class="rodape">Manual do Fábrica · versão 1.12 · as telas são do modo demonstração, com dados de exemplo.</p>
   </main>
 </div>
 

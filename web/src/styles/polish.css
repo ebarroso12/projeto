@@ -502,3 +502,51 @@ a.dani-acao { text-decoration: none; display: inline-flex; align-items: center; 
 .dica-iphone-acoes { display: flex; gap: 8px; margin-left: auto; }
 .dica-iphone-acoes button { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
 .dica-iphone-acoes button:last-child { background: var(--info); color: #fff; border-color: var(--info); }
+
+/* linha com caixa de marcar e explicação (ex.: contagem às cegas) */
+.check-linha { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 14px; cursor: pointer; }
+.check-linha input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+
+/* ---------------------------------------------------------------- página da oficina (link da remessa, sem login) */
+.rp { max-width: 640px; margin: 0 auto; padding: 16px 16px 40px; display: flex; flex-direction: column; gap: 14px; }
+.rp-topo { display: flex; align-items: center; gap: 12px; }
+.rp-topo img { border-radius: 10px; }
+.rp-topo div { flex: 1; min-width: 0; }
+.rp-topo small { color: var(--muted); font-size: 13px; }
+.rp-topo h1 { margin: 0; font-size: 22px; }
+.rp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.rp-card h1, .rp-card h2 { margin: 0; font-size: 18px; }
+.rp-card p { margin: 0; }
+.rp-numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rp-numeros div { background: var(--surface-2); border-radius: 12px; padding: 10px; text-align: center; }
+.rp-numeros span { display: block; font-size: 12px; color: var(--muted); }
+.rp-numeros b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.rp-tabela { width: 100%; border-collapse: collapse; font-size: 15px; }
+.rp-tabela th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.rp-tabela td { padding: 8px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.rp-tabela td small { display: block; color: var(--muted); font-size: 12px; }
+.rp-tabela tfoot td { font-weight: 700; border-bottom: 0; }
+.rp-tabela .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rp-tabela input { width: 72px; font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; text-align: right; background: var(--surface); color: inherit; }
+.rp-pergunta { display: flex; flex-direction: column; gap: 10px; }
+.rp-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.rp-botoes .btn { flex: 1 1 160px; }
+.rp-campo { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.rp-campo input, .rp-campo textarea { font: inherit; font-size: 16px; color: var(--text); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.rp-ok { color: var(--ok, #15803d); display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.rp-dif { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+.rp-dif ul { margin: 6px 0; padding-left: 18px; }
+.rp-dif p { margin: 4px 0 0; }
+.rp-erro { color: var(--danger); margin: 0; }
+.rp-rodape { text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
+.selo-cega { margin-left: 8px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--info-soft); color: var(--info); vertical-align: middle; }
+.lista-dif { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+/* balanço por ordem de corte */
+details.balanco { border-bottom: 1px solid var(--line); }
+details.balanco > summary { list-style: none; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; flex-wrap: wrap; }
+details.balanco > summary::-webkit-details-marker { display: none; }
+details.balanco > summary .item-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 260px; }
+details.balanco > summary .item-main small { color: var(--muted); }
+details.balanco-alerta > summary { box-shadow: inset 3px 0 0 var(--danger); }
+.balanco-selos { display: flex; gap: 6px; flex-wrap: wrap; }
+.balanco-corpo { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px; }

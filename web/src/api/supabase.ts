@@ -14,7 +14,7 @@ import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseAcerto, parseRemessaOpcoes, parseRemessasDados, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseAcerto, parseRemessaOpcoes, parseRemessaPublica, parseRemessasDados, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import { ApiError, fromServerMessage } from './transport';
@@ -212,6 +212,10 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     pushStatus: async endpoint => { const r = rec(await rpc('fab_push_status', { p_endpoint: endpoint })); return { esteAparelho: r.esteAparelho === true, aparelhos: num(r.aparelhos), configurado: r.configurado === true }; },
     remessas: async (dias = 120) => parseRemessasDados(await rpc('fab_remessas', { p_dias: dias })),
     remessaOpcoes: async () => parseRemessaOpcoes(await rpc('fab_remessa_opcoes')),
+    remessaLink: async (id, novo = false) => str(await rpc('fab_remessa_link', { p_id: id, p_novo: novo })),
+    salvarLimitePerda: async limite => num(await rpc('fab_salvar_limite_perda', { p_limite: limite })),
+    remessaPublica: async token => parseRemessaPublica(await rpc('fab_remessa_publica', { p_token: token })),
+    remessaConfirmar: async (token, p) => { const r = rec(await rpc('fab_remessa_confirmar', { p_token: token, p })); return { confere: r.confere === true, fabrica: num(r.fabrica), oficina: num(r.oficina) }; },
     salvarOrdemCorte: async o => { const r = rec(await rpc('fab_salvar_ordem_corte', { p: o })); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },
     apagarOrdemCorte: async id => { await rpc('fab_apagar_ordem_corte', { p_id: id }); },
     salvarRemessa: async o => { const r = rec(await rpc('fab_salvar_remessa', { p: o })); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },

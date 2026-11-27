@@ -419,6 +419,8 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await drt.getByLabel('Boas Calça Jeans Azul Marinho M').fill('30');
   await drt.getByRole('button', { name: 'Registrar retorno' }).click();
   await page.getByText('Retorno registrado. As peças boas entraram na produção.').waitFor();
+  ok(await until(() => page.locator('dialog[open]').getByText(/Voltaram 49 de 50 peça\(s\)\. 1 continuam com Ateliê da Rosa/).isVisible()), 'conferência às cegas mostra a diferença só depois de registrar');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Concluir' }).click();
   ok(await until(() => page.locator('dialog[open]').getByText('Ainda com a oficina').isVisible()), 'remessa mostra o que ainda está com a oficina');
   await page.locator('dialog[open]').getByRole('button', { name: 'Acertar' }).click();
   const dac = page.locator('dialog[open]');
@@ -427,6 +429,45 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.getByText(/acertada: R\$\s139,00 lançado no Financeiro/).waitFor();
   ok(true, 'acerto lança o pagamento da oficina no Financeiro');
   await shot(page, '20-oficinas-remessas');
+
+  // ---- conferência dupla: contestação da oficina, contagem às cegas, link e balanço
+  await page.getByRole('tab', { name: /^Remessas/ }).click();
+  ok(await until(() => page.getByText(/1 remessa\(s\) com contagem contestada pela oficina/).isVisible()) && await page.getByRole('table', { name: 'Remessas' }).getByText('Contestada').first().isVisible(), 'lista avisa a remessa contestada pela oficina');
+  await page.getByRole('button', { name: /#31 · Costura da Maria/ }).click();
+  const dcm = page.locator('dialog[open]');
+  ok(await until(() => dcm.getByText('A oficina contestou uma contagem.', { exact: false }).isVisible()), 'detalhe avisa a contestação');
+  ok((await dcm.locator('.lista-dif li').allInnerTexts()).some(t => /Camisa Polo · Branco · M: fábrica 30 · oficina 32/.test(t)), 'diferença por peça: fábrica 30 × oficina 32');
+  ok(await dcm.getByText('Confirmou', { exact: true }).isVisible() && await dcm.getByText('Contestou', { exact: true }).isVisible() && await dcm.locator('.selo-cega').first().isVisible(), 'recebimento confirmado, devolução contestada, retorno contado às cegas');
+  await page.context().route('https://wa.me/**', r => r.fulfill({ contentType: 'text/html', body: '<p>whatsapp</p>' }));
+  const [popZap] = await Promise.all([page.waitForEvent('popup'), dcm.getByRole('button', { name: 'WhatsApp + link' }).click()]);
+  await popZap.waitForURL(/wa\.me/);
+  ok(decodeURIComponent(popZap.url()).includes('?r=demo0000000000000000000000000031') && decodeURIComponent(popZap.url()).includes('confirme'), 'WhatsApp leva o comprovante com o link da oficina');
+  await popZap.close();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /#32 · Facção Bom Ponto/ }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Registrar retorno' }).click();
+  const dcg = page.locator('dialog[open]');
+  ok(await dcg.getByLabel(/Contagem às cegas/).isChecked() && await dcg.getByRole('columnheader', { name: 'Faltam voltar' }).count() === 0 && await dcg.getByRole('button', { name: 'Voltou tudo bom' }).count() === 0, 'às cegas: o formulário não mostra quantas deveriam voltar');
+  await dcg.getByLabel('Boas Camisa Polo Branco G').fill('31');
+  await dcg.getByRole('button', { name: 'Registrar retorno' }).click();
+  ok(await until(() => dcg.getByText(/a contagem passa do que foi enviado/).isVisible()) && !(await dcg.locator('.err').innerText()).includes('30'), 'contagem acima do enviado é recusada sem revelar o número');
+  await dcg.getByLabel('Boas Camisa Polo Branco G').fill('25');
+  await dcg.getByRole('button', { name: 'Registrar retorno' }).click();
+  ok(await until(() => page.locator('dialog[open]').getByText(/Voltaram 25 de 30 peça\(s\)\. 5 continuam com Facção Bom Ponto/).isVisible()), 'resultado: 25 de 30, 5 continuam com a oficina');
+  await shot(page, '41-conferencia-cega');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Concluir' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Balanço' }).click();
+  const bal = page.locator('details.balanco', { hasText: '#12 · Camisa Polo Branco' });
+  await bal.locator('summary').click();
+  const tb = page.getByRole('table', { name: 'Balanço da ordem 12' });
+  ok(await until(() => tb.isVisible()) && (await tb.locator('tbody tr').allInnerTexts()).map(t => t.split(/\s+/)[0]).join(',') === 'P,M,G', 'balanço por tamanho na ordem natural (P, M, G)');
+  ok(await bal.getByText('Contestada', { exact: true }).isVisible() && await bal.getByText(/contagem\(ns\) contestada/).isVisible(), 'balanço mostra a contestação da oficina');
+  await shot(page, '42-balanco');
+  await page.getByLabel('Avisar acima de (%)').fill('7,5');
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await page.getByText('Limite salvo. Os avisos de perda usam o novo valor.').waitFor();
+  ok(true, 'limite de perda configurável');
   // lançar em nome de quem não usa celular
   await page.locator('.sidebar').getByRole('link', { name: 'Lançar' }).click();
   await page.getByLabel('Quem fez').selectOption({ label: 'Ateliê da Rosa (oficina)' });
@@ -591,6 +632,32 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
     await ctx.setOffline(false);
     await ctx.close();
   }
+  // página da oficina (link da remessa, sem login)
+  {
+    const pr = await newPage({ width: 390, height: 844 }, BASE + '?r=demo0000000000000000000000000032');
+    await pr.getByRole('heading', { name: 'Remessa #32' }).waitFor();
+    ok(await pr.getByText('Facção Bom Ponto').first().isVisible() && await pr.getByText('Conferiu as peças que chegaram?').isVisible(), 'oficina abre a remessa pelo link, sem login');
+    await pr.getByRole('button', { name: 'Contei diferente' }).click();
+    await pr.getByLabel('Você contou: Camisa Polo · Branco · G').fill('28');
+    await pr.getByLabel('Explique, se quiser').fill('vieram 2 a menos no pacote');
+    await pr.getByRole('button', { name: 'Enviar minha contagem' }).click();
+    ok(await until(() => pr.getByText(/Você informou diferença em/).isVisible()) && await pr.getByText('Camisa Polo · Branco · G: você contou 28, a fábrica 30').isVisible(), 'oficina contesta o recebimento com a contagem dela');
+    ok(await pr.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'página da oficina sem rolagem horizontal no celular');
+    await shot(pr, '43-pagina-oficina');
+    await pr.context().close();
+    const pr2 = await newPage({ width: 390, height: 844 }, BASE + '?r=demo0000000000000000000000000032');
+    await pr2.getByRole('button', { name: 'Está tudo certo' }).click();
+    ok(await until(() => pr2.getByText(/Você confirmou em/).isVisible()), 'oficina confirma o recebimento com um toque');
+    await pr2.context().close();
+    const pr3 = await newPage({ width: 390, height: 844 }, BASE + '?r=demo0000000000000000000000000031');
+    await pr3.getByRole('heading', { name: 'Remessa #31' }).waitFor();
+    ok(await pr3.getByText(/Você confirmou em/).isVisible() && await pr3.getByText(/Você informou diferença em/).isVisible() && await pr3.getByText(/Peças boas até agora/).isVisible(), 'oficina vê o que já respondeu e a previsão do acerto');
+    await pr3.context().close();
+    const pr4 = await newPage({ width: 390, height: 844 }, BASE + '?r=' + 'f'.repeat(32));
+    ok(await until(() => pr4.getByText('Este link não vale mais. Peça um novo link para a fábrica.').isVisible()), 'link inválido mostra mensagem clara');
+    await pr4.context().close();
+  }
+
   // 1.11: manual no app, cópia de segurança pelo aviso e dica do iPhone
   {
     const pg = await newPage({ width: 1280, height: 860 });

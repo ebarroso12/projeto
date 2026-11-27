@@ -1,13 +1,13 @@
 import { getIp } from '../lib/network';
 import {
   parseAcessos, parseConvites, parseDadosPessoas, parseDestinatarios, parseEmpresaDetalhe, parseEnviadas, parseFuncoesPessoa, parseMensagens, parseRegistros, parseSessoes, parseStatusAcesso,
-  parseBoot, parseContrapartes, parseAcerto, parseRemessaOpcoes, parseRemessasDados, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
+  parseBoot, parseContrapartes, parseAcerto, parseRemessaOpcoes, parseRemessaPublica, parseRemessasDados, parseVitrineAdmin, parseHistoricoMaterial, parseMateriais, parseMaterialOpcoes, parseLucroModelos, parseProdutividade, parsePedidoOpcoes, parsePedidos, parseContrapartesTotais, parseLancamentos, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, DaniConfig, DaniMsg, DaniResposta, MaterialInput, MovMaterialInput, OrdemCorteInput, PedidoInput, PedidoReceber, QuemFez, RemessaInput, RetornoInput, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, ConfirmarRemessaInput, ConfirmarRemessaResultado, DaniConfig, DaniMsg, DaniResposta, RemessaPublica, MaterialInput, MovMaterialInput, OrdemCorteInput, PedidoInput, PedidoReceber, QuemFez, RemessaInput, RetornoInput, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -147,6 +147,14 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     // ----- oficinas e remessas -----
     remessas: async (dias = 120) => parseRemessasDados(await call('remessas', tok(), dias)),
     remessaOpcoes: async () => parseRemessaOpcoes(await call('remessaOpcoes', tok())),
+    /** Link da oficina para a remessa (cria na primeira vez; novo = troca e o antigo para de funcionar). */
+    remessaLink: async (id: string, novo = false): Promise<string> => str(await call('remessaLink', tok(), id, novo)),
+    salvarLimitePerda: async (limite: number): Promise<number> => num(await call('salvarLimitePerda', tok(), limite)),
+    /** Página da oficina (sem login): o token do link é a autorização. */
+    remessaPublica: async (token: string): Promise<RemessaPublica> => parseRemessaPublica(await call('remessaPublica', token)),
+    remessaConfirmar: async (token: string, p: ConfirmarRemessaInput): Promise<ConfirmarRemessaResultado> => {
+      const r = rec(await call('remessaConfirmar', token, p)); return { confere: r.confere === true, fabrica: num(r.fabrica), oficina: num(r.oficina) };
+    },
     salvarOrdemCorte: async (o: OrdemCorteInput) => { const r = rec(await call('salvarOrdemCorte', tok(), o)); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },
     apagarOrdemCorte: async (id: string) => { await call('apagarOrdemCorte', tok(), id); },
     salvarRemessa: async (o: RemessaInput) => { const r = rec(await call('salvarRemessa', tok(), o)); return { id: str(r.id), numero: num(r.numero), pecas: num(r.pecas) }; },

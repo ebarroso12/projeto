@@ -4,7 +4,7 @@
  */
 import type {
   AcessosDados, Convite, DadosPessoa, Destinatario, EmpresaDetalhe, FuncoesPessoa, Mensagem, MensagemEnviada, Registro2, TipoRegistro, SessaoAcesso, StatusAcesso,
-  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, VitrineAdmin, AcertoRemessa, Remessa, RemessaOpcoes, RemessasDados, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
+  Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinContraparte, FinContraparteTotal, FinDados, HistoricoMaterial, VitrineAdmin, AcertoRemessa, ConfirmacaoOficina, Remessa, RemessaOpcoes, RemessaPublica, RemessasDados, LucroModelo, Material, MaterialOpcoes, MovMaterial, Produtividade, Pedido, PedidoItem, PedidoOpcoes, PedidoStatus, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
 
@@ -336,16 +336,36 @@ export function parseVitrineAdmin(v: unknown): VitrineAdmin {
 }
 
 const arrR = (x: unknown) => (Array.isArray(x) ? x : []).map(rec);
+export function parseConfirmacao(v: unknown): ConfirmacaoOficina | null {
+  if (!v || typeof v !== 'object') return null;
+  const c = rec(v);
+  return { confere: bool(c.confere), em: str(c.em), nome: str(c.nome), obs: str(c.obs), itens: arrR(c.itens).map(i => ({ itemId: str(i.itemId), qtd: num(i.qtd) })) };
+}
+const parseItemRemessa = (i: Record<string, unknown>) => ({ id: str(i.id), modelo: str(i.modelo), cor: str(i.cor), tamanho: str(i.tamanho), qtd: num(i.qtd), boas: num(i.boas), defeito: num(i.defeito) });
+export function parseRemessaPublica(v: unknown): RemessaPublica {
+  const m = rec(v);
+  return {
+    empresa: str(m.empresa), numero: num(m.numero), quem: str(m.quem), etapa: str(m.etapa), dataEnvio: str(m.dataEnvio), prazo: strOrNull(m.prazo),
+    valorPeca: num(m.valorPeca), descontoFaltante: num(m.descontoFaltante), status: (str(m.status) === 'fechada' ? 'fechada' : 'aberta'),
+    fechadaEm: strOrNull(m.fechadaEm), valorPago: numOrNull(m.valorPago), enviadas: num(m.enviadas), boas: num(m.boas), defeito: num(m.defeito),
+    itens: arrR(m.itens).map(parseItemRemessa), confirmacaoEnvio: parseConfirmacao(m.confirmacaoEnvio),
+    retornos: arrR(m.retornos).map(t => ({ id: str(t.id), data: str(t.data), confirmacao: parseConfirmacao(t.confirmacao),
+      itens: arrR(t.itens).map(i => ({ itemId: str(i.itemId), boas: num(i.boas), defeito: num(i.defeito) })) })),
+  };
+}
 export function parseRemessasDados(v: unknown): RemessasDados {
   const r = rec(v);
   return {
+    limitePerda: r.limitePerda === undefined || r.limitePerda === null ? 3 : num(r.limitePerda),
     remessas: arrR(r.remessas).map(m => ({
       id: str(m.id), numero: num(m.numero), quem: str(m.quem), login: strOrNull(m.login), oficinaId: strOrNull(m.oficinaId), telefone: strOrNull(m.telefone),
       etapa: str(m.etapa), dataEnvio: str(m.dataEnvio), prazo: strOrNull(m.prazo), valorPeca: num(m.valorPeca), descontoFaltante: num(m.descontoFaltante),
-      ordemNumero: numOrNull(m.ordemNumero), status: (str(m.status) === 'fechada' ? 'fechada' : 'aberta') as Remessa['status'], fechadaEm: strOrNull(m.fechadaEm),
+      ordemId: strOrNull(m.ordemId), ordemNumero: numOrNull(m.ordemNumero), status: (str(m.status) === 'fechada' ? 'fechada' : 'aberta') as Remessa['status'], fechadaEm: strOrNull(m.fechadaEm),
       valorPago: numOrNull(m.valorPago), noFinanceiro: bool(m.noFinanceiro), obs: str(m.obs),
-      itens: arrR(m.itens).map(i => ({ id: str(i.id), modelo: str(i.modelo), cor: str(i.cor), tamanho: str(i.tamanho), qtd: num(i.qtd), boas: num(i.boas), defeito: num(i.defeito) })),
-      retornos: arrR(m.retornos).map(t => ({ id: str(t.id), data: str(t.data), obs: str(t.obs), boas: num(t.boas), defeito: num(t.defeito) })),
+      token: strOrNull(m.token), confirmacaoEnvio: parseConfirmacao(m.confirmacaoEnvio),
+      itens: arrR(m.itens).map(parseItemRemessa),
+      retornos: arrR(m.retornos).map(t => ({ id: str(t.id), data: str(t.data), obs: str(t.obs), boas: num(t.boas), defeito: num(t.defeito),
+        cega: bool(t.cega), itens: arrR(t.itens).map(i => ({ itemId: str(i.itemId), boas: num(i.boas), defeito: num(i.defeito) })), confirmacao: parseConfirmacao(t.confirmacao) })),
     })),
     ordens: arrR(r.ordens).map(o => ({
       id: str(o.id), numero: num(o.numero), data: str(o.data), quem: str(o.quem), modelo: str(o.modelo), cor: str(o.cor), obs: str(o.obs),

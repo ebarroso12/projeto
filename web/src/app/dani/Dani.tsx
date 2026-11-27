@@ -15,7 +15,7 @@ const salvarConversa = (m: DaniMsg[]) => { try { sessionStorage.setItem(CHAVE, J
 
 /** Perguntas sugeridas conforme a tela em que a pessoa está. */
 const SUGESTOES: Record<string, string[]> = {
-  '/remessas': ['Como mando peças para a costureira?', 'Como registro o que voltou?', 'Como é feito o acerto da oficina?'],
+  '/remessas': ['Como a costureira confirma as peças pelo link?', 'Como funciona a contagem às cegas?', 'O que o Balanço mostra?', 'Como é feito o acerto da oficina?'],
   '/lancar': ['Como lanço em nome de outra pessoa?', 'Lancei errado, como corrijo?'],
   '/pedidos': ['Como o andamento do pedido é calculado?', 'Como entrego e lanço no financeiro?'],
   '/materiais': ['Como cadastro a regra de consumo do tecido?', 'Como faço a contagem do estoque?'],

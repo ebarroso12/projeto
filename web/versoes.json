@@ -1,5 +1,15 @@
 [
   {
+    "versao": "1.12.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Contagem às cegas no retorno das oficinas: quem confere digita o que contou sem ver o número esperado; a diferença aparece depois de registrar.",
+      "Link da oficina: a costureira confirma pelo celular, sem senha, o que recebeu e o que devolveu, ou informa a contagem dela. Contestação gera aviso na hora.",
+      "Aba Balanço: cada ordem de corte mostra, por tamanho, o que foi cortado, enviado, voltou, está com a oficina e sumiu, além da perda de tecido no corte.",
+      "Limite de perda (padrão 3%): aviso na hora quando o corte rende menos que o tecido dava ou uma remessa fecha com peças faltando."
+    ]
+  },
+  {
     "versao": "1.11.0",
     "data": "2026-11-27",
     "novidades": [

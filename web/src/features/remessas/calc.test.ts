@@ -3,7 +3,7 @@ import type { OrdemCorte, Remessa } from '../../api/types';
 import { contaRemessa, painelOficinas, rendimento, textoComprovante } from './calc';
 
 const R = (o: Partial<Remessa>): Remessa => ({ id: 'r', numero: 31, quem: 'Costura da Maria', login: null, oficinaId: 'o', telefone: '16 9', etapa: 'Costura', dataEnvio: '2026-11-20',
-  prazo: '2026-11-25', valorPeca: 2.5, descontoFaltante: 10, ordemNumero: 1, status: 'aberta', fechadaEm: null, valorPago: null, noFinanceiro: false, obs: '',
+  prazo: '2026-11-25', valorPeca: 2.5, descontoFaltante: 10, ordemId: 'o1', ordemNumero: 1, token: null, confirmacaoEnvio: null, status: 'aberta', fechadaEm: null, valorPago: null, noFinanceiro: false, obs: '',
   itens: [{ id: 'a', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 40, boas: 30, defeito: 2 }, { id: 'b', modelo: 'Calça', cor: 'Branco', tamanho: 'M', qtd: 50, boas: 50, defeito: 0 }],
   retornos: [], ...o });
 
@@ -34,5 +34,75 @@ describe('quem está com o quê', () => {
   });
   it('comprovante de envio', () => {
     expect(textoComprovante(R({}), 'Confecção X')).toBe('*Confecção X · Remessa #31*\nPara: Costura da Maria (Costura)\nEnviada em 20/11/2026 · devolver até 25/11/2026\n• Calça Branco P: 40\n• Calça Branco M: 50\nTotal: 90 peça(s) · R$ 2,50 por peça');
+    expect(textoComprovante(R({}), 'Confecção X', 'https://app/?r=abc').endsWith('Total: 90 peça(s) · R$ 2,50 por peça\n\nConfira as peças e confirme (ou informe a sua contagem) neste link:\nhttps://app/?r=abc')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------- conferência dupla
+import { balancoOrdem, conferenciaCega, contestacoes, divergencias, ordemTamanho, respostaOficina } from './calc';
+
+describe('contagem às cegas', () => {
+  it('compara o contado com o que ainda estava com a oficina', () => {
+    const r = R({});   // P: 40 enviadas, 32 já voltaram → 8 esperadas; M: tudo voltou
+    const c = conferenciaCega(r.itens, { a: { boas: 5, defeito: 1 } });
+    expect(c.linhas).toEqual([{ itemId: 'a', descricao: 'Calça · Branco · P', esperado: 8, contado: 6, continua: 2 }]);
+    expect([c.esperado, c.contado, c.continua]).toEqual([8, 6, 2]);
+  });
+  it('tudo conferido: nada continua com a oficina', () => {
+    expect(conferenciaCega(R({}).itens, { a: { boas: 8, defeito: 0 } }).continua).toBe(0);
+  });
+});
+
+describe('resposta da oficina pelo link', () => {
+  const conf = (confere: boolean, itens: { itemId: string; qtd: number }[] = []) => ({ confere, em: '2026-11-27T10:00:00', nome: 'Maria', obs: '', itens });
+  it('situação de cada etapa', () => {
+    expect(respostaOficina(null)).toBe('aguardando');
+    expect(respostaOficina(conf(true))).toBe('confirmou');
+    expect(respostaOficina(conf(false, [{ itemId: 'a', qtd: 39 }]))).toBe('contestou');
+  });
+  it('divergência do envio e de um retorno, por item', () => {
+    const r = R({ confirmacaoEnvio: conf(false, [{ itemId: 'a', qtd: 38 }]),
+      retornos: [{ id: 't1', data: '2026-11-26', obs: '', boas: 50, defeito: 0, cega: true, itens: [{ itemId: 'b', boas: 50, defeito: 0 }], confirmacao: conf(false, [{ itemId: 'b', qtd: 52 }]) }] });
+    expect(divergencias(r, null)).toEqual([{ itemId: 'a', descricao: 'Calça · Branco · P', fabrica: 40, oficina: 38 }]);
+    expect(divergencias(r, 't1')).toEqual([{ itemId: 'b', descricao: 'Calça · Branco · M', fabrica: 50, oficina: 52 }]);
+    expect(contestacoes(r)).toBe(2);
+    expect(contestacoes(R({}))).toBe(0);
+  });
+});
+
+describe('balanço da ordem de corte', () => {
+  const O: OrdemCorte = { id: 'o1', numero: 12, data: '2026-11-20', quem: 'Corte do João', modelo: 'Calça', cor: 'Branco', obs: '', material: 'Malha', unidade: 'kg',
+    materialQtd: 25, consumoPeca: 0.25, itens: { G: 10, M: 50, P: 40 }, remetido: 90 };
+  it('do tecido à peça: na fábrica, com a oficina e sumidas por tamanho', () => {
+    const aberta = R({});                                   // P 40 (30+2), M 50 (50): 8 do P com a oficina
+    const fechada = R({ id: 'r2', status: 'fechada', itens: [{ id: 'c', modelo: 'Calça', cor: 'Branco', tamanho: 'G', qtd: 6, boas: 4, defeito: 0 }] });   // 2 do G sumiram
+    const outra = R({ id: 'r3', ordemId: 'outra' });        // de outra ordem: não entra
+    const b = balancoOrdem(O, [aberta, fechada, outra], 3);
+    expect(b.linhas.map(l => l.tamanho)).toEqual(['P', 'M', 'G']);
+    expect(b.linhas.find(l => l.tamanho === 'P')).toEqual({ tamanho: 'P', cortadas: 40, enviadas: 40, naFabrica: 0, excedente: 0, boas: 30, defeito: 2, comOficina: 8, sumiram: 0 });
+    expect(b.linhas.find(l => l.tamanho === 'G')).toEqual({ tamanho: 'G', cortadas: 10, enviadas: 6, naFabrica: 4, excedente: 0, boas: 4, defeito: 0, comOficina: 0, sumiram: 2 });
+    expect(b.total).toEqual({ cortadas: 100, enviadas: 96, naFabrica: 4, excedente: 0, boas: 84, defeito: 2, comOficina: 8, sumiram: 2 });
+    expect([b.esperadas, b.perdaCortePct, b.sumiramPct, b.defeitoPct, b.remessas]).toEqual([100, 0, 2.1, 2.1, 2]);
+    expect(b.acimaDoLimite).toBe(false);
+  });
+  it('alertas: perda no corte, peças sumidas, envio maior que o corte e contestação', () => {
+    const o = { ...O, itens: { P: 40, M: 50 } };            // tecido para 100, cortadas 90 = 10%
+    const r = R({ status: 'fechada', itens: [{ id: 'a', modelo: 'Calça', cor: 'Branco', tamanho: 'P', qtd: 45, boas: 35, defeito: 0 }],
+      confirmacaoEnvio: { confere: false, em: '', nome: '', obs: '', itens: [{ itemId: 'a', qtd: 40 }] } });
+    const b = balancoOrdem(o, [r], 3);
+    expect(b.alertas).toEqual([
+      'Perda no corte de 10%: o tecido dava 100 peças e saíram 90.',
+      '10 peça(s) sumiram nas oficinas (22,2% do que foi enviado).',
+      'Foram enviadas 5 peça(s) a mais do que foi cortado: confira a ordem e as remessas.',
+      '1 contagem(ns) contestada(s) pela oficina.',
+    ]);
+    expect(b.acimaDoLimite).toBe(true);
+    expect(balancoOrdem(o, [], 15).alertas).toEqual([]);   // 10% de perda com limite de 15%: sem alerta
+  });
+  it('sem tecido informado: sem perda de corte calculada', () => {
+    expect(balancoOrdem({ ...O, materialQtd: null }, [], 3).perdaCortePct).toBeNull();
+  });
+  it('ordem natural dos tamanhos', () => {
+    expect(['GG', 'P', '10', 'M', '2', 'PP', 'G'].sort(ordemTamanho)).toEqual(['PP', 'P', 'M', 'G', 'GG', '2', '10']);
   });
 });

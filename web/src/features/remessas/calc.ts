@@ -4,7 +4,7 @@
  *   no acerto: faltando = pendente;  a pagar = boas × valor da peça − faltando × desconto por faltante (nunca negativo)
  * Rendimento da bobina: peças esperadas = material usado ÷ consumo por peça (regra de corte do material).
  */
-import type { OrdemCorte, Remessa } from '../../api/types';
+import type { ConfirmacaoOficina, OrdemCorte, Remessa } from '../../api/types';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const dias = (de: string, ate: string) => Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 864e5);
@@ -59,10 +59,94 @@ export function painelOficinas(lista: Remessa[], hoje: string): LinhaOficina[] {
 }
 
 /** Texto do comprovante de envio (WhatsApp / impressão). */
-export function textoComprovante(r: Remessa, empresa: string): string {
+export function textoComprovante(r: Remessa, empresa: string, link?: string): string {
   const c = r.itens.reduce((s, i) => s + i.qtd, 0);
   const linhas = r.itens.map(i => `• ${i.modelo} ${i.cor} ${i.tamanho}: ${i.qtd}`);
   const br = (d: string) => d.split('-').reverse().join('/');
   return [`*${empresa} · Remessa #${r.numero}*`, `Para: ${r.quem} (${r.etapa})`, `Enviada em ${br(r.dataEnvio)}${r.prazo ? ` · devolver até ${br(r.prazo)}` : ''}`, ...linhas,
-    `Total: ${c} peça(s)${r.valorPeca ? ` · R$ ${r.valorPeca.toFixed(2).replace('.', ',')} por peça` : ''}`].join('\n');
+    `Total: ${c} peça(s)${r.valorPeca ? ` · R$ ${r.valorPeca.toFixed(2).replace('.', ',')} por peça` : ''}`,
+    ...(link ? ['', 'Confira as peças e confirme (ou informe a sua contagem) neste link:', link] : [])].join('\n');
+}
+
+// =====================================================================
+// Conferência dupla
+// =====================================================================
+
+/** Resultado da contagem às cegas: só depois de salvar a pessoa vê o que era esperado. */
+export interface LinhaConferencia { itemId: string; descricao: string; esperado: number; contado: number; continua: number }
+export function conferenciaCega(itens: Remessa['itens'], contagem: Record<string, { boas: number; defeito: number }>): { linhas: LinhaConferencia[]; esperado: number; contado: number; continua: number } {
+  const linhas = itens.map(i => {
+    const esperado = Math.max(0, i.qtd - i.boas - i.defeito);   // o que ainda estava com a oficina antes deste retorno
+    const c = contagem[i.id] ?? { boas: 0, defeito: 0 };
+    const contado = c.boas + c.defeito;
+    return { itemId: i.id, descricao: `${i.modelo} · ${i.cor} · ${i.tamanho}`, esperado, contado, continua: Math.max(0, esperado - contado) };
+  }).filter(l => l.esperado > 0 || l.contado > 0);
+  return { linhas, esperado: linhas.reduce((s, l) => s + l.esperado, 0), contado: linhas.reduce((s, l) => s + l.contado, 0), continua: linhas.reduce((s, l) => s + l.continua, 0) };
+}
+
+/** Situação da resposta da oficina (pelo link) a uma etapa: envio ou um retorno. */
+export type SituacaoResposta = 'aguardando' | 'confirmou' | 'contestou';
+export interface Divergencia { itemId: string; descricao: string; fabrica: number; oficina: number }
+export function respostaOficina(c: ConfirmacaoOficina | null): SituacaoResposta {
+  return !c ? 'aguardando' : c.confere ? 'confirmou' : 'contestou';
+}
+/** Diferenças por item entre o que a fábrica registrou e o que a oficina disse (envio: enviadas; retorno: boas + defeito daquele retorno). */
+export function divergencias(r: Remessa, retornoId: string | null): Divergencia[] {
+  const ret = retornoId ? r.retornos.find(t => t.id === retornoId) : null;
+  const c = retornoId ? ret?.confirmacao ?? null : r.confirmacaoEnvio;
+  if (!c || c.confere) return [];
+  return c.itens.map(d => {
+    const it = r.itens.find(i => i.id === d.itemId);
+    const ri = ret?.itens.find(x => x.itemId === d.itemId);
+    const fabrica = retornoId ? (ri ? ri.boas + ri.defeito : 0) : it?.qtd ?? 0;
+    return { itemId: d.itemId, descricao: it ? `${it.modelo} · ${it.cor} · ${it.tamanho}` : 'item', fabrica, oficina: d.qtd };
+  });
+}
+/** Contestações ainda registradas na remessa (envio + retornos). */
+export function contestacoes(r: Remessa): number {
+  return (r.confirmacaoEnvio && !r.confirmacaoEnvio.confere ? 1 : 0) + r.retornos.filter(t => t.confirmacao && !t.confirmacao.confere).length;
+}
+
+/** Balanço de uma ordem de corte, do tecido à peça devolvida, por tamanho. */
+export interface LinhaBalanco { tamanho: string; cortadas: number; enviadas: number; naFabrica: number; excedente: number; boas: number; defeito: number; comOficina: number; sumiram: number }
+export interface Balanco {
+  linhas: LinhaBalanco[]; total: Omit<LinhaBalanco, 'tamanho'>;
+  esperadas: number | null; perdaCortePct: number | null; sumiramPct: number | null; defeitoPct: number | null;
+  remessas: number; contestacoes: number; alertas: string[]; acimaDoLimite: boolean;
+}
+const GRADE = ['RN', 'PP', 'P', 'M', 'G', 'GG', 'XG', 'XGG', 'EG', 'EGG', 'G1', 'G2', 'G3', 'G4', 'G5', 'U', 'ÚNICO'];
+/** Ordem natural dos tamanhos: PP, P, M, G, GG…; números em ordem numérica; o resto em ordem alfabética. */
+export function ordemTamanho(a: string, b: string): number {
+  const ia = GRADE.indexOf(a.toUpperCase()), ib = GRADE.indexOf(b.toUpperCase());
+  if (ia >= 0 || ib >= 0) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  return a.localeCompare(b, 'pt-BR', { numeric: true });
+}
+const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+export function balancoOrdem(o: OrdemCorte, remessas: Remessa[], limite: number): Balanco {
+  const ligadas = remessas.filter(r => r.ordemId === o.id);
+  const m = new Map<string, LinhaBalanco>();
+  const linha = (t: string) => m.get(t) ?? m.set(t, { tamanho: t, cortadas: 0, enviadas: 0, naFabrica: 0, excedente: 0, boas: 0, defeito: 0, comOficina: 0, sumiram: 0 }).get(t)!;
+  for (const [t, q] of Object.entries(o.itens)) linha(t).cortadas += q;
+  for (const r of ligadas) for (const i of r.itens) {
+    if (i.modelo !== o.modelo || i.cor !== o.cor) continue;   // só o que veio desta ordem
+    const l = linha(i.tamanho), pend = Math.max(0, i.qtd - i.boas - i.defeito);
+    l.enviadas += i.qtd; l.boas += i.boas; l.defeito += i.defeito;
+    if (r.status === 'aberta') l.comOficina += pend; else l.sumiram += pend;
+  }
+  const linhas = [...m.values()].map(l => ({ ...l, naFabrica: Math.max(0, l.cortadas - l.enviadas), excedente: Math.max(0, l.enviadas - l.cortadas) }));
+  const soma = (k: keyof Omit<LinhaBalanco, 'tamanho'>) => linhas.reduce((s, l) => s + l[k], 0);
+  const total = { cortadas: soma('cortadas'), enviadas: soma('enviadas'), naFabrica: soma('naFabrica'), excedente: soma('excedente'), boas: soma('boas'), defeito: soma('defeito'), comOficina: soma('comOficina'), sumiram: soma('sumiram') };
+  const rd = rendimento(o);
+  const perdaCortePct = rd.perdaPct !== null && rd.perdaPct > 0 ? rd.perdaPct : rd.perdaPct === null ? null : 0;
+  const sumiramPct = pct(total.sumiram, total.enviadas), defeitoPct = pct(total.defeito, total.enviadas);
+  const nCont = ligadas.reduce((s, r) => s + contestacoes(r), 0);
+  const alertas: string[] = [];
+  if (perdaCortePct !== null && perdaCortePct > limite) alertas.push(`Perda no corte de ${String(perdaCortePct).replace('.', ',')}%: o tecido dava ${rd.esperadas} peças e saíram ${rd.cortadas}.`);
+  if (sumiramPct !== null && sumiramPct > limite) alertas.push(`${total.sumiram} peça(s) sumiram nas oficinas (${String(sumiramPct).replace('.', ',')}% do que foi enviado).`);
+  if (total.excedente > 0) alertas.push(`Foram enviadas ${total.excedente} peça(s) a mais do que foi cortado: confira a ordem e as remessas.`);
+  if (nCont > 0) alertas.push(`${nCont} contagem(ns) contestada(s) pela oficina.`);
+  return {
+    linhas: linhas.sort((a, b) => ordemTamanho(a.tamanho, b.tamanho)), total, esperadas: rd.esperadas, perdaCortePct, sumiramPct, defeitoPct,
+    remessas: ligadas.length, contestacoes: nCont, alertas, acimaDoLimite: alertas.length > 0,
+  };
 }

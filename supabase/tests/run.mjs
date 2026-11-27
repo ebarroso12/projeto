@@ -974,6 +974,94 @@ ok(fails_with(await rpc(null, 'fab_backup_situacao()', { role: 'anon' }), 'permi
 ok((await q(`select has_function_privilege('authenticated', 'fab.lembrete_backup()', 'execute') p, has_function_privilege('anon', 'fab.lembrete_backup()', 'execute') a`)).every(x => !x.p && !x.a), 'lembrete não é chamado pelo app (só pelo agendador)');
 await q(`delete from fab.avisos_fila`);
 await q(`delete from fab.pedidos where id = $1`, [pedBk.id ?? pedBk]);
+// ============ conferência dupla das oficinas ============
+console.log('\n--- conferência dupla das oficinas ---');
+const avisosDe = async (tipo, like) => (await q(`select * from fab.avisos_fila where tipo = $1 and texto like $2 order by id`, [tipo, like]));
+// alerta imediato de perda no corte: tecido para 100 peças, cortadas 90 = 10% (limite padrão 3%)
+const ocA = (await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, data: diaP(-1), modelo: 'Calça Jeans', cor: 'Branco', materialId: mat30, materialQtd: 2.5, itens: [{ tamanho: 'P', qtd: 9 }] })})`)).data;
+ok((await avisosDe('perda', `Ordem de corte #${ocA.numero} %`)).some(a => a.titulo === 'Perda no corte' && a.texto === `Ordem de corte #${ocA.numero} (Calça Jeans Branco, Corte do João): 9 peça(s) cortadas, o tecido dava 10 (perda de 10,0%).` && a.users.includes(admin)), 'corte abaixo do esperado além do limite avisa na hora (tecido para 10, cortadas 9)');
+const ocOk = (await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, data: diaP(-1), modelo: 'Calça Jeans', cor: 'Branco', materialId: mat30, materialQtd: 2.5, itens: [{ tamanho: 'P', qtd: 10 }] })})`)).data;
+ok((await avisosDe('perda', `Ordem de corte #${ocOk.numero} %`)).length === 0, 'corte que rendeu o esperado não avisa');
+// limite de perda
+ok(fails_with(await rpc(admin, 'fab_salvar_limite_perda(150)'), 'entre 0 e 100'), 'limite fora de 0–100 é recusado');
+ok(Number((await rpc(admin, 'fab_salvar_limite_perda(12.5)')).data) === 12.5 && Number((await rpc(admin, 'fab_remessas(120)')).data.limitePerda) === 12.5, 'limite de perda salvo e enviado à tela');
+ok(fails_with(await rpc(ana, 'fab_salvar_limite_perda(5)'), 'FUNCAO_BLOQUEADA'), 'funcionário sem a função não muda o limite');
+ok(Number((await rpc(adminB, 'fab_remessas(120)')).data.limitePerda) === 3, 'limite é por empresa (a B segue com 3%)');
+const nAvCorte = (await avisosDe('perda', 'Ordem de corte #%')).length;
+const oc12 = (await rpc(admin, `fab_salvar_ordem_corte(${j({ quem: { oficinaId: ofJoao }, data: diaP(-1), modelo: 'Calça Jeans', cor: 'Branco', materialId: mat30, materialQtd: 2.5, itens: [{ tamanho: 'P', qtd: 9 }] })})`)).data;
+ok((await avisosDe('perda', 'Ordem de corte #%')).length === nAvCorte, 'perda de 10% com limite de 12,5% não avisa');
+await rpc(admin, 'fab_salvar_limite_perda(3)');
+
+// 1) contagem às cegas
+const rc = (await rpc(admin, `fab_salvar_remessa(${j({ quem: { oficinaId: ofMaria }, etapa: 'Costura', dataEnvio: diaP(-3), prazo: diaP(4), valorPeca: 2.5, descontoFaltante: 10, obs: 'nota interna da fábrica',
+  itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 10 }, { modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'M', qtd: 10 }] })})`)).data;
+let rcJ = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === rc.id);
+const cP = rcJ.itens.find(i => i.tamanho === 'P'), cM = rcJ.itens.find(i => i.tamanho === 'M');
+const cegaErr = await rpc(admin, `fab_registrar_retorno(${j({ remessaId: rc.id, cega: true, itens: [{ itemId: cP.id, boas: 11 }] })})`);
+ok(fails_with(cegaErr, 'passa do que foi enviado') && !/\b10\b/.test(cegaErr.error), 'às cegas: contagem acima do enviado é recusada sem revelar o número esperado');
+const ret1 = (await rpc(admin, `fab_registrar_retorno(${j({ remessaId: rc.id, cega: true, data: diaP(-1), itens: [{ itemId: cP.id, boas: 9 }, { itemId: cM.id, boas: 9, defeito: 1 }] })})`)).data;
+const ret2 = (await rpc(admin, `fab_registrar_retorno(${j({ remessaId: rc.id, data: diaP(0), itens: [{ itemId: cP.id, boas: 1 }] })})`)).data;
+rcJ = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === rc.id);
+ok(rcJ.retornos.find(t => t.id === ret1).cega === true && rcJ.retornos.find(t => t.id === ret2).cega === false && rM.retornos.every(t => t.cega === undefined || t.cega === false), 'retorno guarda se a contagem foi às cegas');
+ok(rcJ.ordemId === null && (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === remessa.id).ordemId === ordem.id, 'remessa informa a ordem de corte (para o balanço)');
+
+// 2) link da oficina
+const lkR = (await rpc(admin, `fab_remessa_link('${rc.id}', false)`)).data;
+ok(/^[a-f0-9]{32}$/.test(lkR) && (await rpc(admin, `fab_remessa_link('${rc.id}', false)`)).data === lkR, 'link criado uma vez e reaproveitado');
+ok(fails_with(await rpc(ana, `fab_remessa_link('${rc.id}', false)`), 'FUNCAO_BLOQUEADA') && fails_with(await rpc(adminB, `fab_remessa_link('${rc.id}', false)`), 'não encontrada'), 'só quem cuida das remessas da empresa gera o link');
+const pub = await rpc(null, `fab_remessa_publica('${lkR}')`, { role: 'anon' });
+ok(pub.ok && pub.data.numero === rc.numero && pub.data.quem === 'Costura da Maria' && pub.data.enviadas === 20 && pub.data.boas === 19 && pub.data.defeito === 1 && pub.data.itens.length === 2 && pub.data.retornos.length === 2, 'oficina vê a remessa pelo link, sem login');
+ok(!JSON.stringify(pub.data).includes('nota interna') && !('token' in pub.data) && !('obs' in pub.data) && Number(pub.data.valorPeca) === 2.5, 'página da oficina não mostra observações internas nem o token');
+ok(fails_with(await rpc(null, `fab_remessa_publica('${'0'.repeat(32)}')`, { role: 'anon' }), 'LINK_INVALIDO') && fails_with(await rpc(null, `fab_remessa_publica('x'' or 1=1 --')`, { role: 'anon' }), 'LINK_INVALIDO'), 'link inexistente ou malformado é recusado');
+ok(fails_with(await rpc(null, `fab_remessa_link('${rc.id}', false)`, { role: 'anon' }), 'permission denied'), 'sem login não gera link');
+// confirma o envio
+const ce = await rpc(null, `fab_remessa_confirmar('${lkR}', ${j({ confere: true, nome: 'Maria' })})`, { role: 'anon' });
+ok(ce.ok && ce.data.confere === true && ce.data.fabrica === 20, 'oficina confirma o recebimento');
+ok(fails_with(await rpc(null, `fab_remessa_confirmar('${lkR}', ${j({ confere: true })})`, { role: 'anon' }), 'já foi respondida'), 'não responde a mesma etapa duas vezes');
+// contesta o retorno 1: diz que devolveu 10 do P (a fábrica contou 9)
+await q(`delete from fab.avisos_fila`);
+ok(fails_with(await rpc(null, `fab_remessa_confirmar('${lkR}', ${j({ retornoId: ret1, confere: false, itens: [{ itemId: itP.id, qtd: 3 }] })})`, { role: 'anon' }), 'Item inválido'), 'item de outra remessa é recusado');
+ok(fails_with(await rpc(null, `fab_remessa_confirmar('${lkR}', ${j({ retornoId: ret1, confere: false, itens: [] })})`, { role: 'anon' }), 'Informe quantas'), 'contestar exige a contagem');
+const cr = await rpc(null, `fab_remessa_confirmar('${lkR}', ${j({ retornoId: ret1, confere: false, nome: 'Maria', obs: 'entreguei 10 do P', itens: [{ itemId: cP.id, qtd: 10 }] })})`, { role: 'anon' });
+ok(cr.ok && cr.data.confere === false && cr.data.fabrica === 19 && cr.data.oficina === 20, 'oficina contesta: diz que devolveu 20, a fábrica contou 19');
+const avC = await q(`select * from fab.avisos_fila where tipo = 'remessa'`);
+ok(avC.length === 1 && avC[0].titulo === 'Oficina contestou a contagem' && avC[0].texto.includes(`Remessa #${rc.numero} (Costura da Maria): diz que devolveu 20 peça(s); a fábrica contou 19. Obs.: entreguei 10 do P`) && avC[0].users.includes(admin) && !avC[0].users.includes(ana), 'contestação avisa na hora quem cuida das remessas');
+ok((await q(`select count(*)::int n from fab.eventos where tipo = 'remessa_contestada' and quem = 'Maria (pelo link)'`))[0].n === 1 && (await q(`select count(*)::int n from fab.eventos where tipo = 'remessa_confirmada'`))[0].n >= 1, 'confirmação e contestação ficam na Atividade');
+// retorno 2: informa os mesmos números = confere
+const cr2 = (await rpc(null, `fab_remessa_confirmar('${lkR}', ${j({ retornoId: ret2, confere: false, itens: [{ itemId: cP.id, qtd: 1 }] })})`, { role: 'anon' })).data;
+ok(cr2.confere === true && (await q(`select count(*)::int n from fab.avisos_fila where tipo = 'remessa'`))[0].n === 1, 'mesmos números que a fábrica contam como confirmação (sem aviso)');
+rcJ = (await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === rc.id);
+ok(rcJ.confirmacaoEnvio?.confere === true && rcJ.confirmacaoEnvio.nome === 'Maria' && rcJ.retornos.find(t => t.id === ret1).confirmacao.confere === false
+  && rcJ.retornos.find(t => t.id === ret1).confirmacao.itens.length === 1 && rcJ.retornos.find(t => t.id === ret1).confirmacao.itens[0].itemId === cP.id && rcJ.retornos.find(t => t.id === ret1).confirmacao.itens[0].qtd === 10 && rcJ.retornos.find(t => t.id === ret2).confirmacao.confere === true, 'fábrica vê o que a oficina confirmou e o que contestou, por item');
+const pub2 = (await rpc(null, `fab_remessa_publica('${lkR}')`, { role: 'anon' })).data;
+ok(pub2.confirmacaoEnvio.confere === true && pub2.retornos.find(t => t.id === ret1).confirmacao.confere === false, 'oficina vê o que já respondeu');
+// trocar o link derruba o antigo
+const lkR2 = (await rpc(admin, `fab_remessa_link('${rc.id}', true)`)).data;
+ok(lkR2 !== lkR && fails_with(await rpc(null, `fab_remessa_publica('${lkR}')`, { role: 'anon' }), 'não vale mais') && (await rpc(null, `fab_remessa_publica('${lkR2}')`, { role: 'anon' })).ok, 'link novo invalida o antigo');
+ok((await q(`select count(*)::int n from fab.eventos where tipo = 'remessa_link' and detalhe->>'novo' = 'true'`))[0].n === 1 && (await q(`select count(*)::int n from fab.eventos where detalhe::text like $1`, ['%' + lkR2 + '%']))[0].n === 0, 'troca de link fica na Atividade, sem o link');
+// empresa bloqueada: link para de funcionar
+await q(`update fab.empresas set ativa = false where id = $1`, [empA]);
+ok(fails_with(await rpc(null, `fab_remessa_publica('${lkR2}')`, { role: 'anon' }), 'indisponível') && fails_with(await rpc(null, `fab_remessa_confirmar('${lkR2}', ${j({ confere: true })})`, { role: 'anon' }), 'indisponível'), 'empresa bloqueada: link indisponível');
+await q(`update fab.empresas set ativa = true where id = $1`, [empA]);
+// editar os itens do envio invalida a confirmação do envio
+const rd = (await rpc(admin, `fab_salvar_remessa(${j({ quem: { oficinaId: ofMaria }, etapa: 'Costura', dataEnvio: diaP(-1), valorPeca: 2, descontoFaltante: 5, itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 5 }] })})`)).data;
+const lkRD = (await rpc(admin, `fab_remessa_link('${rd.id}', false)`)).data;
+await rpc(null, `fab_remessa_confirmar('${lkRD}', ${j({ confere: true })})`, { role: 'anon' });
+await rpc(admin, `fab_salvar_remessa(${j({ id: rd.id, quem: { oficinaId: ofMaria }, etapa: 'Costura', dataEnvio: diaP(-1), valorPeca: 2, descontoFaltante: 5, itens: [{ modelo: 'Calça Jeans', cor: 'Branco', tamanho: 'P', qtd: 6 }] })})`);
+ok((await rpc(admin, 'fab_remessas(120)')).data.remessas.find(x => x.id === rd.id).confirmacaoEnvio === null && (await rpc(null, `fab_remessa_confirmar('${lkRD}', ${j({ confere: true })})`, { role: 'anon' })).ok, 'mudar os itens enviados pede nova confirmação');
+
+// 3) alerta ao fechar com falta acima do limite
+await q(`delete from fab.avisos_fila`);
+await rpc(admin, `fab_fechar_remessa('${rc.id}', null)`);   // voltou tudo: sem falta
+ok((await q(`select count(*)::int n from fab.avisos_fila where tipo = 'perda'`))[0].n === 0, 'remessa sem falta não avisa');
+await rpc(admin, `fab_fechar_remessa('${rd.id}', null)`);   // 6 enviadas, nada voltou
+const avF = await q(`select * from fab.avisos_fila where tipo = 'perda'`);
+ok(avF.length === 1 && avF[0].titulo === 'Peças faltando na remessa' && avF[0].texto === `Remessa #${rd.numero} (Costura da Maria) fechou com 6 de 6 peça(s) faltando (100,0%). Limite: 3,00%.`, 'remessa fechada com falta acima do limite avisa na hora');
+// cópia de segurança: confirmações entram, o token não
+const bkR = (await rpc(admin, 'fab_exportar()')).data;
+ok(bkR.tabelas.remessa_confirmacoes.length >= 4 && bkR.tabelas.remessas.length >= 2 && bkR.tabelas.remessas.every(x => !('token' in x)) && !JSON.stringify(bkR).includes(lkR2), 'cópia leva as confirmações e não leva o link');
+await q(`delete from fab.avisos_fila`);
+for (const o of [oc12, ocA, ocOk]) await rpc(admin, `fab_apagar_ordem_corte('${o.id}')`);
 await q(`delete from fab.remessas`); await q(`delete from fab.ordens_corte`); await q(`delete from fab.materiais where id = $1`, [mat30]);
 await q(`delete from fab.lancamentos where origem <> 'lancar' or (modelo = 'Calça Jeans' and cor = 'Branco')`);
 await q(`delete from fab.fin_lancamentos where categoria = 'Facção'`);
