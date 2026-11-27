@@ -1,6 +1,6 @@
 import { getIp } from '../lib/network';
 import {
-  parseAcessos, parseConvites, parseEmpresaDetalhe, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseEmpresaDetalhe, parseFuncoesPessoa, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -89,6 +89,8 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     validarConvite: async (convite: string) => { const r = rec(await call('validarConvite', convite)); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async (o: NovaEmpresaTesteInput) => { await call('criarEmpresaTeste', o); },
     bloquearPessoa: async (login: string, bloquear: boolean) => { await call('bloquearPessoa', tok(), login, bloquear); },
+    funcoesPessoa: async (login: string) => parseFuncoesPessoa(await call('funcoesPessoa', tok(), login)),
+    salvarFuncoes: async (login: string, funcoes: Record<string, boolean>) => { await call('salvarFuncoes', tok(), login, funcoes); },
     renomearEmpresa: async (id: string, nome: string) => { await call('renomearEmpresa', tok(), id, nome); },
 
     // ----- financeiro -----

@@ -3,6 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import type { Boot, DreDados, FinDados, Relatorio } from '../../api/types';
 import { useApi } from '../../app/auth';
 import { useBoot } from '../../app/boot';
+import { pode } from '../../app/registry';
 import { formatBRL, formatNumber, isoDay, nomeDoMes, somarMes } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { BarrasComparadas, BarrasHorizontais, Donut, OUTROS, SERIES, Variacao, pct, type Fatia } from '../../ui/charts';
@@ -128,8 +129,8 @@ export default function DashboardPage() {
   const rels = useQueries({
     queries: meses.map(m => { const f = faixaDoMes(m); return { queryKey: ['relatorio', f.ini, f.fim], queryFn: () => api.relatorio(f.ini, f.fim), staleTime: 60_000 }; }),
   });
-  const fin = useQuery({ queryKey: FIN_KEY, queryFn: () => api.finDados(), enabled: boot.eu.financeiro });
-  const dre = useQuery({ queryKey: ['dre'], queryFn: () => api.dreDados(), enabled: boot.eu.financeiro });
+  const fin = useQuery({ queryKey: FIN_KEY, queryFn: () => api.finDados(), enabled: pode(boot.eu, 'financeiro') });
+  const dre = useQuery({ queryKey: ['dre'], queryFn: () => api.dreDados(), enabled: pode(boot.eu, 'resultado') });
 
   const erro = rels.find(r => r.error)?.error;
   const pronto = rels.every(r => r.data);

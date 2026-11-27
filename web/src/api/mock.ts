@@ -152,7 +152,7 @@ function bootFor(u: MUser) {
   const meusHoje = state.lancs.filter(l => l.login === u.login && l.data === today()).map(l => ({ ...l }));
   const p = state.pontos.find(x => x.login === u.login && x.data === today());
   return {
-    eu: { nome: u.nome, setor: u.setor, admin: u.perfil === 'admin', leitura: !!u.leitura, podeFalta: u.podeFalta, demo: false, financeiro: u.perfil === 'admin', dono: u.login === 'admin' },
+    eu: { nome: u.nome, setor: u.setor, admin: u.perfil === 'admin', leitura: !!u.leitura, podeFalta: u.podeFalta, demo: false, financeiro: funcoesDe(u).financeiro, dono: u.login === 'admin', ...(u.leitura ? {} : { funcoes: funcoesDe(u) }) },
     empresa: { codigo: 'demo', nome: 'Confecção Demonstração' },
     hoje: today(), ponto: p ?? { entrada: '', saida: '', extra: '' }, horaFim: HORA_FIM, exigirWifi: state.exigirWifi,
     etapas: ETAPAS, modelos: state.modelos, cores: state.cores, tamanhos: state.tamanhos,
@@ -706,5 +706,32 @@ Object.assign(handlers, {
       sessoes: acessoDemo.sessoes.slice(0, 4),
       eventos: acessoDemo.eventos.slice(0, 15),
     };
+  },
+});
+
+// ---------------------------------------------------------------- funções por pessoa (demonstração)
+const FUNCOES = ['painel', 'dashboard', 'relatorio', 'falta', 'lancar', 'ponto', 'financeiro', 'resultado', 'cadastros', 'acessos', 'empresas'];
+const extras: Record<string, Record<string, boolean>> = {};
+const padraoDe = (u: MUser, f: string) => (f === 'empresas' ? u.login === 'admin' : ['lancar', 'ponto', 'falta'].includes(f) ? true : u.perfil === 'admin');
+function funcoesDe(u: MUser): Record<string, boolean> {
+  return Object.fromEntries(FUNCOES.map(f => [f, f === 'empresas' ? padraoDe(u, f) || extras[u.login]?.empresas === true : extras[u.login]?.[f] ?? padraoDe(u, f)]));
+}
+Object.assign(handlers, {
+  funcoesPessoa: ([t, login]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const alvo = state.users.find(x => x.login === login);
+    if (!alvo) throw fromServerMessage('Pessoa não encontrada.');
+    return { nome: alvo.nome, perfil: alvo.perfil, eu: alvo.login === u.login, possoEmpresas: u.login === 'admin', funcoes: funcoesDe(alvo),
+      padrao: Object.fromEntries(FUNCOES.map(f => [f, f === 'empresas' ? false : padraoDe(alvo, f)])) };
+  },
+  salvarFuncoes: ([t, login, funcoes]: unknown[]) => {
+    const u = userOf(String(t)); requireAdmin(u);
+    const alvo = state.users.find(x => x.login === login);
+    if (!alvo) throw fromServerMessage('Pessoa não encontrada.');
+    if (alvo.login === u.login) throw fromServerMessage('Você não pode mudar as suas próprias funções.');
+    const f = funcoes as Record<string, boolean>;
+    extras[alvo.login] = Object.fromEntries(Object.entries(f).filter(([k, v]) => (k === 'empresas' ? u.login === 'admin' && v : v !== padraoDe(alvo, k))));
+    acessoDemo.eventos.unshift({ id: Date.now(), quem: u.nome, tipo: 'funcoes_alteradas', alvo: alvo.nome, detalhe: { funcoes: funcoesDe(alvo) }, em: agoraIso(0) });
+    return null;
   },
 });

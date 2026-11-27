@@ -13,9 +13,10 @@ import { MIN_SENHA } from '../lib/rules';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useApi, useAuth } from './auth';
 import { useBoot } from './boot';
-import { visibleFeatures, features } from './registry';
+import { pode, visibleFeatures, features } from './registry';
 import { useTheme } from './theme';
 import { PendentesBanner, usePendentes, usePresenca } from './acessoVivo';
+import { BotaoAtualizar, Rodape } from './Versao';
 
 function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
@@ -82,7 +83,7 @@ export function AppShell() {
   const items = visibleFeatures(boot.eu);
   const current = features.find(f => pathname.startsWith(f.path));
   usePresenca(current?.label ?? '', !boot.eu.leitura);
-  const pendentes = usePendentes(boot.eu.admin && !boot.eu.leitura);
+  const pendentes = usePendentes(pode(boot.eu, 'acessos'));
   const teste = useQuery({ queryKey: ['meu-teste'], queryFn: () => api.meuTeste(), enabled: !boot.eu.leitura, staleTime: 10 * 60_000 }).data ?? '';
   const diasTeste = teste ? Math.max(0, Math.ceil((Date.parse(teste) - Date.now()) / 86_400_000)) : 0;
   const pageInfo = useMemo(() => ({ art: current ? `marca/${current.id}.webp` : undefined, grupo: current?.group }), [current]);
@@ -141,6 +142,7 @@ export function AppShell() {
             <Button variant="ghost" iconOnly onClick={toggle} aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}>
               <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
             </Button>
+            <BotaoAtualizar />
             <UserMenu onPassword={() => setPwd(true)} />
           </div>
         </header>
@@ -154,6 +156,7 @@ export function AppShell() {
           )}
           <PendentesBanner pendentes={pendentes} />
           <PageArt.Provider value={pageInfo}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
+          <Rodape />
         </main>
       </div>
 

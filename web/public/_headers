@@ -6,3 +6,5 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 /config.js
   Cache-Control: no-cache
+/version.json
+  Cache-Control: no-cache, no-store, must-revalidate

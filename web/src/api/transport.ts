@@ -14,6 +14,7 @@ export type Transport = (fn: string, args: unknown[]) => Promise<unknown>;
 
 /** O Apps Script devolve só o texto do erro; "WIFI" e "SESSAO" são códigos do servidor. */
 export function fromServerMessage(raw: string): ApiError {
+  if (raw.includes('FUNCAO_BLOQUEADA')) return new ApiError('SERVIDOR', 'Você não tem acesso a esta função. Fale com o administrador.');
   if (raw.includes('ACESSO_PENDENTE')) return new ApiError('PENDENTE', 'Aguardando o administrador liberar seu acesso.');
   if (raw.includes('ACESSO_NEGADO')) return new ApiError('SESSAO', 'O administrador não liberou este acesso. Fale com ele e tente de novo.');
   if (raw.includes('WIFI')) return new ApiError('WIFI', 'Conecte-se ao Wi-Fi da fábrica.');

@@ -3,7 +3,7 @@
  * então campos podem faltar ou vir com outro tipo. Nenhum componente recebe `undefined`.
  */
 import type {
-  AcessosDados, Convite, EmpresaDetalhe, SessaoAcesso, StatusAcesso,
+  AcessosDados, Convite, EmpresaDetalhe, FuncoesPessoa, SessaoAcesso, StatusAcesso,
   Boot, DreCategoria, DreDados, DreMes, Disponivel, Editado, Empresa, Eu, Falta, FinDados, FinLancamento, Lancamento,
   LinhaModelo, Painel, Pessoa, PorPessoa, Presenca, Registro, Relatorio, Saldo, Usuario, Wifi,
 } from './types';
@@ -31,7 +31,13 @@ const numbersExcept = (r: R, skip: string[]): Record<string, number> =>
 const eu = (r: R): Eu => ({
   nome: str(r.nome, 'Usuário'), setor: str(r.setor), admin: bool(r.admin), leitura: bool(r.leitura),
   podeFalta: bool(r.podeFalta), demo: bool(r.demo), financeiro: bool(r.financeiro), dono: bool(r.dono),
+  ...(r.funcoes && typeof r.funcoes === 'object' ? { funcoes: Object.fromEntries(Object.entries(rec(r.funcoes)).map(([k, v]) => [k, bool(v)])) } : {}),
 });
+export const parseFuncoesPessoa = (v: unknown): FuncoesPessoa => {
+  const r = rec(v);
+  const mapa = (x: unknown) => Object.fromEntries(Object.entries(rec(x)).map(([k, b]) => [k, bool(b)]));
+  return { nome: str(r.nome), perfil: str(r.perfil), eu: bool(r.eu), possoEmpresas: bool(r.possoEmpresas), funcoes: mapa(r.funcoes), padrao: mapa(r.padrao) };
+};
 
 export const parseFalta = (r: R): Falta => ({
   id: str(r.id), modelo: str(r.modelo), cor: str(r.cor), tamanho: str(r.tamanho),

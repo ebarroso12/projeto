@@ -35,10 +35,10 @@ Logins: `admin/admin` · `ana/1234` · `bruno/1234` · `carla/1234`. Link "só v
 
 ## Testes
 ```bash
-cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (183 verificações)
+cd supabase && npm install && npm test        # banco: migrações, regras, isolamento entre empresas (201 verificações)
 cd web && npm install && npm run typecheck && npm test      # app: 52 testes
 cd web && npm run build && npx vite preview --port 4173 &   # e depois:
-node web/e2e/smoke.cjs                         # 58 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
+node web/e2e/smoke.cjs                         # 64 verificações no navegador (desktop, celular, perfis, financeiro, DRE, empresas)
 ```
 
 ## Publicar (sem Vercel)
@@ -77,6 +77,16 @@ node web/e2e/smoke.cjs                         # 58 verificações no navegador 
 - Conferido no servidor: `fab.eu()` exige a sessão (o `session_id` do token) liberada. Negar ou **Derrubar** tira a pessoa na hora.
 - **Online agora** (tela atual e tempo ativo, por sinal enviado a cada minuto), **Entradas** (aparelho, IP, duração, quem liberou),
   **Atividade** (gatilho de auditoria em todas as tabelas: quem criou, alterou ou apagou o quê, com antes → depois) e **Métricas** por pessoa.
+
+## Versões (botão **Atualizar**)
+- Cada publicação tem um número: **edite `web/versoes.json`** (nova entrada no topo com versão, data e novidades) antes do build.
+- O build gera `version.json` (sem cache). O app confere a cada 3 min e ao voltar para a aba; havendo versão nova,
+  o botão **Atualizar** (ao lado do nome do usuário) fica laranja: "Atualizar para 1.x.y". O rodapé mostra a versão e as **Novidades**.
+
+## Funções por pessoa (Cadastros → Pessoas → clique no nome)
+- Liga/desliga cada parte do sistema para cada pessoa (padrão: funcionário usa Lançar, Ponto e Em falta; admin usa tudo).
+- Conferido no servidor: `fab.eu()` liga cada chamada (`request.path` = `/rpc/<função>`) a uma função e recusa com `FUNCAO_BLOQUEADA`.
+- **Empresas** (gestão do sistema): só o dono vê e só ele libera para alguém da própria empresa.
 
 ## Links TESTE e PRO — tela **Empresas**, só o dono do sistema
 - **Gerar link TESTE**: o prazo conta do envio; o link e o teste vencem juntos (ex.: 7 dias após gerar).

@@ -40,9 +40,15 @@ const ORDER_GESTAO = ['painel', 'dashboard', 'relatorio', 'falta', 'financeiro',
 const ORDER_OPERACAO = ['ponto', 'lancar', 'falta', 'dashboard', 'painel', 'relatorio', 'financeiro', 'resultado', 'cadastros', 'acessos', 'empresas'];
 
 /** Módulos que o usuário pode ver, já na ordem do menu. */
+/** A pessoa pode usar a função? Usa a liberação do servidor quando existe; senão, a regra padrão do módulo. */
+export function pode(eu: Eu, id: string): boolean {
+  if (eu.leitura || !eu.funcoes || !(id in eu.funcoes)) return features.find(f => f.id === id)?.allowed(eu) ?? false;
+  return eu.funcoes[id] === true;
+}
+
 export function visibleFeatures(eu: Eu): Feature[] {
   const order = gestao(eu) ? ORDER_GESTAO : ORDER_OPERACAO;
-  return features.filter(f => f.allowed(eu)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  return features.filter(f => pode(eu, f.id)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 
 export const homePath = (eu: Eu): string => visibleFeatures(eu)[0]?.path ?? '/falta';

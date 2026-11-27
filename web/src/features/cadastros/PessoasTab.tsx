@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Usuario, UsuarioInput } from '../../api/types';
-import { useApi } from '../../app/auth';
+import { useApi, useAuth } from '../../app/auth';
 import { useAction } from '../../app/useAction';
 import { useBoot } from '../../app/boot';
+import { FuncoesDialog } from './FuncoesDialog';
 import { loginFromName } from '../../lib/format';
 import { MIN_SENHA } from '../../lib/rules';
 import { Button } from '../../ui/Button';
@@ -67,6 +68,8 @@ export function PessoasTab() {
   const toast = useToast();
   const q = useQuery({ queryKey: ['usuarios'], queryFn: () => api.listarUsuarios() });
   const [editing, setEditing] = useState<Usuario | null | undefined>(undefined); // undefined = fechado, null = novo
+  const [funcoes, setFuncoes] = useState<string | null>(null);
+  const { demo } = useAuth();
   const [shown, setShown] = useState<Set<string>>(new Set());
 
   const toggle = (login: string) => setShown(s => { const n = new Set(s); if (n.has(login)) n.delete(login); else n.add(login); return n; });
@@ -83,7 +86,12 @@ export function PessoasTab() {
   };
 
   const cols: Column<Usuario>[] = [
-    { id: 'nome', header: 'Nome', value: r => r.nome, cell: r => <>{r.nome}<small>{r.setor}</small></> },
+    {
+      id: 'nome', header: 'Nome', value: r => r.nome,
+      cell: r => api.precisaEmpresa || demo
+        ? <button type="button" className="link-empresa" onClick={() => setFuncoes(r.login)} title="Ver e mudar as funções desta pessoa"><b>{r.nome}</b><small>{r.setor} · funções</small></button>
+        : <>{r.nome}<small>{r.setor}</small></>,
+    },
     { id: 'login', header: 'Login', value: r => r.login, cell: r => <code>{r.login}</code> },
     { id: 'perfil', header: 'Perfil', value: r => r.perfil, cell: r => (r.perfil === 'admin' ? <Badge tone="brand">Administrador</Badge> : <Badge>Funcionário</Badge>) },
     { id: 'ativo', header: 'Situação', value: r => (r.ativo ? 'Ativo' : 'Inativo'), cell: r => (r.ativo ? <Badge tone="ok">Ativo</Badge> : <Badge tone="danger">Inativo</Badge>) },
@@ -116,6 +124,7 @@ export function PessoasTab() {
         </QueryView>
       </Card>
       {editing !== undefined && <UserDrawer user={editing} onClose={() => setEditing(undefined)} />}
+      {funcoes && <FuncoesDialog login={funcoes} onClose={() => setFuncoes(null)} />}
     </>
   );
 }

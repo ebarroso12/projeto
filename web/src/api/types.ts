@@ -10,7 +10,9 @@ export interface Eu {
   podeFalta: boolean; // pode colocar itens em falta
   demo: boolean;
   financeiro: boolean; // vê Financeiro e Resultado
-  dono: boolean;       // responsável pelo sistema (gerencia empresas)
+  dono: boolean;
+  /** Funções liberadas para a pessoa (servidor Supabase); ausente = regras padrão por perfil. */
+  funcoes?: Record<string, boolean>;       // responsável pelo sistema (gerencia empresas)
 }
 
 export interface Ponto { entrada: string; saida: string; extra: string }
@@ -198,3 +200,5 @@ export interface AcessosDados {
   exigir: boolean; pendentes: SessaoAcesso[]; online: SessaoAcesso[]; sessoes: SessaoAcesso[];
   eventos: EventoAcesso[]; aparelhos: AparelhoConfiavel[]; metricas: MetricaPessoa[];
 }
+
+export interface FuncoesPessoa { nome: string; perfil: string; eu: boolean; possoEmpresas: boolean; funcoes: Record<string, boolean>; padrao: Record<string, boolean> }

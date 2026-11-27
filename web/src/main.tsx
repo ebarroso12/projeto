@@ -12,6 +12,12 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/polish.css';
 
+// depois de "Atualizar", o endereço vem com ?v=<hora> para furar o cache: limpa da barra de endereço
+try {
+  const u = new URL(window.location.href);
+  if (u.searchParams.has('v')) { u.searchParams.delete('v'); window.history.replaceState(null, '', u.pathname + u.search + u.hash); }
+} catch { /* navegador antigo */ }
+
 declare global {
   interface Window {
     __FABRICA__?: { supabaseUrl?: string; supabaseKey?: string; apiUrl?: string };

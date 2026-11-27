@@ -129,9 +129,27 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   ok(await until(() => page.getByRole('cell', { name: 'teste', exact: true }).isVisible()), 'cria pessoa e lista na tabela');
   ok((await page.locator('code', { hasText: '••••' }).count()) > 0, 'senhas mascaradas por padrão');
   await shot(page, '09-cadastros');
+  // funções por pessoa: clicar no nome abre as funções
+  await page.getByRole('tab', { name: 'Pessoas' }).click();
+  await page.locator('.link-empresa', { hasText: 'Carla Dias' }).click();
+  await page.getByText('Funções de Carla Dias').waitFor();
+  ok(await page.getByRole('switch', { name: /Financeiro: bloqueado/ }).isVisible(), 'funções da pessoa: financeiro bloqueado por padrão');
+  await page.getByRole('switch', { name: /Financeiro/ }).click();
+  ok(await page.getByRole('switch', { name: /Financeiro: liberado/ }).isVisible(), 'liga o financeiro para a pessoa');
+  await shot(page, '09b-funcoes');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText(/Funções salvas/).waitFor();
+  ok(true, 'salva as funções da pessoa');
   await page.getByRole('tab', { name: 'Cópia de segurança' }).click();
   const [bk] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Baixar cópia de segurança' }).click()]);
   ok(/^backup-.*\.json$/.test(bk.suggestedFilename()), 'baixa a cópia de segurança (' + bk.suggestedFilename() + ')');
+
+  // versão e atualizar
+  ok(await page.getByRole('button', { name: /^Atualizar/ }).isVisible(), 'botão Atualizar ao lado do nome do usuário');
+  ok(/versão \d+\.\d+\.\d+/.test(await page.locator('.app-rodape').innerText()), 'rodapé mostra a versão');
+  await page.locator('.app-rodape').getByRole('button', { name: 'Novidades' }).click();
+  ok(await page.locator('dialog[open] .versoes li.atual').isVisible(), 'novidades marcam a versão em uso');
+  await page.locator('dialog[open]').getByRole('button', { name: 'Fechar', exact: true }).last().click();
 
   // Acessos: pedido pendente aparece no topo e é liberado dali
   ok(await page.locator('.pendentes-banner').getByText('Bruno Lima').isVisible(), 'admin vê pedido de acesso no topo');

@@ -253,3 +253,41 @@ dialog.dlg.drawer.wide { width: min(1080px, calc(100vw - 24px)); }
 .timeline li small { display: block; color: var(--faint); font-size: 12.5px; margin-top: 2px; }
 .tl-dot { position: absolute; left: -7px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface-3); box-shadow: 0 0 0 3px var(--surface); }
 .tl-dot.ok { background: var(--ok); } .tl-dot.warn { background: var(--warn); } .tl-dot.danger { background: var(--danger); } .tl-dot.info { background: var(--info); }
+
+/* ---------------- funções por pessoa ---------------- */
+.funcoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.funcoes li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); transition: border-color .15s, background .15s; }
+.funcoes li.on { border-color: color-mix(in srgb, var(--ok) 35%, transparent); background: color-mix(in srgb, var(--ok) 5%, var(--surface)); }
+.fn-ic { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); flex: none; }
+.funcoes li.on .fn-ic { background: var(--ok-soft); color: var(--ok); }
+.fn-txt { flex: 1; min-width: 0; }
+.fn-txt b { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+.fn-txt small { color: var(--muted); font-size: 12.5px; }
+.switch { position: relative; width: 46px; height: 26px; border-radius: 999px; border: 0; background: var(--surface-3); flex: none; transition: background .18s; }
+.switch span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .18s; }
+.switch[aria-checked="true"] { background: var(--ok); }
+.switch[aria-checked="true"] span { transform: translateX(20px); }
+.switch:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------------- versão e atualizar ---------------- */
+.btn-atualizar { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; margin-right: 4px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 13.5px; font-weight: 600; }
+.btn-atualizar:hover { color: var(--text); border-color: var(--line-strong); }
+.btn-atualizar.nova { color: #fff; background: linear-gradient(90deg, var(--accent), #ff9a4d); border-color: transparent; box-shadow: 0 6px 16px -8px var(--accent); animation: pulso 2.4s ease-in-out infinite; }
+.ponto-novo { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 2px var(--surface); }
+@keyframes pulso { 50% { box-shadow: 0 6px 22px -4px var(--accent); } }
+.girando { animation: spin .8s linear infinite; }
+.app-rodape { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 40px; padding: 18px 0 6px;
+  border-top: 1px solid var(--line); font-size: 12.5px; color: var(--faint); }
+.app-rodape b { color: var(--muted); }
+.app-rodape .link { font-size: 12.5px; }
+.rodape-nova { color: var(--accent); font-weight: 600; }
+.versoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.versoes > li { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); }
+.versoes > li.atual { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
+.v-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.v-cab small { color: var(--faint); }
+.v-tag { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.versoes ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; display: flex; flex-direction: column; gap: 3px; }
+@media (max-width: 899px) { .btn-atualizar span { display: none; } .btn-atualizar { width: 36px; padding: 0; justify-content: center; } .btn-atualizar.nova span { display: none; } }
+@media print { .app-rodape, .btn-atualizar { display: none; } }

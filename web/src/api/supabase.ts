@@ -13,7 +13,7 @@ import { MIN_SENHA } from '../lib/rules';
 import { aparelhoId, descreverAparelho } from '../lib/aparelho';
 import type { Api } from './client';
 import {
-  parseAcessos, parseConvites, parseEmpresaDetalhe, parseSessoes, parseStatusAcesso,
+  parseAcessos, parseConvites, parseEmpresaDetalhe, parseFuncoesPessoa, parseSessoes, parseStatusAcesso,
   parseBoot, parseDre, parseEmpresas, parseFaltas, parseFin, parsePainel, parseRelatorio, parseUsuarios, parseWifi,
   rec, str, strings, num,
 } from './normalize';
@@ -165,6 +165,8 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     validarConvite: async convite => { const r = rec(await rpc('fab_validar_convite', { p_token: convite })); return { valido: r.valido === true, tipo: (str(r.tipo) === 'pro' ? 'pro' : 'teste') as 'teste' | 'pro', dias: num(r.dias), ate: str(r.ate) }; },
     criarEmpresaTeste: async o => { await edge({ action: 'teste', ...o }); },
     bloquearPessoa: async (login, bloquear) => { await rpc('fab_bloquear_pessoa', { p_login: login, p_bloquear: bloquear }); },
+    funcoesPessoa: async login => parseFuncoesPessoa(await rpc('fab_funcoes_pessoa', { p_login: login })),
+    salvarFuncoes: async (login, funcoes) => { await rpc('fab_salvar_funcoes', { p_login: login, p_funcoes: funcoes }); },
     renomearEmpresa: async (id, nome) => { await rpc('fab_renomear_empresa', { p_id: id, p_nome: nome }); },
 
     // ----- financeiro -----

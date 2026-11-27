@@ -44,6 +44,8 @@ async function rpc(user, expr, { role = 'authenticated', ip, headers, sessao } =
   // cada usuário tem uma sessão padrão "s-<id>"; os testes de liberação usam outras
   await db.query(`select set_config('request.jwt.claims', $1, false)`, [JSON.stringify(user ? { sub: user, session_id: sessao ?? `s-${user}` } : {})]);
   await db.query(`select set_config('request.headers', $1, false)`, [JSON.stringify(h)]);
+  // como o PostgREST: /rpc/<função chamada> (usado para conferir as funções liberadas da pessoa)
+  await db.query(`select set_config('request.path', $1, false)`, [`/rpc/${(expr.match(/^(\w+)\(/) ?? [])[1] ?? ''}`]);
   await db.exec(`set role ${role}`);
   try {
     const r = await db.query(`select public.${expr} as r`);
@@ -91,7 +93,7 @@ ok(fails_with(await rpc(null, 'fab_boot()'), 'SESSAO'), 'sem login: erro SESSAO'
 ok(fails_with(await rpc(ghost, 'fab_boot()'), 'SESSAO'), 'usuário inativo: erro SESSAO');
 ok(fails_with(await rpc(ana, `fab_criar_perfil(gen_random_uuid(),'${empA}','x','X','Outra','admin',true)`), 'permission denied'), 'usuário comum não cria perfil');
 ok(fails_with(await rpc(ana, `fab_criar_empresa('x','X')`), 'permission denied'), 'usuário comum não cria empresa');
-ok(fails_with(await rpc(ana, 'fab_listar_usuarios()'), 'Apenas o administrador'), 'funcionário não lista usuários');
+ok(fails_with(await rpc(ana, 'fab_listar_usuarios()'), 'FUNCAO_BLOQUEADA'), 'funcionário não lista usuários');
 {
   await db.exec('set role authenticated');
   let denied = false;
@@ -241,7 +243,7 @@ ok(fails_with(await rpc(null, `fab_criar_empresa('Com Espaço','X')`, { role: 's
 
 // ============ 12. financeiro ============
 console.log('\n--- financeiro ---');
-ok(fails_with(await rpc(ana, 'fin_dados()'), 'Apenas o administrador'), 'funcionário não vê o financeiro');
+ok(fails_with(await rpc(ana, 'fin_dados()'), 'FUNCAO_BLOQUEADA'), 'funcionário não vê o financeiro');
 let fin = (await rpc(admin, 'fin_dados()')).data;
 eq(fin.contas.map(c => c.nome), ['Caixa', 'Conta corrente'], 'empresa nova já vem com contas padrão');
 ok(fin.listas.categorias.includes('Matéria-prima') && fin.listas.formas.includes('PIX'), 'e com categorias e formas de pagamento');
@@ -285,7 +287,7 @@ ok(fails_with(await rpc(adminB, `fin_salvar_lancamento(${j({ tipo: 'entrada', da
 
 // ============ 13. DRE ============
 console.log('\n--- resultado (DRE) ---');
-ok(fails_with(await rpc(ana, 'dre_dados()'), 'Apenas o administrador'), 'funcionário não vê a DRE');
+ok(fails_with(await rpc(ana, 'dre_dados()'), 'FUNCAO_BLOQUEADA'), 'funcionário não vê a DRE');
 let dre = (await rpc(admin, 'dre_dados()')).data;
 eq(dre.categorias.length, 18, 'empresa nova já vem com as 18 categorias do DRE');
 const cat = Object.fromEntries(dre.categorias.map(c => [c.chave, c.id]));
@@ -325,7 +327,7 @@ const tabs = r.ok ? r.data.tabelas : {};
 ok(tabs.perfis?.length === 5 && tabs.perfis.every(x => x.empresa_id === empA), 'backup traz só as pessoas da empresa A');
 ok(tabs.ponto?.length >= 2 && tabs.itens_lista?.length >= 7 && Array.isArray(tabs.fin_lancamentos) && Array.isArray(tabs.dre_categorias), 'backup traz produção, ponto, financeiro e resultado');
 ok(!('chaves_acesso' in tabs), 'backup não leva as chaves de acesso');
-ok(fails_with(await rpc(ana, 'fab_exportar()'), 'Apenas o administrador'), 'funcionário não exporta');
+ok(fails_with(await rpc(ana, 'fab_exportar()'), 'FUNCAO_BLOQUEADA'), 'funcionário não exporta');
 ok(fails_with(await rpc(null, 'fab_exportar()', { role: 'anon' }), 'permission denied'), 'anônimo não exporta');
 ok((await rpc(adminB, 'fab_exportar()')).data.tabelas.perfis.every(x => x.empresa_id === empB), 'admin da B exporta só a B');
 
@@ -445,6 +447,33 @@ const dA = (await rpc(admin, `fab_empresa_detalhe('${empA}')`)).data;
 ok(dA.dias.length === 14 && dA.pessoas.length >= 5 && Array.isArray(dA.modulos) && dA.eventos.length > 0, 'ficha da empresa: 14 dias, pessoas, módulos e linha do tempo');
 ok(dA.implantacao.listas === true && dA.implantacao.producao === true, 'ficha mostra o que já foi implantado');
 ok(fails_with(await rpc(adminB, `fab_empresa_detalhe('${empA}')`), 'responsável pelo sistema'), 'só o dono vê a ficha de outra empresa');
+
+// ============ 19. funções por pessoa ============
+console.log('\n--- funções por pessoa ---');
+let fx = (await rpc(admin, `fab_funcoes_pessoa('carla')`)).data;
+ok(fx.funcoes.lancar === true && fx.funcoes.financeiro === false && fx.funcoes.empresas === false && fx.possoEmpresas === true, 'padrão do funcionário: lançar sim, financeiro não');
+ok(fails_with(await rpc(carla, 'fin_dados()'), 'FUNCAO_BLOQUEADA'), 'sem liberação: Carla não abre o financeiro');
+ok((await rpc(admin, `fab_salvar_funcoes('carla', ${j({ financeiro: true, lancar: false })})`)).ok, 'admin libera financeiro e bloqueia lançar para a Carla');
+ok((await rpc(carla, 'fin_dados()')).ok, 'liberado: Carla abre o financeiro (mesmo não sendo admin)');
+ok((await rpc(carla, `fin_salvar_conta(${j({ nome: 'Caixa da Carla', saldoInicial: 0 })})`)).ok, 'liberado: Carla também grava no financeiro');
+ok(fails_with(await rpc(carla, lanc('Conferência', 5)), 'FUNCAO_BLOQUEADA'), 'bloqueado: Carla não lança produção');
+ok(fails_with(await rpc(carla, 'dre_dados()'), 'FUNCAO_BLOQUEADA'), 'o que não foi liberado continua fechado (DRE)');
+let bc = (await rpc(carla, 'fab_boot()')).data.eu;
+ok(bc.funcoes.financeiro === true && bc.funcoes.lancar === false && bc.financeiro === true, 'boot leva as funções liberadas para o app');
+ok((await rpc(admin, `fab_salvar_funcoes('bruno', ${j({ acessos: true })})`)).ok, 'admin pode liberar Acessos para um funcionário');
+ok(fails_with(await rpc(admin, `fab_salvar_funcoes('admin', ${j({ acessos: false })})`), 'próprias funções'), 'ninguém muda as próprias funções');
+ok(fails_with(await rpc(adminB, `fab_salvar_funcoes('carla', ${j({ financeiro: false })})`), 'não encontrada'), 'admin de outra empresa não mexe');
+// admin com função bloqueada
+const adm2 = await mkUser(empA, 'gerente', 'Gerente', 'Administração', 'admin', true);
+ok((await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ financeiro: false })})`)).ok && fails_with(await rpc(adm2, 'fin_dados()'), 'FUNCAO_BLOQUEADA'), 'admin também pode ter função bloqueada');
+// Empresas: só o dono libera, e só para alguém da própria empresa
+ok(fails_with(await rpc(adm2, 'fab_empresas()'), 'responsável pelo sistema'), 'sem liberação: gerente não vê Empresas');
+ok((await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ empresas: true })})`)).ok && (await rpc(adm2, 'fab_empresas()')).ok, 'dono libera a tela Empresas para o gerente');
+ok((await rpc(adm2, `fab_funcoes_pessoa('carla')`)).ok, 'co-responsável vê as funções das pessoas');
+ok((await rpc(admin, `fab_salvar_funcoes('gerente', ${j({ empresas: false })})`)).ok && fails_with(await rpc(adm2, 'fab_empresas()'), 'responsável pelo sistema'), 'dono retira o acesso a Empresas');
+ok((await rpc(adminB, `fab_salvar_funcoes('joao', ${j({ empresas: true })})`)).ok && fails_with(await rpc(joaoB, 'fab_empresas()'), 'responsável pelo sistema'), 'admin que não é dono não consegue liberar Empresas');
+ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.eventos.some(e => e.tipo === 'funcoes_alteradas' && e.alvo === 'Carla Dias'), 'mudança de funções fica na atividade');
+await rpc(admin, `fab_salvar_funcoes('carla', ${j({ financeiro: false, lancar: true })})`);
 
 // ---------- amostras reais para o teste do front-end ----------
 if (process.env.UPDATE_FIXTURES === '1') {
