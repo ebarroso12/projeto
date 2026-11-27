@@ -19,6 +19,7 @@ import { PendentesBanner, usePendentes, usePresenca } from './acessoVivo';
 import { BotaoAtualizar, Rodape } from './Versao';
 import { MensagensBotao } from './Mensagens';
 import { AvisosBotao } from './Avisos';
+import { Dani } from './dani/Dani';
 
 function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
@@ -160,6 +161,7 @@ export function AppShell() {
           )}
           <PendentesBanner pendentes={pendentes} />
           <PageArt.Provider value={pageInfo}><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></PageArt.Provider>
+          {!boot.eu.leitura && <Dani />}
           <Rodape />
         </main>
       </div>

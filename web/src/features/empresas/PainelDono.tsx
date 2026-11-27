@@ -83,3 +83,35 @@ export function VitrineCard() {
     </Card>
   );
 }
+
+/** Assistente Dani: chave gratuita do Gemini (Google AI Studio). A chave nunca volta para a tela. */
+export function DaniCard() {
+  const api = useApi();
+  const q = useQuery({ queryKey: ['dani-config'], queryFn: () => api.daniConfig() });
+  const [chave, setChave] = useState('');
+  const [modelo, setModelo] = useState<string | null>(null);
+  const salvar = useAction((v: { chave: string; modelo: string }) => api.salvarDani(v.chave, v.modelo), {
+    success: (_d, v) => (v.chave === '-' ? 'Chave removida: a Dani responde pelo manual.' : 'Dani configurada.'), invalidate: [['dani-config']], onSuccess: () => setChave(''),
+  });
+  const c = q.data;
+  return (
+    <Card title="Assistente Dani (IA)" subtitle="A Dani responde dúvidas de uso no canto da tela. Com a chave gratuita do Gemini ela conversa; sem a chave, responde pelo manual.">
+      <div className="stack" style={{ gap: 12 }}>
+        {c && (c.configurada
+          ? <Banner tone="info">IA ligada · chave terminando em <b>{c.final}</b> · modelo {c.modelo || 'automático'} · {c.perguntasHoje} pergunta(s) nas últimas 24h.</Banner>
+          : <Banner tone="warn">IA desligada: a Dani está respondendo pelo manual.</Banner>)}
+        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>
+          <li>Abra <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a> com uma conta Google.</li>
+          <li>Toque em <b>Create API key</b> (gratuita) e copie a chave (começa com <code>AIza</code>).</li>
+          <li>Cole abaixo e salve. A chave fica guardada no servidor e não aparece mais na tela.</li>
+        </ol>
+        <div className="form-grid" style={{ gridTemplateColumns: '2fr 1fr auto', alignItems: 'end' }}>
+          <TextField label={c?.configurada ? 'Nova chave do Gemini (para trocar)' : 'Chave do Gemini'} type="password" autoComplete="off" value={chave} onChange={e => setChave(e.target.value.trim())} placeholder="AIza…" />
+          <TextField label="Modelo (opcional)" value={modelo ?? c?.modelo ?? ''} onChange={e => setModelo(e.target.value)} placeholder="automático" hint="Ex.: gemini-2.5-flash" />
+          <Button variant="primary" loading={salvar.isPending} disabled={!chave && modelo === null} onClick={() => salvar.mutate({ chave, modelo: (modelo ?? c?.modelo ?? '').trim() })}>Salvar</Button>
+        </div>
+        {c?.configurada && <div><Button size="sm" variant="ghost" onClick={() => salvar.mutate({ chave: '-', modelo: c.modelo })}>Remover chave</Button></div>}
+      </div>
+    </Card>
+  );
+}

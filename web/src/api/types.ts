@@ -318,3 +318,10 @@ export interface RemessaOpcoes {
   contas: { id: string; nome: string }[];
 }
 export interface AcertoRemessa { enviadas: number; boas: number; defeito: number; faltando: number; valor: number; noFinanceiro: boolean }
+
+// =====================================================================
+// Dani (assistente de IA)
+// =====================================================================
+export interface DaniMsg { de: 'eu' | 'dani'; texto: string; local?: boolean }
+export type DaniResposta = { resposta: string } | { erro: 'nao_configurado' | 'limite' | 'limite_gemini' | 'sessao' | 'falha'; mensagem: string };
+export interface DaniConfig { configurada: boolean; final: string | null; modelo: string; perguntasHoje: number }

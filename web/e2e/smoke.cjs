@@ -371,7 +371,7 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.locator('.sidebar').getByRole('link', { name: 'Empresas' }).click();
   ok(await until(() => page.getByText('Funil e atenção').isVisible()) && await page.getByText('Vieram pelo link de teste').isVisible(), 'painel do dono com funil');
   await page.getByLabel('WhatsApp de contato (aparece na página)').fill('(16) 99999-1234');
-  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await page.locator('section.card', { hasText: 'Página de apresentação' }).getByRole('button', { name: 'Salvar', exact: true }).click();
   await page.getByText('WhatsApp salvo.').waitFor();
   ok(true, 'dono salva o WhatsApp da página');
 
@@ -431,6 +431,20 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
   await page.locator('.sidebar').getByRole('link', { name: 'Lançar' }).click();
   await page.getByLabel('Quem fez').selectOption({ label: 'Ateliê da Rosa (oficina)' });
   ok(true, 'lançar em nome de uma oficina disponível para o administrador');
+
+  // Dani: assistente no canto da tela (na demonstração responde pelo manual)
+  await page.getByRole('button', { name: 'Perguntar à Dani, assistente do app' }).click();
+  const dani = page.getByRole('dialog', { name: 'Dani, assistente do app' });
+  ok(await dani.getByText(/Oi, Edson! Sou a Dani/).isVisible(), 'Dani abre e cumprimenta pelo nome');
+  await dani.getByLabel('Sua dúvida').fill('como mando as peças para a costureira?');
+  await dani.getByRole('button', { name: 'Enviar pergunta' }).click();
+  ok(await until(() => dani.getByText('Remessa: enviar peças para a oficina ou costureira').isVisible(), 6000) && await dani.getByText('Resposta do manual').isVisible(), 'Dani responde pelo manual quando a IA não está disponível');
+  await dani.getByRole('button', { name: /Abrir Remessa/ }).first().click();
+  ok(await until(() => page.getByRole('heading', { name: 'Oficinas e remessas', level: 1 }).isVisible()), 'atalho da Dani leva à tela certa');
+  await shot(page, '21-dani');
+  if (await dani.isVisible()) await dani.getByRole('button', { name: 'Fechar a Dani' }).click();
+  await page.locator('.sidebar').getByRole('link', { name: 'Empresas' }).click();
+  ok(await until(() => page.getByText('Assistente Dani (IA)').isVisible()), 'dono configura a chave da Dani em Empresas');
 
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();

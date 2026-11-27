@@ -7,7 +7,7 @@ import {
 import type { Transport } from './transport';
 import type {
   DreCategoriaInput, DreItemInput, FaltaInput, FinLancamentoInput, FinListaTipo, LancamentoInput, LancamentoResultado,
-  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, MaterialInput, MovMaterialInput, OrdemCorteInput, PedidoInput, PedidoReceber, QuemFez, RemessaInput, RetornoInput, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
+  DadosPessoa, NovaEmpresaInput, NovaEmpresaTesteInput, DaniConfig, DaniMsg, DaniResposta, MaterialInput, MovMaterialInput, OrdemCorteInput, PedidoInput, PedidoReceber, QuemFez, RemessaInput, RetornoInput, PedidoStatus, ValorPeca, Vitrine, VitrineAdmin, RegistroInput, TipoRegistro, UsuarioInput,
 } from './types';
 
 /**
@@ -151,6 +151,13 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     fecharRemessa: async (id: string, pagar: { contaId: string; data: string } | null) => parseAcerto(await call('fecharRemessa', tok(), id, pagar)),
     reabrirRemessa: async (id: string) => { await call('reabrirRemessa', tok(), id); },
     lancarPor: async (por: QuemFez, o: LancamentoInput) => (r => ({ total: num(r.total), avisos: strings(r.avisos) }))(rec(await call('lancarPor', tok(), por, o))),
+
+    // ----- Dani (assistente) -----
+    /** Demonstração/Apps Script: sem IA — a Dani responde pelo manual (busca local). */
+    daniPerguntar: async (_pergunta: string, _historico: DaniMsg[], _tela: string): Promise<DaniResposta> =>
+      ({ erro: 'nao_configurado', mensagem: 'Na demonstração a Dani responde pelo manual.' }),
+    daniConfig: async (): Promise<DaniConfig> => { const r = rec(await call('daniConfig', tok())); return { configurada: r.configurada === true, final: r.final ? str(r.final) : null, modelo: str(r.modelo), perguntasHoje: num(r.perguntasHoje) }; },
+    salvarDani: async (chave: string, modelo: string) => { await call('salvarDani', tok(), chave, modelo); },
 
     // ----- financeiro -----
     finDados: async () => parseFin(await call('finDados', tok())),

@@ -1419,3 +1419,17 @@ Object.assign(handlers, {
   },
 });
 type RemessaInputMock = { id?: string; quem: Record<string, string>; etapa: string; dataEnvio: string; prazo: string | null; valorPeca: number; descontoFaltante: number; ordemId?: string | null; obs: string; itens: { modelo: string; cor: string; tamanho: string; qtd: number }[] };
+
+// ---------------------------------------------------------------- Dani (demonstração: sem IA, configuração fictícia)
+const daniDemo = { configurada: false, final: null as string | null, modelo: '' };
+Object.assign(handlers, {
+  daniConfig: ([t]: unknown[]) => { exigeDonoDemo(t); return { ...daniDemo, perguntasHoje: 0 }; },
+  salvarDani: ([t, chave, modelo]: unknown[]) => {
+    exigeDonoDemo(t);
+    const k = String(chave ?? '').trim();
+    if (k === '-') { daniDemo.configurada = false; daniDemo.final = null; }
+    else if (k) { if (!/^[A-Za-z0-9_-]{30,60}$/.test(k)) throw fromServerMessage('Chave do Gemini inválida: copie a chave inteira do Google AI Studio (começa com AIza).'); daniDemo.configurada = true; daniDemo.final = k.slice(-4); }
+    daniDemo.modelo = String(modelo ?? '').trim();
+    return null;
+  },
+});

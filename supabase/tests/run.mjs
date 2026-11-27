@@ -937,6 +937,23 @@ ok((await rpc(admin, `fab_acessos(current_date - 1, current_date + 1)`)).data.ev
 await q(`delete from fab.remessas`); await q(`delete from fab.ordens_corte`); await q(`delete from fab.materiais where id = $1`, [mat30]);
 await q(`delete from fab.lancamentos where origem <> 'lancar' or (modelo = 'Calça Jeans' and cor = 'Branco')`);
 await q(`delete from fab.fin_lancamentos where categoria = 'Facção'`);
+// ============ 31. Dani (assistente de IA) ============
+console.log('\n--- Dani ---');
+ok(fails_with(await rpc(adminB, `fab_salvar_dani('AIzaSy' || repeat('x', 33), '')`), 'responsável pelo sistema'), 'só o dono configura a chave do Gemini');
+ok(fails_with(await rpc(admin, `fab_salvar_dani('curta', '')`), 'Chave do Gemini inválida'), 'chave inválida recusada');
+ok((await rpc(admin, `fab_salvar_dani('AIzaSyTESTE_chave-123456789012345678901', 'gemini-2.5-flash')`)).ok, 'dono salva a chave e o modelo');
+let dc = (await rpc(admin, 'fab_dani_config()')).data;
+ok(dc.configurada && dc.final === '8901' && dc.modelo === 'gemini-2.5-flash' && !JSON.stringify(dc).includes('AIzaSyTESTE'), 'configuração não devolve a chave (só os 4 últimos dígitos)');
+ok(fails_with(await rpc(admin, 'fab_dani_chave()'), 'permission denied'), 'usuário logado não lê a chave');
+ok((await rpc(null, 'fab_dani_chave()', { role: 'service_role' })).data.chave === 'AIzaSyTESTE_chave-123456789012345678901', 'função de borda lê a chave');
+let di = await rpc(ana, `fab_dani_inicio('Lançar')`);
+ok(di.ok && di.data.nome === 'Ana Souza' && di.data.funcoes.lancar === true && di.data.funcoes.financeiro === false && di.data.tela === 'Lançar', 'Dani recebe o contexto da pessoa (funções liberadas)');
+ok(fails_with(await rpc(null, `fab_dani_inicio('x')`, { role: 'anon' }), 'permission denied'), 'sem login não pergunta');
+await q(`insert into fab.dani_uso (empresa_id, user_id) select $1, $2 from generate_series(1, 30)`, [empA, bruno]);
+ok(fails_with(await rpc(bruno, `fab_dani_inicio('')`), 'DANI_LIMITE'), 'limite de 30 perguntas por hora por pessoa');
+ok((await rpc(carla, `fab_dani_inicio('')`)).ok, 'limite é por pessoa');
+ok((await rpc(admin, `fab_salvar_dani('-', '')`)).ok && !(await rpc(admin, 'fab_dani_config()')).data.configurada, 'dono remove a chave');
+await q(`delete from fab.dani_uso`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

@@ -1,5 +1,15 @@
 [
   {
+    "versao": "1.10.0",
+    "data": "2026-11-27",
+    "novidades": [
+      "Dani: assistente de IA no canto da tela, em todas as telas, para tirar dúvidas de uso passo a passo",
+      "A Dani sabe quem está perguntando, em que tela está e o que a pessoa pode usar, e mostra atalhos para a tela certa",
+      "Usa o Gemini (plano gratuito); sem a chave ou sem cota, responde pelo manual do app",
+      "Empresas: o dono cola a chave do Gemini (fica protegida no servidor)"
+    ]
+  },
+  {
     "versao": "1.9.0",
     "data": "2026-11-27",
     "novidades": [

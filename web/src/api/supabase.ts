@@ -217,6 +217,18 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     fecharRemessa: async (id, pagar) => parseAcerto(await rpc('fab_fechar_remessa', { p_id: id, p_pagar: pagar })),
     reabrirRemessa: async id => { await rpc('fab_reabrir_remessa', { p_id: id }); },
     lancarPor: async (por, o) => (r => ({ total: num(r.total), avisos: strings(r.avisos) }))(rec(await rpc('fab_lancar_por', { p_por: por, p_etapa: o.etapa, p_modelo: o.modelo, p_cor: o.cor, p_obs: o.obs, p_itens: o.itens }))),
+    daniPerguntar: async (pergunta, historico, tela) => {
+      const { data, error } = await sb.functions.invoke('dani', { body: { pergunta, historico: historico.filter(h => !h.local).map(h => ({ de: h.de, texto: h.texto })), tela } });
+      if (error) {
+        let j: Record<string, unknown> | null = null;
+        try { const res = (error as { context?: Response }).context; j = res ? await res.json() : null; } catch { /* sem corpo */ }
+        return { erro: (j?.erro as 'sessao') ?? 'falha', mensagem: String(j?.mensagem ?? 'A Dani não respondeu agora.') };
+      }
+      const d = rec(data);
+      return d.resposta ? { resposta: str(d.resposta) } : { erro: (str(d.erro) || 'falha') as 'falha', mensagem: str(d.mensagem) };
+    },
+    daniConfig: async () => { const r = rec(await rpc('fab_dani_config')); return { configurada: r.configurada === true, final: r.final ? str(r.final) : null, modelo: str(r.modelo), perguntasHoje: num(r.perguntasHoje) }; },
+    salvarDani: async (chave, modelo) => { await rpc('fab_salvar_dani', { p_chave: chave, p_modelo: modelo }); },
     finDados: async () => parseFin(await rpc('fin_dados')),
     finSalvarLancamento: async o => str(await rpc('fin_salvar_lancamento', { p: o })),
     finContrapartes: async () => parseContrapartes(await rpc('fin_contrapartes')),

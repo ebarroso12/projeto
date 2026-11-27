@@ -14,7 +14,7 @@ import { Ficha, ImplantacaoBarra } from './Ficha';
 import { TextField } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
-import { PainelDonoCard, VitrineCard } from './PainelDono';
+import { DaniCard, PainelDonoCard, VitrineCard } from './PainelDono';
 import { Badge, Banner, Card, PageHeader, Stat } from '../../ui/primitives';
 
 const KEY = ['empresas'];
@@ -227,6 +227,7 @@ function Lista({ empresas }: { empresas: Empresa[] }) {
         <DataTable label="Empresas" columns={cols} rows={empresas} searchable rowKey={e => e.id} empty="Nenhuma empresa ainda." initialSort={{ id: 'nome', dir: 1 }} />
       </Card>
       <VitrineCard />
+      <DaniCard />
       <LinksTeste />
       {ficha && <Ficha empresa={ficha} onClose={() => setFicha(null)} />}
       {nova && <NovaEmpresa onClose={() => setNova(false)} />}
