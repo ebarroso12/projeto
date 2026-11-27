@@ -130,7 +130,8 @@ export interface NovaEmpresaInput { codigo: string; nome: string; adminLogin: st
 // =====================================================================
 // Financeiro
 // =====================================================================
-export type FinTipo = 'entrada' | 'saida' | 'programada';
+/** programada = a empresa vai pagar em parcelas; receber = venda a prazo, o cliente vai pagar em parcelas. */
+export type FinTipo = 'entrada' | 'saida' | 'programada' | 'receber';
 
 export interface FinConta { id: string; nome: string; saldoInicial: number; ativa: boolean }
 export interface FinCartao { id: string; nome: string; diaFechamento: number; diaVencimento: number; ativo: boolean }
@@ -145,7 +146,7 @@ export interface FinLancamento {
 }
 /** Cliente ou fornecedor ativo, para escolher no lançamento. */
 /** Totais do ano de um cliente/fornecedor (lista de Cadastros). `ultimo` = data do último lançamento realizado (qualquer ano). */
-export interface FinContraparteTotal { id: string; recebido: number; pago: number; qtd: number; ultimo: string | null }
+export interface FinContraparteTotal { id: string; recebido: number; pago: number; qtd: number; ultimo: string | null; aReceber: number }
 export interface FinContraparte { id: string; tipo: 'cliente' | 'fornecedor'; nome: string; documento: string }
 export interface FinPagamentoFatura { id: string; cartaoId: string; vencimento: string; valor: number; contaId: string; data: string }
 export interface FinMeta { id: string; nome: string; valorMeta: number; dataAlvo: string | null; ativa: boolean }

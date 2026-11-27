@@ -188,6 +188,7 @@ export function createSupabaseApi(sb: SupabaseClient): Api {
     finContrapartesTotais: async ano => parseContrapartesTotais(await rpc('fin_contrapartes_totais', { p_ano: ano })),
     finApagarLancamento: async id => { await rpc('fin_apagar_lancamento', { p_id: id }); },
     finPagarParcela: async (id, data, valor, contaId) => { await rpc('fin_pagar_parcela', { p_id: id, p_data: data, p_valor: valor, p_conta: contaId }); },
+    finReceberParcela: async (id, data, valor, contaId) => { await rpc('fin_receber_parcela', { p_id: id, p_data: data, p_valor: valor, p_conta: contaId }); },
     finPagarFatura: async (cartaoId, vencimento, valor, contaId, data) => {
       await rpc('fin_pagar_fatura', { p_cartao: cartaoId, p_vencimento: vencimento, p_valor: valor, p_conta: contaId, p_data: data });
     },

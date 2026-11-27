@@ -22,6 +22,7 @@ const TIPOS: { id: FinTipo; titulo: string; dica: string }[] = [
   { id: 'entrada', titulo: 'Entrada', dica: 'Dinheiro que entrou' },
   { id: 'saida', titulo: 'Saída', dica: 'Paga, ou comprada no cartão' },
   { id: 'programada', titulo: 'A pagar', dica: 'Parcelada ou conta futura' },
+  { id: 'receber', titulo: 'A receber', dica: 'Venda a prazo' },
 ];
 
 export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }: { inicial?: FinLancamento; tipo?: FinTipo; onClose: () => void }) {
@@ -50,15 +51,17 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
   });
 
   const [pagTipo, pagId] = pagamento.split(':') as ['conta' | 'cartao', string];
-  const noCartao = tipo !== 'entrada' && pagTipo === 'cartao';
+  const semCartao = tipo === 'entrada' || tipo === 'receber';
+  const parcelado = tipo === 'programada' || tipo === 'receber';
+  const noCartao = !semCartao && pagTipo === 'cartao';
   const contasAtivas = d.contas.filter(c => c.ativa || c.id === inicial?.contaId);
   const cartoesAtivos = d.cartoes.filter(c => c.ativo || c.id === inicial?.cartaoId);
   const opcoesPagamento = [
     ...contasAtivas.map(c => ({ value: `conta:${c.id}`, label: `Conta · ${c.nome}` })),
-    ...(tipo === 'entrada' ? [] : cartoesAtivos.map(c => ({ value: `cartao:${c.id}`, label: `Cartão · ${c.nome}` }))),
+    ...(semCartao ? [] : cartoesAtivos.map(c => ({ value: `cartao:${c.id}`, label: `Cartão · ${c.nome}` }))),
   ];
 
-  const tipoCp = tipo === 'entrada' ? 'cliente' : 'fornecedor';
+  const tipoCp = semCartao ? 'cliente' : 'fornecedor';
   const listaCp = (cps.data ?? []).filter(c => c.tipo === tipoCp || c.id === contraparte);
   const opcoesCp = listaCp.map(c => ({ value: c.id, label: c.documento ? `${c.nome} · ${c.documento}` : c.nome }));
   // cadastro excluído ou inativo: mantém o nome guardado no lançamento como opção
@@ -67,15 +70,15 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
   }
   const trocarTipo = (t: FinTipo) => {
     setTipo(t);
-    if (t === 'entrada' && pagTipo === 'cartao') setPagamento(`conta:${contasAtivas[0]?.id ?? ''}`);
+    if ((t === 'entrada' || t === 'receber') && pagTipo === 'cartao') setPagamento(`conta:${contasAtivas[0]?.id ?? ''}`);
     const atual = cps.data?.find(c => c.id === contraparte);
-    if (atual && atual.tipo !== (t === 'entrada' ? 'cliente' : 'fornecedor')) setContraparte('');
+    if (atual && atual.tipo !== (t === 'entrada' || t === 'receber' ? 'cliente' : 'fornecedor')) setContraparte('');
   };
 
   const onValor = (v: string) => {
     setValor(v);
     const n = parseValor(v), p = Number(parcelas) || 1;
-    if (tipo === 'programada' && Number.isFinite(n)) setValorParcela(valorTexto(Math.round((n / p) * 100) / 100));
+    if (parcelado && Number.isFinite(n)) setValorParcela(valorTexto(Math.round((n / p) * 100) / 100));
   };
   const onParcelas = (v: string) => {
     setParcelas(v);
@@ -87,15 +90,15 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
     const v = parseValor(valor);
     if (!descricao.trim()) return setErro('Informe a descrição.');
     if (!(v > 0)) return setErro('Informe um valor maior que zero.');
-    if (!pagId) return setErro(tipo === 'entrada' ? 'Escolha a conta.' : 'Escolha a conta ou o cartão.');
+    if (!pagId) return setErro(semCartao ? 'Escolha a conta.' : 'Escolha a conta ou o cartão.');
     const o: FinLancamentoInput = {
       id: inicial?.id, tipo, data, descricao: descricao.trim(), valor: v,
-      contaId: noCartao ? null : (tipo === 'entrada' || pagTipo === 'conta' ? pagId : null),
+      contaId: noCartao ? null : (semCartao || pagTipo === 'conta' ? pagId : null),
       cartaoId: noCartao ? pagId : null,
       categoria, centro, responsavel, forma: noCartao ? 'Cartão de crédito' : forma, obs,
       contraparteId: contraparte || null,
     };
-    if (tipo === 'programada') {
+    if (parcelado) {
       const p = Number(parcelas), vp = parseValor(valorParcela), dia = Number(diaVenc);
       if (!(p >= 1 && p <= 360)) return setErro('Quantidade de parcelas: 1 a 360.');
       if (!(vp > 0)) return setErro('Informe o valor da parcela.');
@@ -118,15 +121,15 @@ export function LancamentoForm({ inicial, tipo: tipoInicial = 'saida', onClose }
         ))}
       </div>
       <div className="form-grid">
-        <TextField label={tipo === 'programada' ? 'Data da compra' : 'Data'} type="date" value={data} onChange={e => setData(e.target.value)} />
-        <TextField label={tipo === 'programada' ? 'Valor total (R$)' : 'Valor (R$)'} inputMode="decimal" value={valor} onChange={e => onValor(e.target.value)} placeholder="0,00" />
+        <TextField label={tipo === 'programada' ? 'Data da compra' : tipo === 'receber' ? 'Data da venda' : 'Data'} type="date" value={data} onChange={e => setData(e.target.value)} />
+        <TextField label={parcelado ? 'Valor total (R$)' : 'Valor (R$)'} inputMode="decimal" value={valor} onChange={e => onValor(e.target.value)} placeholder="0,00" />
       </div>
-      <TextField label="Descrição" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder={tipo === 'entrada' ? 'Ex.: Venda lote 121' : 'Ex.: Tecido malha 300 kg'} />
-      <SelectField label={tipo === 'entrada' ? 'Cliente (opcional)' : 'Fornecedor (opcional)'} value={contraparte} onChange={e => setContraparte(e.target.value)}
+      <TextField label="Descrição" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder={semCartao ? 'Ex.: Venda lote 121' : 'Ex.: Tecido malha 300 kg'} />
+      <SelectField label={semCartao ? 'Cliente (opcional)' : 'Fornecedor (opcional)'} value={contraparte} onChange={e => setContraparte(e.target.value)}
         options={opcoesCp} placeholder={cps.isLoading ? 'Carregando…' : '—'}
-        hint={cps.data && !opcoesCp.length ? `Nenhum ${tipoCp} cadastrado. Cadastre em Cadastros → ${tipo === 'entrada' ? 'Clientes' : 'Fornecedores'}.` : undefined} />
-      <SelectField label={tipo === 'entrada' ? 'Entrou na conta' : 'Pagamento'} value={pagamento} onChange={e => setPagamento(e.target.value)} options={opcoesPagamento} />
-      {tipo === 'programada' && (
+        hint={cps.data && !opcoesCp.length ? `Nenhum ${tipoCp} cadastrado. Cadastre em Cadastros → ${semCartao ? 'Clientes' : 'Fornecedores'}.` : undefined} />
+      <SelectField label={tipo === 'entrada' ? 'Entrou na conta' : tipo === 'receber' ? 'Vai entrar na conta' : 'Pagamento'} value={pagamento} onChange={e => setPagamento(e.target.value)} options={opcoesPagamento} />
+      {parcelado && (
         <div className="form-grid">
           <TextField label="Parcelas" type="number" inputMode="numeric" min={1} max={360} value={parcelas} onChange={e => onParcelas(e.target.value)} />
           <TextField label="Valor da parcela (R$)" inputMode="decimal" value={valorParcela} onChange={e => setValorParcela(e.target.value)} />

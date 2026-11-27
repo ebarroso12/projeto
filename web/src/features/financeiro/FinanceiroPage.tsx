@@ -10,12 +10,12 @@ import { useConfirm } from '../../ui/Dialog';
 import { Icon } from '../../ui/Icon';
 import { QueryView } from '../../ui/QueryView';
 import { Badge, Card, PageHeader, Segmented, Stat } from '../../ui/primitives';
-import { APagarTab, AjustesTab, ContasTab, MetasTab, PlanejamentoTab } from './abas';
-import { compromissos, fluxoMes, gastosPorCategoria, porContraparte, saldoConta, saldoTotal, totalGuardado } from './calc';
+import { AReceberTab, APagarTab, AjustesTab, ContasTab, MetasTab, PlanejamentoTab } from './abas';
+import { compromissos, recebimentos, fluxoMes, gastosPorCategoria, porContraparte, saldoConta, saldoTotal, totalGuardado } from './calc';
 import { LancamentoForm } from './LancamentoForm';
 import { Barras, FIN_KEY, FinProvider, MesPicker, nomeCartao, nomeConta, useFin } from './shared';
 
-type Aba = 'geral' | 'lancamentos' | 'apagar' | 'contas' | 'metas' | 'planejamento' | 'ajustes';
+type Aba = 'geral' | 'lancamentos' | 'apagar' | 'receber' | 'contas' | 'metas' | 'planejamento' | 'ajustes';
 
 function VisaoGeral({ mes }: { mes: string }) {
   const d = useFin();
@@ -26,6 +26,7 @@ function VisaoGeral({ mes }: { mes: string }) {
   const aPagarMes = doMes.reduce((s, c) => s + c.valor, 0);
   const gastos = gastosPorCategoria(d, mes);
   const proximos = comp.filter(c => c.data >= d.hoje).slice(0, 6);
+  const receberMes = recebimentos(d).filter(p => p.data.startsWith(mes));
   const clientes = porContraparte(d, mes, 'entrada');
   const fornecedores = porContraparte(d, mes, 'saida');
 
@@ -36,6 +37,7 @@ function VisaoGeral({ mes }: { mes: string }) {
         <Stat label={`Entradas · ${nomeDoMes(mes).split(' ')[0]}`} value={formatBRL(fluxo.entradas)} tone="ok" />
         <Stat label={`Saídas · ${nomeDoMes(mes).split(' ')[0]}`} value={formatBRL(fluxo.saidas)} hint="inclui compras no cartão" />
         <Stat label="A pagar no mês" value={formatBRL(aPagarMes)} hint={`${doMes.length} vencimento(s)`} />
+        <Stat label="A receber no mês" value={formatBRL(receberMes.reduce((s, p) => s + p.valor, 0))} hint={`${receberMes.length} parcela(s)`} />
         <Stat label="Guardado em metas" value={formatBRL(totalGuardado(d))} />
       </div>
       <div className="grid-2">
@@ -84,12 +86,12 @@ function Lancamentos({ mes }: { mes: string }) {
   const api = useApi();
   const d = useFin();
   const confirm = useConfirm();
-  const [filtro, setFiltro] = useState<'todos' | 'entrada' | 'saida' | 'programada'>('todos');
+  const [filtro, setFiltro] = useState<'todos' | 'entrada' | 'saida' | 'programada' | 'receber'>('todos');
   const [editando, setEditando] = useState<FinLancamento | null | undefined>(undefined);
   const apagar = useAction((id: string) => api.finApagarLancamento(id), { success: 'Lançamento excluído.', invalidate: [FIN_KEY] });
 
   const linhas = useMemo(
-    () => d.lancamentos.filter(l => (l.tipo === 'programada' ? l.data.slice(0, 7) <= mes : l.data.startsWith(mes)) && (filtro === 'todos' || l.tipo === filtro)),
+    () => d.lancamentos.filter(l => (l.tipo === 'programada' || l.tipo === 'receber' ? l.data.slice(0, 7) <= mes : l.data.startsWith(mes)) && (filtro === 'todos' || l.tipo === filtro)),
     [d.lancamentos, mes, filtro],
   );
 
@@ -100,13 +102,14 @@ function Lancamentos({ mes }: { mes: string }) {
       id: 'tipo', header: 'Tipo', value: l => l.tipo,
       cell: l => l.tipo === 'entrada' ? <Badge tone="ok">Entrada</Badge>
         : l.tipo === 'saida' ? <Badge>{l.cartaoId ? 'Cartão' : 'Saída'}</Badge>
+        : l.tipo === 'receber' ? <Badge tone="ok">A receber · {l.parcelasPagas}/{l.parcelas}</Badge>
         : <Badge tone="info">{l.parcelas}x · {l.cartaoId ? 'cartão' : `${l.parcelasPagas} paga(s)`}</Badge>,
     },
     { id: 'cp', header: 'Cliente / fornecedor', value: l => l.contraparte, cell: l => l.contraparte || <span className="muted">—</span> },
     { id: 'conta', header: 'Conta / cartão', value: l => (l.cartaoId ? nomeCartao(d, l.cartaoId) : nomeConta(d, l.contaId)), cell: l => (l.cartaoId ? nomeCartao(d, l.cartaoId) : nomeConta(d, l.contaId)) },
     {
-      id: 'valor', header: 'Valor', numeric: true, value: l => (l.tipo === 'entrada' ? l.valor : -l.valor),
-      cell: l => <span className={l.tipo === 'entrada' ? 'valor-pos' : 'tnum'}>{l.tipo === 'entrada' ? '+' : '−'} {formatBRL(l.valor)}</span>,
+      id: 'valor', header: 'Valor', numeric: true, value: l => (l.tipo === 'entrada' || l.tipo === 'receber' ? l.valor : -l.valor),
+      cell: l => <span className={l.tipo === 'entrada' || l.tipo === 'receber' ? 'valor-pos' : 'tnum'}>{l.tipo === 'entrada' || l.tipo === 'receber' ? '+' : '−'} {formatBRL(l.valor)}</span>,
     },
     {
       id: 'acoes', header: '',
@@ -128,7 +131,7 @@ function Lancamentos({ mes }: { mes: string }) {
         <DataTable label="Lançamentos" columns={cols} rows={linhas} rowKey={l => l.id} searchable exportName={`lancamentos-${mes}`}
           empty="Nenhum lançamento neste mês." initialSort={{ id: 'data', dir: -1 }}
           toolbar={<span className="no-print"><Segmented label="Filtrar" value={filtro} onChange={setFiltro}
-            options={[{ value: 'todos', label: 'Todos' }, { value: 'entrada', label: 'Entradas' }, { value: 'saida', label: 'Saídas' }, { value: 'programada', label: 'A pagar' }]} /></span>} />
+            options={[{ value: 'todos', label: 'Todos' }, { value: 'entrada', label: 'Entradas' }, { value: 'saida', label: 'Saídas' }, { value: 'programada', label: 'A pagar' }, { value: 'receber', label: 'A receber' }]} /></span>} />
       </Card>
       {editando !== undefined && <LancamentoForm inicial={editando ?? undefined} onClose={() => setEditando(undefined)} />}
     </>
@@ -155,7 +158,7 @@ export default function FinanceiroPage() {
             <div className="stack">
               <div>
                 <Segmented<Aba> label="Seções do financeiro" value={aba} onChange={setAba} options={[
-                  { value: 'geral', label: 'Visão geral' }, { value: 'lancamentos', label: 'Lançamentos' }, { value: 'apagar', label: 'A pagar' },
+                  { value: 'geral', label: 'Visão geral' }, { value: 'lancamentos', label: 'Lançamentos' }, { value: 'apagar', label: 'A pagar' }, { value: 'receber', label: 'A receber' },
                   { value: 'contas', label: 'Contas e cartões' }, { value: 'metas', label: 'Metas' }, { value: 'planejamento', label: 'Planejamento' },
                   { value: 'ajustes', label: 'Ajustes' },
                 ]} />
@@ -163,6 +166,7 @@ export default function FinanceiroPage() {
               {aba === 'geral' && <VisaoGeral mes={mes} />}
               {aba === 'lancamentos' && <Lancamentos mes={mes} />}
               {aba === 'apagar' && <APagarTab />}
+              {aba === 'receber' && <AReceberTab />}
               {aba === 'contas' && <ContasTab />}
               {aba === 'metas' && <MetasTab />}
               {aba === 'planejamento' && <PlanejamentoTab mes={mes} />}

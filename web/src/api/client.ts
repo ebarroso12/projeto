@@ -114,6 +114,7 @@ export function createApi(transport: Transport, getToken: () => string | null) {
     finContrapartesTotais: async (ano: number) => parseContrapartesTotais(await call('finContrapartesTotais', tok(), ano)),
     finApagarLancamento: async (id: string) => { await call('finApagarLancamento', tok(), id); },
     finPagarParcela: async (id: string, data: string, valor: number, contaId: string | null) => { await call('finPagarParcela', tok(), id, data, valor, contaId); },
+    finReceberParcela: async (id: string, data: string, valor: number, contaId: string | null) => { await call('finReceberParcela', tok(), id, data, valor, contaId); },
     finPagarFatura: async (cartaoId: string, vencimento: string, valor: number, contaId: string, data: string) => {
       await call('finPagarFatura', tok(), cartaoId, vencimento, valor, contaId, data);
     },

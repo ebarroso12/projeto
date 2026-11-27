@@ -152,7 +152,7 @@ export const parseConvites = (v: unknown): Convite[] =>
   }));
 
 export const finLancamento = (r: R): FinLancamento => ({
-  id: str(r.id), tipo: (['entrada', 'saida', 'programada'].includes(str(r.tipo)) ? str(r.tipo) : 'saida') as FinLancamento['tipo'],
+  id: str(r.id), tipo: (['entrada', 'saida', 'programada', 'receber'].includes(str(r.tipo)) ? str(r.tipo) : 'saida') as FinLancamento['tipo'],
   data: str(r.data), descricao: str(r.descricao), valor: num(r.valor),
   contaId: strOrNull(r.contaId), cartaoId: strOrNull(r.cartaoId),
   forma: str(r.forma), categoria: str(r.categoria), responsavel: str(r.responsavel), centro: str(r.centro),
@@ -163,7 +163,7 @@ export const finLancamento = (r: R): FinLancamento => ({
 
 export const parseLancamentos = (v: unknown): FinLancamento[] => (Array.isArray(v) ? v : []).map(rec).map(finLancamento);
 export const parseContrapartesTotais = (v: unknown): FinContraparteTotal[] =>
-  (Array.isArray(v) ? v : []).map(rec).map(r => ({ id: str(r.id), recebido: num(r.recebido), pago: num(r.pago), qtd: num(r.qtd), ultimo: strOrNull(r.ultimo) }));
+  (Array.isArray(v) ? v : []).map(rec).map(r => ({ id: str(r.id), recebido: num(r.recebido), pago: num(r.pago), qtd: num(r.qtd), ultimo: strOrNull(r.ultimo), aReceber: num(r.aReceber) }));
 export const parseContrapartes = (v: unknown): FinContraparte[] =>
   (Array.isArray(v) ? v : []).map(rec).map(r => ({
     id: str(r.id), tipo: (str(r.tipo) === 'fornecedor' ? 'fornecedor' : 'cliente') as FinContraparte['tipo'], nome: str(r.nome), documento: str(r.documento),

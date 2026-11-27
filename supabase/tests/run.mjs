@@ -616,6 +616,28 @@ const lc2 = fin.lancamentos.find(l => l.id === lCli);
 ok(lc2.contraparteId === null && lc2.contraparte === 'Loja Centro', 'lançamento mantém o nome do cliente excluído');
 await rpc(admin, `fin_apagar_lancamento('${lCli}')`); await rpc(admin, `fin_apagar_lancamento('${progForn}')`);
 await q(`delete from fab.fin_lancamentos where origem_id = '${progForn}'`);
+// ============ 24. contas a receber ============
+console.log('\n--- contas a receber ---');
+const cliR = (await rpc(admin, `fab_salvar_registro(${j({ tipo: 'cliente', nome: 'Boutique Receber' })})`)).data;
+r = await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'receber', data: '2026-11-05', descricao: 'Pedido 7 a prazo', valor: 3000, contaId: conta, parcelas: 3, valorParcela: 1000, diaVencimento: 10, contraparteId: cliR, categoria: 'Vendas' })})`);
+const recId = r.data;
+ok(r.ok, 'lança venda a prazo (a receber) em 3x');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'receber', data: '2026-11-05', descricao: 'x', valor: 10, cartaoId: cartao, parcelas: 1, valorParcela: 10, diaVencimento: 10 })})`), 'conta ou o cartão'), 'a receber não aceita cartão');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ tipo: 'receber', data: '2026-11-05', descricao: 'x', valor: 10, contaId: conta, parcelas: 1, valorParcela: 10 })})`), 'dia do vencimento'), 'a receber exige dia de vencimento');
+ok(fails_with(await rpc(admin, `fin_pagar_parcela('${recId}', '2026-11-10', 1000, null)`), 'não encontrada'), 'a receber não é paga como conta a pagar');
+ok((await rpc(admin, `fin_receber_parcela('${recId}', '2026-11-10', 1000, null)`)).ok, 'recebe a 1ª parcela');
+fin = (await rpc(admin, 'fin_dados()')).data;
+const recebida = fin.lancamentos.find(l => l.origemId === recId);
+ok(recebida && recebida.tipo === 'entrada' && recebida.valor === 1000 && recebida.contraparteId === cliR && /parcela 1\/3/.test(recebida.descricao), 'parcela recebida vira entrada do cliente');
+eq(fin.lancamentos.find(l => l.id === recId).parcelasPagas, 1, 'conta a receber registra 1 de 3');
+ok(fails_with(await rpc(ana, `fin_receber_parcela('${recId}', '2026-11-10', 1000, null)`), 'FUNCAO_BLOQUEADA'), 'funcionário não recebe');
+ok(fails_with(await rpc(adminB, `fin_receber_parcela('${recId}', '2026-11-10', 1000, null)`), 'não encontrada'), 'outra empresa não recebe');
+await rpc(admin, `fin_receber_parcela('${recId}', '2026-12-10', 1000, null)`); await rpc(admin, `fin_receber_parcela('${recId}', '2027-01-10', 1000, null)`);
+ok(fails_with(await rpc(admin, `fin_receber_parcela('${recId}', '2027-02-10', 1000, null)`), 'já foram recebidas'), 'não recebe além do total');
+ok(fails_with(await rpc(admin, `fin_salvar_lancamento(${j({ id: recId, tipo: 'receber', data: '2026-11-05', descricao: 'Pedido 7 a prazo', valor: 2000, contaId: conta, parcelas: 2, valorParcela: 1000, diaVencimento: 10 })})`), 'parcela(s) paga(s)'), 'não reduz parcelas abaixo das já recebidas');
+const totR = (await rpc(admin, 'fin_contrapartes_totais(2026)')).data.find(x => x.id === cliR);
+ok(totR.recebido === 2000 && totR.aReceber === 0 && totR.ultimo === '2027-01-10', 'totais do cliente: recebido no ano e nada mais a receber');
+await q(`delete from fab.fin_lancamentos where origem_id = '${recId}'`); await q(`delete from fab.fin_lancamentos where id = '${recId}'`);
 await q(`delete from fab.registros`); await q(`update fab.perfis set dados = '{}'`);
 await q(`delete from fab.itens_lista where nome in ('Moletom Canguru','Cinza','Vinho','GG','Camiseta Básica')`);
 

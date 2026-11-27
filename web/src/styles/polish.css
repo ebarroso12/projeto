@@ -327,3 +327,7 @@ dialog.dlg.drawer.wide { width: min(1080px, calc(100vw - 24px)); }
   border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
 .senha-olho:hover { color: var(--text); background: var(--surface-2); }
 .senha-olho:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* tipo de lançamento: 4 opções (entrada, saída, a pagar, a receber) */
+.tipo-toggle { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 560px) { .tipo-toggle { grid-template-columns: repeat(2, 1fr); } }

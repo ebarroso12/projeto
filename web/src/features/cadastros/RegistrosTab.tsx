@@ -126,7 +126,7 @@ export function RegistrosTab({ tipo }: { tipo: TipoRegistro }) {
   const totais = useQuery({ queryKey: ['financeiro', 'totais', ano], queryFn: () => api.finContrapartesTotais(ano), enabled: comFin });
   const totalDe = (id: string) => {
     const t = totais.data?.find(x => x.id === id);
-    return { valor: t ? (tipo === 'cliente' ? t.recebido : t.pago) : 0, ultimo: t?.ultimo ?? null };
+    return { valor: t ? (tipo === 'cliente' ? t.recebido : t.pago) : 0, ultimo: t?.ultimo ?? null, aReceber: t?.aReceber ?? 0 };
   };
   const [editando, setEditando] = useState<Registro2 | null | undefined>(undefined);
   const apagar = useAction((id: string) => api.apagarRegistro(id), { success: 'Excluído.', invalidate: [['registros', tipo]] });
@@ -138,7 +138,7 @@ export function RegistrosTab({ tipo }: { tipo: TipoRegistro }) {
       id: 'ano', header: tipo === 'cliente' ? `Recebido em ${ano}` : `Pago em ${ano}`, numeric: true, value: (r: Registro2) => totalDe(r.id).valor,
       cell: (r: Registro2) => {
         const t = totalDe(r.id);
-        return <>{t.valor ? <b className="tnum">{formatBRL(t.valor)}</b> : <span className="muted">—</span>}<small>{t.ultimo ? `último ${dataBR(t.ultimo)}` : 'sem lançamentos'}</small></>;
+        return <>{t.valor ? <b className="tnum">{formatBRL(t.valor)}</b> : <span className="muted">—</span>}<small>{t.aReceber ? `a receber ${formatBRL(t.aReceber)}` : t.ultimo ? `último ${dataBR(t.ultimo)}` : 'sem lançamentos'}</small></>;
       },
     }] : []),
     { id: 'obs', header: 'Observação', value: r => r.obs, cell: r => <span className="muted">{r.obs || '—'}</span> },

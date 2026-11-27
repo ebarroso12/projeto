@@ -410,6 +410,9 @@ const fin = {
   L({ tipo: 'saida', data: `${m}-18`, descricao: 'Anúncios Instagram', valor: 450, cartaoId: 'visa', categoria: 'Marketing', centro: 'Comercial', vencimentoFatura: vencFatura(`${m}-18`, 25, 5) });
   L({ tipo: 'programada', data: `${p}-20`, descricao: 'Máquina overloque', valor: 7200, contaId: 'cc', parcelas: 6, valorParcela: 1200, diaVencimento: 20, parcelasPagas: 1, categoria: 'Manutenção', forma: 'Boleto' });
   L({ tipo: 'programada', data: `${m}-02`, descricao: 'Contador (mensal)', valor: 900, contaId: 'cc', parcelas: 12, valorParcela: 900, diaVencimento: 15, categoria: 'Outros', centro: 'Administrativo', forma: 'PIX' });
+  // vendas a prazo (contas a receber)
+  L({ tipo: 'receber', data: `${p}-25`, descricao: 'Pedido 118 a prazo · Loja Centro', valor: 9000, contaId: 'cc', parcelas: 3, valorParcela: 3000, diaVencimento: 5, parcelasPagas: 1, categoria: 'Vendas', centro: 'Comercial', forma: 'Boleto', contraparteId: 'r3', contraparte: 'Loja Centro Modas' });
+  L({ tipo: 'receber', data: `${mesMenos(2)}-15`, descricao: 'Pedido 112 · Atacado Bom Preço', valor: 4800, contaId: 'cc', parcelas: 2, valorParcela: 2400, diaVencimento: 20, parcelasPagas: 0, categoria: 'Vendas', centro: 'Comercial', forma: 'Boleto', contraparteId: 'r4', contraparte: 'Atacado Bom Preço' });
   // histórico de clientes e fornecedores (ficha em Cadastros)
   const p2 = mesMenos(2), p3 = mesMenos(3);
   L({ tipo: 'entrada', data: `${p3}-12`, descricao: 'Venda lote 109 · Loja Centro', valor: 9600, contaId: 'cc', categoria: 'Vendas', centro: 'Comercial', forma: 'Boleto', contraparteId: 'r3', contraparte: 'Loja Centro Modas' });
@@ -473,9 +476,10 @@ Object.assign(handlers, {
     requireAdmin(userOf(String(t)));
     const r = o as Record<string, unknown>;
     if (!r.descricao || !(Number(r.valor) > 0)) throw fromServerMessage('Preencha a descrição e um valor maior que zero.');
-    const cartao = r.tipo !== 'entrada' && r.cartaoId ? fin.cartoes.find(c => c.id === r.cartaoId) : undefined;
+    const cartao = r.tipo !== 'entrada' && r.tipo !== 'receber' && r.cartaoId ? fin.cartoes.find(c => c.id === r.cartaoId) : undefined;
     if (!cartao) conta(r.contaId);
-    if (r.tipo === 'programada' && !cartao && !(Number(r.diaVencimento) >= 1)) throw fromServerMessage('Informe o dia do vencimento (1 a 31).');
+    if (r.tipo === 'receber' && r.cartaoId && !r.contaId) throw fromServerMessage('Escolha a conta ou o cartão.');
+    if ((r.tipo === 'programada' || r.tipo === 'receber') && !cartao && !(Number(r.diaVencimento) >= 1)) throw fromServerMessage('Informe o dia do vencimento (1 a 31).');
     const cp = r.contraparteId ? registrosDemo.find(x => x.id === r.contraparteId && (x.tipo === 'cliente' || x.tipo === 'fornecedor')) : undefined;
     if (r.contraparteId && !cp) throw fromServerMessage('Cliente ou fornecedor inválido.');
     const item = { forma: '', categoria: '', responsavel: '', centro: '', obs: '', parcelasPagas: 0, origemId: null, parcelas: null, valorParcela: null, diaVencimento: null, ...r,
@@ -495,6 +499,18 @@ Object.assign(handlers, {
     l.parcelasPagas = Number(l.parcelasPagas) + 1;
     fin.lancamentos.push({ id: uid(), tipo: 'saida', data, descricao: `${l.descricao} · parcela ${l.parcelasPagas}/${l.parcelas}`, valor: Number(valor), contaId: contaId ?? l.contaId, cartaoId: null,
       forma: l.forma, categoria: l.categoria, responsavel: l.responsavel, centro: l.centro, parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: l.id, obs: '', contraparteId: l.contraparteId ?? null, contraparte: l.contraparte ?? '' });
+    return null;
+  },
+  finReceberParcela: ([t, id, data, valor, contaId]: unknown[]) => {
+    requireAdmin(userOf(String(t)));
+    const l = fin.lancamentos.find(x => x.id === id && x.tipo === 'receber' && !x.apagado) as Record<string, unknown> | undefined;
+    if (!l) throw fromServerMessage('Conta a receber não encontrada.');
+    if (Number(l.parcelasPagas) >= Number(l.parcelas)) throw fromServerMessage('Todas as parcelas já foram recebidas.');
+    if (!(Number(valor) > 0) || !data) throw fromServerMessage('Informe a data e o valor recebido.');
+    l.parcelasPagas = Number(l.parcelasPagas) + 1;
+    fin.lancamentos.push({ id: uid(), tipo: 'entrada', data, descricao: `${l.descricao} · parcela ${l.parcelasPagas}/${l.parcelas}`, valor: Number(valor), contaId: contaId ?? l.contaId, cartaoId: null,
+      forma: l.forma, categoria: l.categoria, responsavel: l.responsavel, centro: l.centro, parcelas: null, valorParcela: null, diaVencimento: null, parcelasPagas: 0, vencimentoFatura: null, origemId: l.id, obs: '',
+      contraparteId: l.contraparteId ?? null, contraparte: l.contraparte ?? '' });
     return null;
   },
   finPagarFatura: ([t, cartaoId, vencimento, valor, contaId, data]: unknown[]) => {
@@ -787,17 +803,18 @@ Object.assign(handlers, {
   },
   finContrapartesTotais: ([t, ano]: unknown[]) => {
     requireAdmin(userOf(String(t)));
-    const tot = new Map<string, { id: string; recebido: number; pago: number; qtd: number; ultimo: string | null }>();
+    const tot = new Map<string, { id: string; recebido: number; pago: number; qtd: number; ultimo: string | null; aReceber: number }>();
     for (const l of fin.lancamentos) {
       if (l.apagado || !l.contraparteId) continue;
       const id = String(l.contraparteId), data = String(l.data);
-      const x = tot.get(id) ?? { id, recebido: 0, pago: 0, qtd: 0, ultimo: null };
+      const x = tot.get(id) ?? { id, recebido: 0, pago: 0, qtd: 0, ultimo: null, aReceber: 0 };
+      if (l.tipo === 'receber') x.aReceber += (Number(l.parcelas) - Number(l.parcelasPagas)) * Number(l.valorParcela);
       if (data.startsWith(String(ano))) {
         x.qtd++;
         if (l.tipo === 'entrada') x.recebido += Number(l.valor);
         if (l.tipo === 'saida') x.pago += Number(l.valor);
       }
-      if (l.tipo !== 'programada' && (!x.ultimo || data > x.ultimo)) x.ultimo = data;
+      if ((l.tipo === 'entrada' || l.tipo === 'saida') && (!x.ultimo || data > x.ultimo)) x.ultimo = data;
       tot.set(id, x);
     }
     return [...tot.values()];

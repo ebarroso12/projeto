@@ -31,9 +31,9 @@ export function vencimentoParcela(dataCompra: string, diaVenc: number, index: nu
 
 export interface Parcela { lanc: FinLancamento; numero: number; total: number; data: string; valor: number }
 
-/** Parcelas ainda não pagas de uma saída programada. No cartão, todas entram nas faturas. */
+/** Parcelas ainda não pagas (programada) ou não recebidas (receber). No cartão, todas entram nas faturas. */
 export function parcelasEmAberto(l: FinLancamento): Parcela[] {
-  if (l.tipo !== 'programada') return [];
+  if (l.tipo !== 'programada' && l.tipo !== 'receber') return [];
   const total = Math.max(1, l.parcelas ?? 1);
   const pagas = l.cartaoId ? 0 : Math.min(total, l.parcelasPagas);
   const out: Parcela[] = [];
@@ -119,6 +119,12 @@ export function realizadoMes(d: FinDados, mes: string): { entradas: number; said
   return { entradas: arred(entradas), saidas, totalSaidas: arred(Object.values(saidas).reduce((a, b) => a + b, 0)) };
 }
 
+/** Parcelas a receber de clientes (vendas a prazo), em ordem de vencimento. */
+export function recebimentos(d: FinDados): Parcela[] {
+  return d.lancamentos.filter(l => l.tipo === 'receber').flatMap(parcelasEmAberto)
+    .sort((a, b) => a.data.localeCompare(b.data) || a.lanc.descricao.localeCompare(b.lanc.descricao));
+}
+
 export interface Compromisso { tipo: 'parcela' | 'fatura'; data: string; descricao: string; valor: number; parcela?: Parcela; fatura?: Fatura }
 
 /** Tudo o que vence (parcelas fora do cartão + faturas abertas), em ordem de data. */
@@ -155,13 +161,19 @@ export function gastosPorCategoria(d: FinDados, mes: string): [string, number][]
 export interface HistoricoContraparte {
   recebido: number; pago: number; recebidoAnterior: number; pagoAnterior: number;
   porMes: number[]; qtd: number; ultimo: string | null; emAberto: number; parcelasAbertas: number;
+  /** Cliente: o que ainda vai receber (vendas a prazo) e quanto disso já venceu. */
+  aReceber: number; parcelasAReceber: number; vencidoAReceber: number;
   doAno: FinLancamento[];
 }
 export function historicoContraparte(lancs: FinLancamento[], ano: string, hoje: string): HistoricoContraparte {
   const anterior = String(Number(ano) - 1);
-  const h: HistoricoContraparte = { recebido: 0, pago: 0, recebidoAnterior: 0, pagoAnterior: 0, porMes: Array(12).fill(0), qtd: 0, ultimo: null, emAberto: 0, parcelasAbertas: 0, doAno: [] };
+  const h: HistoricoContraparte = { recebido: 0, pago: 0, recebidoAnterior: 0, pagoAnterior: 0, porMes: Array(12).fill(0), qtd: 0, ultimo: null, emAberto: 0, parcelasAbertas: 0, aReceber: 0, parcelasAReceber: 0, vencidoAReceber: 0, doAno: [] };
   for (const l of lancs) {
     if (l.data.startsWith(ano)) { h.qtd++; h.doAno.push(l); }
+    if (l.tipo === 'receber') {
+      for (const p of parcelasEmAberto(l)) { h.aReceber += p.valor; h.parcelasAReceber++; if (p.data < hoje) h.vencidoAReceber += p.valor; }
+      continue;
+    }
     if (l.tipo === 'programada') {
       // na conta: parcelasPagas controla; no cartão: o que ainda não venceu
       for (const p of parcelasEmAberto(l)) if (!l.cartaoId || p.data >= hoje) { h.emAberto += p.valor; h.parcelasAbertas++; }
@@ -172,7 +184,7 @@ export function historicoContraparte(lancs: FinLancamento[], ano: string, hoje: 
     if (l.data.startsWith(ano)) { h[campo] += l.valor; h.porMes[Number(l.data.slice(5, 7)) - 1]! += l.valor; }
     if (l.data.startsWith(anterior)) h[campo === 'recebido' ? 'recebidoAnterior' : 'pagoAnterior'] += l.valor;
   }
-  for (const k of ['recebido', 'pago', 'recebidoAnterior', 'pagoAnterior', 'emAberto'] as const) h[k] = arred(h[k]);
+  for (const k of ['recebido', 'pago', 'recebidoAnterior', 'pagoAnterior', 'emAberto', 'aReceber', 'vencidoAReceber'] as const) h[k] = arred(h[k]);
   h.porMes = h.porMes.map(arred);
   h.doAno.sort((a, b) => b.data.localeCompare(a.data));
   return h;

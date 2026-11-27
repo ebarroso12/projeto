@@ -45,6 +45,7 @@ export function HistoricoContraparte({ registro }: { registro: Registro2 }) {
                 hint={<>{Number(ano) - 1}: {formatBRL(base)} <Variacao atual={total} base={base} inverso={!cliente} /></>} />
               <Stat label="Lançamentos no ano" value={h.qtd} hint={h.ultimo ? `último em ${dataBR(h.ultimo)}` : 'nenhum realizado'} />
               {!cliente && <Stat label="Ainda a pagar" value={formatBRL(h.emAberto)} hint={`${h.parcelasAbertas} parcela(s) em aberto`} tone={h.emAberto ? 'danger' : undefined} />}
+              {cliente && <Stat label="A receber" value={formatBRL(h.aReceber)} hint={h.vencidoAReceber ? `${formatBRL(h.vencidoAReceber)} atrasado` : `${h.parcelasAReceber} parcela(s) em aberto`} tone={h.vencidoAReceber ? 'danger' : undefined} />}
               {cliente && <Stat label="Média por mês com venda" value={formatBRL(h.porMes.filter(v => v > 0).length ? total / h.porMes.filter(v => v > 0).length : 0)} />}
             </div>
             {total > 0 && (
@@ -60,9 +61,9 @@ export function HistoricoContraparte({ registro }: { registro: Registro2 }) {
                     <div className="item" key={l.id}>
                       <div className="item-main">
                         <b>{l.descricao}</b>
-                        <small>{dataBR(l.data)}{l.categoria ? ` · ${l.categoria}` : ''}{l.tipo === 'programada' ? ` · ${l.parcelas}x de ${formatBRL(l.valorParcela ?? 0)}${l.cartaoId ? ' no cartão' : `, ${l.parcelasPagas} paga(s)`}` : ''}</small>
+                        <small>{dataBR(l.data)}{l.categoria ? ` · ${l.categoria}` : ''}{l.tipo === 'programada' || l.tipo === 'receber' ? ` · ${l.parcelas}x de ${formatBRL(l.valorParcela ?? 0)}${l.cartaoId ? ' no cartão' : `, ${l.parcelasPagas} ${l.tipo === 'receber' ? 'recebida(s)' : 'paga(s)'}`}` : ''}</small>
                       </div>
-                      {l.tipo === 'programada' ? <Badge tone="info">{formatBRL(l.valor)}</Badge>
+                      {l.tipo === 'programada' || l.tipo === 'receber' ? <Badge tone={l.tipo === 'receber' ? 'ok' : 'info'}>{formatBRL(l.valor)}</Badge>
                         : <b className={l.tipo === 'entrada' ? 'valor-pos' : 'tnum'}>{l.tipo === 'entrada' ? '+' : '−'} {formatBRL(l.valor)}</b>}
                     </div>
                   ))}

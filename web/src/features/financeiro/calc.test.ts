@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DreCategoria, FinDados, FinLancamento } from '../../api/types';
 import { calcularDre, pendencias } from '../dre/calc';
 import {
-  addMeses, compromissos, historicoContraparte, porContraparte, faturasAbertas, fluxoMes, parcelasEmAberto, realizadoMes, saldoConta, saldoTotal, totalGuardado, vencimentoParcela,
+  addMeses, compromissos, historicoContraparte, porContraparte, recebimentos, faturasAbertas, fluxoMes, parcelasEmAberto, realizadoMes, saldoConta, saldoTotal, totalGuardado, vencimentoParcela,
 } from './calc';
 
 const L = (o: Partial<FinLancamento>): FinLancamento => ({
@@ -131,5 +131,18 @@ describe('ficha do cliente/fornecedor', () => {
     expect(h.porMes[10]).toBe(600);
     expect([h.emAberto, h.parcelasAbertas]).toEqual([4200, 2]);
     expect(h.doAno.map(l => l.data)).toEqual(['2026-11-06', '2026-10-15', '2026-03-04']);
+  });
+});
+
+describe('contas a receber', () => {
+  it('lista parcelas em aberto, fora do saldo e do fluxo até serem recebidas', () => {
+    const rec = L({ id: 'r1', tipo: 'receber', data: '2026-11-05', valor: 3000, parcelas: 3, valorParcela: 1000, diaVencimento: 10, parcelasPagas: 1, contaId: 'cc', contraparte: 'Loja A' });
+    const d = base([rec, L({ tipo: 'entrada', data: '2026-11-10', valor: 1000, contaId: 'cc', origemId: 'r1', contraparte: 'Loja A' })]);
+    expect(recebimentos(d).map(p => [p.numero, p.data, p.valor])).toEqual([[2, '2026-12-10', 1000], [3, '2027-01-10', 1000]]);
+    expect(saldoConta(d, 'cc')).toBe(2000);          // 1000 inicial + 1000 recebidos; o resto ainda não entrou
+    expect(fluxoMes(d, '2026-11')).toEqual({ entradas: 1000, saidas: 0 });
+    expect(compromissos(d, () => '')).toEqual([]);    // a receber não aparece nas contas a pagar
+    const h = historicoContraparte(d.lancamentos, '2026', '2026-12-20');
+    expect([h.recebido, h.aReceber, h.parcelasAReceber, h.vencidoAReceber]).toEqual([1000, 2000, 2, 1000]);
   });
 });

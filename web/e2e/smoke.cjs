@@ -245,6 +245,25 @@ const shot = async (page, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursiv
     ok(true, 'paga parcela/fatura');
   }
   await shot(page, '14-financeiro-apagar');
+  // contas a receber: venda a prazo em 2x e recebimento da 1ª parcela
+  await page.locator('.page-head').getByRole('button', { name: 'Lançar', exact: true }).click();
+  const dr = page.locator('dialog[open]');
+  await dr.getByRole('radio', { name: /A receber/ }).click();
+  await dr.getByLabel('Valor total (R$)').fill('2000,00');
+  await dr.getByLabel('Descrição').fill('Venda a prazo e2e');
+  await dr.getByLabel('Cliente (opcional)').selectOption({ label: /Boutique Aurora/.test(await dr.getByLabel('Cliente (opcional)').innerText()) ? 'Boutique Aurora' : 'Loja Centro Modas · 12.345.678/0001-90' });
+  await dr.getByLabel('Parcelas').fill('2');
+  await dr.getByLabel('Dia do vencimento').fill('10');
+  await dr.getByRole('button', { name: 'Salvar' }).click();
+  await page.getByText('Lançamento salvo.').waitFor();
+  await page.getByRole('tablist', { name: 'Seções do financeiro' }).getByRole('tab', { name: 'A receber' }).click();
+  ok(await until(() => page.getByText(/Venda a prazo e2e · parcela 1\/2/).first().isVisible()), 'a receber lista a parcela 1/2');
+  ok(await page.getByText('Clientes com parcela atrasada:').isVisible(), 'a receber avisa quem está atrasado');
+  await page.locator('.item', { hasText: 'Venda a prazo e2e · parcela 1/2' }).getByRole('button', { name: 'Receber' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Confirmar recebimento' }).click();
+  await page.getByText('Recebimento registrado.').waitFor();
+  ok(await until(async () => (await page.getByText(/Venda a prazo e2e · parcela 1\/2/).count()) === 0) && await page.getByText(/Venda a prazo e2e · parcela 2\/2/).first().isVisible(), 'recebe a parcela e sobra a 2/2');
+  await shot(page, '14a-a-receber');
   // ficha do fornecedor em Cadastros: histórico do Financeiro
   await page.locator('.sidebar').getByRole('link', { name: 'Cadastros' }).click();
   await page.getByRole('tab', { name: 'Fornecedores' }).click();

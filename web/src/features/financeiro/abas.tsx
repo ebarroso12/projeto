@@ -8,7 +8,7 @@ import { Dialog } from '../../ui/Dialog';
 import { SelectField, TextAreaField, TextField } from '../../ui/Field';
 import { Icon } from '../../ui/Icon';
 import { Badge, Banner, Card, EmptyState, Progress, Stat } from '../../ui/primitives';
-import { arred, compromissos, faturasAbertas, realizadoMes, saldoConta, saldoMeta, type Compromisso } from './calc';
+import { arred, compromissos, faturasAbertas, realizadoMes, recebimentos, saldoConta, saldoMeta, type Compromisso, type Parcela } from './calc';
 import { parseValor, valorTexto } from './LancamentoForm';
 import { FIN_KEY, nomeCartao, useFin } from './shared';
 
@@ -100,6 +100,85 @@ export function APagarTab() {
         )}
       </Card>
       {pagando && <PagarDialog item={pagando} onClose={() => setPagando(null)} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- A receber
+function ReceberDialog({ parcela, onClose }: { parcela: Parcela; onClose: () => void }) {
+  const api = useApi();
+  const d = useFin();
+  const contas = useContasOpcoes();
+  const [data, setData] = useState(d.hoje);
+  const [valor, setValor] = useState(valorTexto(parcela.valor));
+  const [conta, setConta] = useState(parcela.lanc.contaId ?? contas[0]?.value ?? '');
+  const [erro, setErro] = useState('');
+  const receber = useAction(() => api.finReceberParcela(parcela.lanc.id, data, parseValor(valor), conta || null),
+    { success: 'Recebimento registrado.', invalidate: [FIN_KEY], onSuccess: onClose });
+  const submit = () => {
+    if (!(parseValor(valor) > 0)) return setErro('Informe o valor recebido.');
+    if (!conta) return setErro('Escolha a conta onde o dinheiro entrou.');
+    setErro('');
+    receber.mutate();
+  };
+  return (
+    <Dialog open onClose={onClose} title="Receber parcela"
+      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={receber.isPending} onClick={submit}>Confirmar recebimento</Button></>}>
+      <p style={{ margin: 0 }}><b>{parcela.lanc.descricao} · {parcela.numero}/{parcela.total}</b><br />
+        <span className="muted">{parcela.lanc.contraparte ? `${parcela.lanc.contraparte} · ` : ''}vence em {dataCompleta(parcela.data)}</span></p>
+      <div className="form-grid">
+        <TextField label="Data do recebimento" type="date" value={data} onChange={e => setData(e.target.value)} />
+        <TextField label="Valor recebido (R$)" inputMode="decimal" value={valor} onChange={e => setValor(e.target.value)} />
+      </div>
+      <SelectField label="Entrou na conta" value={conta} onChange={e => setConta(e.target.value)} options={contas} placeholder="Escolha" />
+      <Erro msg={erro} />
+    </Dialog>
+  );
+}
+
+export function AReceberTab() {
+  const d = useFin();
+  const [recebendo, setRecebendo] = useState<Parcela | null>(null);
+  const lista = recebimentos(d);
+  const vencidos = lista.filter(p => p.data < d.hoje);
+  const em30 = lista.filter(p => p.data >= d.hoje && p.data <= isoDay(new Date(Date.now() + 30 * 864e5)));
+  const soma = (l: Parcela[]) => arred(l.reduce((s, p) => s + p.valor, 0));
+  // quem está devendo (parcelas vencidas por cliente)
+  const devedores = new Map<string, number>();
+  for (const p of vencidos) { const k = p.lanc.contraparte || 'Sem cliente'; devedores.set(k, arred((devedores.get(k) ?? 0) + p.valor)); }
+
+  return (
+    <div className="stack">
+      <div className="grid-kpi">
+        <Stat label="Atrasado" value={formatBRL(soma(vencidos))} hint={`${vencidos.length} parcela(s)`} tone={vencidos.length ? 'danger' : undefined} />
+        <Stat label="Próximos 30 dias" value={formatBRL(soma(em30))} hint={`${em30.length} parcela(s)`} />
+        <Stat label="Total a receber" value={formatBRL(soma(lista))} hint="vendas a prazo em aberto" tone={lista.length ? 'ok' : undefined} />
+      </div>
+      {devedores.size > 0 && (
+        <Banner tone="danger">
+          <b>Clientes com parcela atrasada:</b> {[...devedores.entries()].sort((a, b) => b[1] - a[1]).map(([nome, v]) => `${nome} (${formatBRL(v)})`).join(' · ')}
+        </Banner>
+      )}
+      <Card title="Contas a receber" subtitle="Vendas a prazo. Ao receber, a parcela vira uma entrada na conta." flush>
+        {lista.length === 0 ? <EmptyState title="Nada a receber">Lance uma venda a prazo em Lançar → A receber.</EmptyState> : (
+          <div className="list">
+            {lista.map(p => {
+              const atrasado = p.data < d.hoje;
+              return (
+                <div className="item" key={`${p.lanc.id}-${p.numero}`}>
+                  <div className="item-main">
+                    <b>{p.lanc.contraparte || p.lanc.descricao}</b>
+                    <small>{p.lanc.contraparte ? `${p.lanc.descricao} · ` : ''}parcela {p.numero}/{p.total} · vence {dataCompleta(p.data)} {atrasado && <Badge tone="danger">Atrasada</Badge>}</small>
+                  </div>
+                  <b className="tnum valor-pos">{formatBRL(p.valor)}</b>
+                  <Button size="sm" variant={atrasado ? 'primary' : 'secondary'} onClick={() => setRecebendo(p)}>Receber</Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+      {recebendo && <ReceberDialog parcela={recebendo} onClose={() => setRecebendo(null)} />}
     </div>
   );
 }
